@@ -28,4 +28,4 @@ Risky fixtures intentionally produce nonzero CLI exit codes. A release-profile s
 
 Use a focused branch and explain the behavior change, regression fixtures, commands run, expected scanner exit codes, and security or compatibility risks. Add a synthetic fixture and test for every new detection class. Keep refactors separate from behavior changes where practical.
 
-The project has not selected a software license. Contributions cannot be accepted for public distribution until maintainers resolve that release blocker and document contributor terms.
+By submitting a contribution, you agree that it is licensed under the GNU Affero General Public License version 3 only (`AGPL-3.0-only`), the same license as the project. You confirm that you have the right to submit the contribution under those terms.

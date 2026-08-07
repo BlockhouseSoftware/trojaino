@@ -106,3 +106,9 @@ AI Shield v0.1 is an alpha deterministic scanner:
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+## License
+
+Copyright © 2026 Blockhouse Software.
+
+AI Shield is licensed under the [GNU Affero General Public License version 3](LICENSE) only (`AGPL-3.0-only`).
