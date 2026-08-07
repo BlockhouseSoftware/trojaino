@@ -4,6 +4,7 @@ from .docker import scan_docker
 from .mcp import scan_mcp
 from .node_routes import scan_node_routes
 from .package_json import scan_package_json
+from .python_app import scan_python_app
 from .secrets import scan_secrets
 
 RULES = [
@@ -14,4 +15,5 @@ RULES = [
     scan_agent_files,
     scan_mcp,
     scan_node_routes,
+    scan_python_app,
 ]
