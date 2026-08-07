@@ -1,4 +1,4 @@
-# AI Shield v0.1
+# AI Shield v0.1.0
 
 AI Shield is a local deterministic trust scanner for AI-built and downloaded software. The first version focuses on Node/TypeScript projects, MCP/tooling repos, Docker configs, and agent instruction files.
 
@@ -35,7 +35,15 @@ python3 -m pip install -e .
 aishield scan ./tests/fixtures/clean-project
 ```
 
-If AI Shield is packaged later, `pipx install ai-shield` should become the easiest isolated install path. For now, prefer the direct checkout or editable install above.
+### Distribution
+
+AI Shield v0.1.0 is distributed as source through this repository and its GitHub Releases page. No AI Shield package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
+
+For a reproducible source checkout after the first release is published:
+
+```bash
+git checkout v0.1.0
+```
 
 ## Run locally
 
