@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">AI Shield social preview</title>
+  <desc id="desc">AI Shield wordmark beside a geometric shield and evidence scan visualization.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071116"/>
+      <stop offset="0.55" stop-color="#0b1820"/>
+      <stop offset="1" stop-color="#0f242b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="78%" cy="50%" r="48%">
+      <stop offset="0" stop-color="#28d7c0" stop-opacity="0.18"/>
+      <stop offset="0.55" stop-color="#12a8b5" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#071116" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#73f0d4"/>
+      <stop offset="0.48" stop-color="#29d3c3"/>
+      <stop offset="1" stop-color="#2da7d7"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#72f1d3" stop-opacity="0"/>
+      <stop offset="0.52" stop-color="#72f1d3" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#2da7d7" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#9fc9c7" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="640" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="640" rx="28" fill="url(#grid)"/>
+  <rect width="1280" height="640" rx="28" fill="url(#glow)"/>
+  <path d="M0 522C242 460 430 520 636 488C852 454 995 330 1280 350V640H0Z" fill="#17313a" opacity="0.18"/>
+
+  <g transform="translate(88 116)">
+    <rect x="0" y="0" width="66" height="8" rx="4" fill="url(#accent)"/>
+    <text x="0" y="108" fill="#f4f5ed" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="82" font-weight="760" letter-spacing="-3">AI SHIELD</text>
+    <text x="2" y="164" fill="#b8c9c8" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" font-weight="460" letter-spacing="0.2">Trust scanner for AI-built software.</text>
+    <text x="2" y="204" fill="#b8c9c8" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" font-weight="460" letter-spacing="0.2">Evidence before execution.</text>
+
+    <g transform="translate(0 266)" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="650" letter-spacing="1.4">
+      <rect width="104" height="42" rx="21" fill="#10272d" stroke="#3bd7c5" stroke-opacity="0.34"/>
+      <text x="52" y="27" text-anchor="middle" fill="#79e8d3">LOCAL</text>
+      <rect x="120" width="174" height="42" rx="21" fill="#10272d" stroke="#3bd7c5" stroke-opacity="0.34"/>
+      <text x="207" y="27" text-anchor="middle" fill="#79e8d3">DETERMINISTIC</text>
+      <rect x="310" width="194" height="42" rx="21" fill="#10272d" stroke="#3bd7c5" stroke-opacity="0.34"/>
+      <text x="407" y="27" text-anchor="middle" fill="#79e8d3">EVIDENCE-FIRST</text>
+    </g>
+
+    <g transform="translate(0 348)" fill="#879d9d" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="15">
+      <text x="0" y="0">DO NOT RUN</text>
+      <circle cx="130" cy="-5" r="2.5" fill="#536b6d"/>
+      <text x="151" y="0">CAUTION</text>
+      <circle cx="245" cy="-5" r="2.5" fill="#536b6d"/>
+      <text x="266" y="0">NO CRITICAL RISKS FOUND</text>
+    </g>
+  </g>
+
+  <g transform="translate(790 74)">
+    <ellipse cx="205" cy="260" rx="224" ry="224" fill="#1dcdbd" opacity="0.08" filter="url(#softGlow)"/>
+
+    <g opacity="0.46" stroke="#77d9d0" fill="#0c1b22">
+      <rect x="-14" y="116" width="155" height="236" rx="15" stroke-opacity="0.16"/>
+      <path d="M12 151H112M12 177H91M12 203H120M12 255H105M12 281H78M12 307H116" stroke-opacity="0.24" stroke-width="5" stroke-linecap="round"/>
+      <rect x="270" y="136" width="150" height="216" rx="15" stroke-opacity="0.16"/>
+      <path d="M295 170H392M295 196H370M295 248H386M295 274H354M295 300H393" stroke-opacity="0.24" stroke-width="5" stroke-linecap="round"/>
+    </g>
+
+    <path d="M203 42L345 99V230C345 338 288 424 203 468C118 424 61 338 61 230V99L203 42Z" fill="#0b1c23" stroke="url(#accent)" stroke-width="7"/>
+    <path d="M203 77L311 120V228C311 310 270 375 203 414C136 375 95 310 95 228V120L203 77Z" fill="#10272d" stroke="#5adbcf" stroke-opacity="0.25" stroke-width="2"/>
+
+    <g fill="none" stroke="url(#accent)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M165 183L132 216L165 249"/>
+      <path d="M241 183L274 216L241 249"/>
+      <path d="M218 164L188 268" stroke-width="8" opacity="0.9"/>
+    </g>
+
+    <rect x="25" y="289" width="356" height="4" rx="2" fill="url(#beam)"/>
+    <rect x="68" y="277" width="270" height="28" rx="14" fill="#55ead5" opacity="0.12" filter="url(#softGlow)"/>
+    <circle cx="203" cy="291" r="7" fill="#87f4df"/>
+
+    <g transform="translate(117 326)">
+      <rect width="172" height="58" rx="14" fill="#0a181e" stroke="#4ce1cf" stroke-opacity="0.32"/>
+      <circle cx="27" cy="29" r="8" fill="#42d5c3"/>
+      <path d="M23 29L26 32L32 25" fill="none" stroke="#071116" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="49" y="35" fill="#d9e8e5" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="15" font-weight="600">EVIDENCE FOUND</text>
+    </g>
+  </g>
+
+  <rect x="1" y="1" width="1278" height="638" rx="27" fill="none" stroke="#8ee7db" stroke-opacity="0.10" stroke-width="2"/>
+</svg>
