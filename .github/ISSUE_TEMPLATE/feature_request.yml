@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a deterministic scanner improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What review or trust-scanning problem should be addressed?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed deterministic behavior
+      description: Describe inputs, evidence, disposition, verdict effect, and expected exit code.
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Synthetic fixture and acceptance criteria
+      description: Do not include live secrets, private source, or third-party findings.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and false-positive risks

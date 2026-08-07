@@ -1,0 +1,47 @@
+name: Bug report
+description: Report reproducible scanner or CLI behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include secrets, private source, or unredacted third-party findings. Use the private security-reporting path for vulnerabilities.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Include the expected verdict or rule behavior without claiming software is safe.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Use only synthetic, inert fixture values and include the exact command and exit code.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Python and operating system
+    validations:
+      required: true
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Data hygiene
+      options:
+        - label: I removed secrets, private source, and identifying third-party findings.
+          required: true

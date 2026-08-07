@@ -1,0 +1,12 @@
+{
+  "name": "permissive-cors-node-app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "cors": "latest",
+    "express": "latest"
+  },
+  "scripts": {
+    "start": "node src/server.ts"
+  }
+}

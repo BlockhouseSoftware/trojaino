@@ -1,0 +1,9 @@
+services:
+  app:
+    image: node:24
+    privileged: true
+    ports:
+      - "0.0.0.0:5432:5432"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/:/host-home

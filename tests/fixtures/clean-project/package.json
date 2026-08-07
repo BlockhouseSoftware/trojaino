@@ -1,0 +1,9 @@
+{
+  "name": "clean-project",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/index.js"
+  }
+}

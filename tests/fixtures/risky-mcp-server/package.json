@@ -1,0 +1,8 @@
+{
+  "name": "risky-mcp-server",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  }
+}

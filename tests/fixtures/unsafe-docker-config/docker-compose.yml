@@ -1,0 +1,12 @@
+services:
+  worker:
+    image: node:22
+    privileged: true
+    working_dir: /workspace
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.ssh:/root/.ssh:ro
+      - ./:/workspace
+    ports:
+      - "0.0.0.0:2375:2375"
+      - "5432:5432"
