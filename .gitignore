@@ -13,4 +13,5 @@ build/
 .env
 .env.*
 !.env.example
+!tests/fixtures/**/.env
 reports/
