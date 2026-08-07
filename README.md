@@ -1,6 +1,6 @@
-# AI Shield v0.1.0
+# AI Shield v0.1.1
 
-AI Shield is a local deterministic trust scanner for AI-built and downloaded software. The first version focuses on Node/TypeScript projects, MCP/tooling repos, Docker configs, and agent instruction files.
+AI Shield is a local deterministic trust scanner for AI-built and downloaded software. The first version focuses on Node/TypeScript and Python projects, MCP/tooling repos, Docker configs, and agent instruction files.
 
 It is intentionally not a generic "ask an LLM to review this repo" wrapper. v0.1 runs repeatable rule packs and produces evidence-first findings with a conservative verdict:
 
@@ -99,6 +99,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 - Agent instruction risks in `AGENTS.md`, `CLAUDE.md`, Cursor/Windsurf rules, and prompt-like markdown files
 - MCP/tool risk patterns: filesystem/shell/environment access, credential paths, undeclared outbound endpoints
 - Node route heuristics for unauthenticated destructive endpoints and dangerous shell/eval/file operations
+- Python app heuristics for dangerous execution, unsafe deserialization, debug/CORS exposure, destructive routes, and user-input-to-sensitive-sink review signals
 
 ## Limitations
 
@@ -106,7 +107,8 @@ AI Shield v0.1 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.
-- It is strongest today on Node/TypeScript apps, package scripts, MCP/tooling code, Docker/self-hosted config, and agent instruction files.
+- It is strongest today on Node/TypeScript and Python apps, package scripts, MCP/tooling code, Docker/self-hosted config, and agent instruction files.
+- Python support is heuristic and stdlib-only. It catches common AI-generated Flask/FastAPI/script risks, but it is not comprehensive Python SAST.
 - Findings are evidence-first heuristics. Treat `DO NOT RUN` as a stop-and-review signal, not as an automated fix plan.
 
 ## Test
