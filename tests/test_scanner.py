@@ -214,6 +214,76 @@ class ScannerTests(unittest.TestCase):
         self.assertIn("NODE_EVAL", ids)
         self.assertIn("NODE_FILE_DELETE", ids)
 
+    def test_python_execution_deserialization_and_config_rule_ids_are_covered(self):
+        project = self.make_project({
+            "app.py": "\n".join([
+                "import os, pickle, subprocess, yaml",
+                "from flask import Flask",
+                "from flask_cors import CORS",
+                "app = Flask(__name__)",
+                "CORS(app)",
+                "DEBUG = True",
+                "def run_it(cmd, blob, raw):",
+                "    eval(raw)",
+                "    exec(raw)",
+                "    os.system(cmd)",
+                "    subprocess.run(cmd, shell=True)",
+                "    pickle.loads(blob)",
+                "    yaml.load(raw)",
+                "if __name__ == '__main__':",
+                "    app.run(debug=True)",
+            ]),
+        })
+        ids = self.finding_ids(project)
+        self.assertIn("PY_EVAL_EXEC", ids)
+        self.assertIn("PY_OS_SYSTEM", ids)
+        self.assertIn("PY_SUBPROCESS_SHELL_TRUE", ids)
+        self.assertIn("PY_PICKLE_DESERIALIZATION", ids)
+        self.assertIn("PY_YAML_UNSAFE_LOAD", ids)
+        self.assertIn("PY_DEBUG_MODE_ENABLED", ids)
+        self.assertIn("PY_PERMISSIVE_CORS", ids)
+
+    def test_python_web_routes_and_user_input_sink_are_flagged(self):
+        project = self.make_project({
+            "server.py": "\n".join([
+                "import requests",
+                "from pathlib import Path",
+                "from flask import Flask, request, send_file",
+                "app = Flask(__name__)",
+                "@app.route('/admin/delete-user', methods=['POST'])",
+                "def delete_user():",
+                "    path = request.args.get('path')",
+                "    return send_file(Path(path))",
+                "@app.delete('/admin/reset')",
+                "def reset_all():",
+                "    return 'ok'",
+            ]),
+        })
+        result = scan_path(project)
+        ids = {finding.id for finding in result.findings}
+        self.assertIn("PY_UNAUTH_DESTRUCTIVE_ROUTE", ids)
+        self.assertIn("PY_USER_INPUT_TO_SENSITIVE_SINK", ids)
+        self.assertEqual(result.verdict, "DO NOT RUN")
+
+    def test_python_safe_yaml_loader_and_authenticated_route_are_not_flagged(self):
+        project = self.make_project({
+            "app.py": "\n".join([
+                "import yaml",
+                "from flask import Flask",
+                "from flask_login import login_required",
+                "app = Flask(__name__)",
+                "@app.route('/admin/delete-user', methods=['POST'])",
+                "@login_required",
+                "def delete_user():",
+                "    return 'ok'",
+                "def parse(raw):",
+                "    return yaml.safe_load(raw), yaml.load(raw, Loader=yaml.SafeLoader)",
+            ]),
+        })
+        ids = self.finding_ids(project)
+        self.assertNotIn("PY_UNAUTH_DESTRUCTIVE_ROUTE", ids)
+        self.assertNotIn("PY_YAML_UNSAFE_LOAD", ids)
+
     def test_safe_temp_upload_cleanup_is_not_reported_as_file_deletion(self):
         fixture = Path(__file__).parent / "fixtures" / "safe-node-context" / "src" / "upload-cleanup.ts"
         result = scan_path(fixture)
@@ -269,6 +339,7 @@ class ScannerTests(unittest.TestCase):
             "poisoned-agent-file": ("DO NOT RUN", {"AGENT_IGNORE_SAFETY", "AGENT_SECRET_EXFIL"}),
             "risky-mcp-server": ("DO NOT RUN", {"MCP_SHELL_TOOL", "MCP_FILESYSTEM_TOOL", "MCP_CREDENTIAL_ACCESS", "MCP_OUTBOUND_ENDPOINT"}),
             "unsafe-docker-config": ("DO NOT RUN", {"DOCKER_PRIVILEGED_CONTAINER", "DOCKER_SOCKET_MOUNT", "DOCKER_HOME_MOUNT", "DOCKER_ADMIN_PORT_EXPOSED"}),
+            "risky-python-app": ("DO NOT RUN", {"PY_EVAL_EXEC", "PY_SUBPROCESS_SHELL_TRUE", "PY_PICKLE_DESERIALIZATION", "PY_YAML_UNSAFE_LOAD", "PY_PERMISSIVE_CORS", "PY_UNAUTH_DESTRUCTIVE_ROUTE"}),
             "clean-project": ("NO CRITICAL RISKS FOUND", set()),
         }
         for name, (verdict, expected_ids) in cases.items():
