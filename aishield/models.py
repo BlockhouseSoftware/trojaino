@@ -63,6 +63,30 @@ class CapabilityEvidence:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class ScanIssue:
+    """Machine-readable reason that a scan could not establish full coverage."""
+
+    code: str
+    message: str
+    file: str | None = None
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class SkippedFile:
+    """A selected file that was deliberately not decoded or scanned."""
+
+    file: str
+    status: str
+    detail: str
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
 def classify_context(file: str) -> FindingContext:
     """Classify a scanned path without changing a rule's security judgment."""
     path = PurePosixPath(file.replace("\\", "/"))
@@ -124,6 +148,9 @@ class ScanResult:
     profile: str = "default"
     unreadable_files: int = 0
     capabilities: list[CapabilityEvidence] | None = None
+    complete: bool = True
+    issues: list[ScanIssue] | None = None
+    skipped_files: list[SkippedFile] | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -132,6 +159,10 @@ class ScanResult:
             "verdict": self.verdict,
             "files_scanned": self.files_scanned,
             "unreadable_files": self.unreadable_files,
+            "complete": self.complete,
+            "status": "complete" if self.complete else "incomplete",
+            "issues": [issue.to_dict() for issue in self.issues or []],
+            "skipped_files": [skipped.to_dict() for skipped in self.skipped_files or []],
             "findings": [finding.to_dict() for finding in self.findings],
             "capabilities": [capability.to_dict() for capability in self.capabilities or []],
         }

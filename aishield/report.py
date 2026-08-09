@@ -2,25 +2,61 @@ from __future__ import annotations
 
 import html
 import json
+import unicodedata
 from aishield.models import ScanResult
+
+
+_BIDI_CONTROLS = {
+    "\u061c", "\u200e", "\u200f", "\u202a", "\u202b", "\u202c", "\u202d", "\u202e",
+    "\u2066", "\u2067", "\u2068", "\u2069",
+}
+
+
+def sanitize_human(value: object) -> str:
+    """Make untrusted fields single-line and inert in terminals/browsers."""
+    output = []
+    for char in str(value):
+        code = ord(char)
+        if char in {"\r", "\n", "\t"}:
+            output.append(" ")
+        elif char in {"\u2028", "\u2029"}:
+            output.append(f"\\u{code:04x}")
+        elif char in _BIDI_CONTROLS or code < 32 or 0x7F <= code <= 0x9F or unicodedata.category(char) == "Cf":
+            output.append(f"\\u{code:04x}")
+        else:
+            output.append(char)
+    return "".join(output)
+
+
+def _html(value: object) -> str:
+    return html.escape(sanitize_human(value))
 
 
 def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
     lines = [
         "AI Shield v0.1",
         "",
-        f"Target: {result.target}",
-        f"Profile: {result.profile}",
+        f"Target: {sanitize_human(result.target)}",
+        f"Profile: {sanitize_human(result.profile)}",
         f"Verdict: {result.verdict}",
         f"Coverage: {result.files_scanned} files scanned · {result.unreadable_files} unreadable",
         "",
     ]
+    if not result.complete:
+        lines.append("INCOMPLETE SCAN: coverage limits or input errors prevented a clean assessment.")
+        for issue in result.issues or []:
+            location = f" ({sanitize_human(issue.file)})" if issue.file else ""
+            lines.append(f"- {sanitize_human(issue.code)}{location}: {sanitize_human(issue.message)}")
+        lines.append("")
     if result.capabilities:
         lines.append("Detected runtime capabilities (review signals, not verdict inputs):")
         for capability in result.capabilities:
             loc = capability.file if capability.line is None else f"{capability.file}:{capability.line}"
-            lines.append(f"- {capability.title}: {loc} ({capability.rule})")
+            lines.append(f"- {sanitize_human(capability.title)}: {sanitize_human(loc)} ({sanitize_human(capability.rule)})")
         lines.append("")
+    if not result.findings and not result.complete:
+        lines.append("No risk-free conclusion is available because the scan is incomplete.")
+        return "\n".join(lines)
     if not result.findings:
         lines.extend([
             "No critical risks found by deterministic v0.1 rules.",
@@ -33,12 +69,12 @@ def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
     for index, finding in enumerate(shown_findings, start=1):
         loc = finding.file if finding.line is None else f"{finding.file}:{finding.line}"
         lines.extend([
-            f"{index}. [{finding.severity.upper()} / {finding.confidence} confidence / {finding.disposition}] {finding.title}",
-            f"   {loc}",
-            f"   Context: {finding.context}",
-            f"   Evidence: {finding.evidence}",
-            f"   Why: {finding.why_it_matters}",
-            f"   Fix: {finding.recommendation}",
+            f"{index}. [{finding.severity.upper()} / {finding.confidence} confidence / {finding.disposition}] {sanitize_human(finding.title)}",
+            f"   {sanitize_human(loc)}",
+            f"   Context: {sanitize_human(finding.context)}",
+            f"   Evidence: {sanitize_human(finding.evidence)}",
+            f"   Why: {sanitize_human(finding.why_it_matters)}",
+            f"   Fix: {sanitize_human(finding.recommendation)}",
             "",
         ])
     if max_findings is not None and len(result.findings) > max_findings:
@@ -54,7 +90,7 @@ def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
 
 
 def render_json(result: ScanResult) -> str:
-    return json.dumps(result.to_dict(), indent=2, sort_keys=True)
+    return json.dumps(result.to_dict(), indent=2, sort_keys=True, ensure_ascii=True)
 
 
 def _severity_counts(result: ScanResult) -> dict[str, int]:
@@ -74,9 +110,9 @@ def render_html(result: ScanResult) -> str:
     }[result.verdict]
     summary_cards = "\n".join(
         f"""
-        <div class="summary-card severity-{html.escape(severity)}">
+        <div class="summary-card severity-{_html(severity)}">
           <span class="count">{count}</span>
-          <span>{html.escape(severity.title())}</span>
+          <span>{_html(severity.title())}</span>
         </div>"""
         for severity, count in counts.items()
     )
@@ -84,18 +120,35 @@ def render_html(result: ScanResult) -> str:
     for finding in result.findings:
         loc = finding.file if finding.line is None else f"{finding.file}:{finding.line}"
         rows.append(f"""
-        <article class="finding severity-{html.escape(finding.severity)} disposition-{html.escape(finding.disposition)}">
-          <div class="finding-kicker">{html.escape(finding.severity)} risk · {html.escape(finding.confidence)} confidence</div>
-          <h2>{html.escape(finding.title)}</h2>
-          <p class="meta">{html.escape(loc)}</p>
-          <p class="labels"><span>{html.escape(finding.disposition.replace("_", " "))}</span><span>Context: {html.escape(finding.context.replace("_", " "))}</span></p>
-          <div class="finding-detail"><strong>Evidence</strong><code>{html.escape(finding.evidence)}</code></div>
-          <p><strong>Why it matters</strong><br>{html.escape(finding.why_it_matters)}</p>
-          <p><strong>Recommended action</strong><br>{html.escape(finding.recommendation)}</p>
+        <article class="finding severity-{_html(finding.severity)} disposition-{_html(finding.disposition)}">
+          <div class="finding-kicker">{_html(finding.severity)} risk · {_html(finding.confidence)} confidence</div>
+          <h2>{_html(finding.title)}</h2>
+          <p class="meta">{_html(loc)}</p>
+          <p class="labels"><span>{_html(finding.disposition.replace("_", " "))}</span><span>Context: {_html(finding.context.replace("_", " "))}</span></p>
+          <div class="finding-detail"><strong>Evidence</strong><code>{_html(finding.evidence)}</code></div>
+          <p><strong>Why it matters</strong><br>{_html(finding.why_it_matters)}</p>
+          <p><strong>Recommended action</strong><br>{_html(finding.recommendation)}</p>
         </article>""")
-    body = "\n".join(rows) or '<section class="empty-state"><p class="eyebrow">Release signal</p><h2>No critical risks found</h2><p>No findings were produced by the deterministic v0.1 rules. This is useful evidence, not a safety certification.</p></section>'
+    if rows:
+        body = "\n".join(rows)
+    elif result.complete:
+        body = '<section class="empty-state"><p class="eyebrow">Release signal</p><h2>No critical risks found</h2><p>No findings were produced by the deterministic v0.1 rules. This is useful evidence, not a safety certification.</p></section>'
+    else:
+        body = '<section class="empty-state"><p class="eyebrow">Coverage warning</p><h2>Scan incomplete</h2><p>No risk-free conclusion is available because coverage limits or input errors prevented a complete scan.</p></section>'
+    incomplete_panel = ""
+    if not result.complete:
+        issue_rows = "".join(
+            f"<li><strong>{_html(issue.code)}</strong><span>{_html(issue.file or 'scan')}</span><p>{_html(issue.message)}</p></li>"
+            for issue in result.issues or []
+        )
+        incomplete_panel = f"""
+  <section aria-label="Incomplete scan details" class="section-card">
+    <p class="eyebrow">Coverage warning</p>
+    <h2>Incomplete scan — do not treat this as a clean result.</h2>
+    <ul class="capability-list">{issue_rows}</ul>
+  </section>"""
     capability_rows = "\n".join(
-        f"<li><strong>{html.escape(capability.title)}</strong><span>{html.escape(capability.file if capability.line is None else f'{capability.file}:{capability.line}')} · <code>{html.escape(capability.rule)}</code></span><code>{html.escape(capability.evidence)}</code></li>"
+        f"<li><strong>{_html(capability.title)}</strong><span>{_html(capability.file if capability.line is None else f'{capability.file}:{capability.line}')} · <code>{_html(capability.rule)}</code></span><code>{_html(capability.evidence)}</code></li>"
         for capability in result.capabilities or []
     ) or '<li class="empty-capability">No proven MCP runtime capabilities detected.</li>'
     return f"""<!doctype html>
@@ -169,14 +222,15 @@ def render_html(result: ScanResult) -> str:
     <div>
       <p class="eyebrow">Deterministic scan record</p>
       <h1>Clear evidence.<br>Better decisions.</h1>
-      <p class="target"><strong>Target:</strong> {html.escape(result.target)}<br><strong>Profile:</strong> {html.escape(result.profile)}</p>
+      <p class="target"><strong>Target:</strong> {_html(result.target)}<br><strong>Profile:</strong> {_html(result.profile)}</p>
     </div>
     <aside class="verdict-panel">
       <span class="verdict-label">Assessment</span>
-      <span class="verdict {verdict_class}">{html.escape(result.verdict)}</span>
-      <p class="coverage">{total_findings} findings · {result.files_scanned} files scanned · {result.unreadable_files} unreadable</p>
+      <span class="verdict {verdict_class}">{_html(result.verdict)}</span>
+      <p class="coverage">{_html('Complete' if result.complete else 'Incomplete')} · {total_findings} findings · {result.files_scanned} files scanned · {result.unreadable_files} unreadable</p>
     </aside>
   </header>
+  {incomplete_panel}
   <section aria-label="Finding summary" class="summary">{summary_cards}</section>
   <section class="section-card">
     <p class="eyebrow">How to read this</p>
