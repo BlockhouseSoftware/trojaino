@@ -1,4 +1,4 @@
-# AI Shield v0.1.0
+# AI Shield v0.1.1 (unreleased)
 
 AI Shield is a local deterministic trust scanner for AI-built and downloaded software. The first version focuses on Node/TypeScript projects, MCP/tooling repos, Docker configs, and agent instruction files.
 
