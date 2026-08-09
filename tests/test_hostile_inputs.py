@@ -170,7 +170,8 @@ class HostileInputTests(unittest.TestCase):
             raise ValueError("hostile rule input")
 
         from aishield import scanner
-        with patch.object(scanner, "RULES", [broken_rule, scanner.RULES[-1]]):
+        node_rule = next(rule for rule in scanner.RULES if rule.__name__ == "scan_node_routes")
+        with patch.object(scanner, "RULES", [broken_rule, node_rule]):
             result = scan_path(root)
         self.assertFalse(result.complete)
         self.assertIn("rule_failure", {issue.code for issue in result.issues})
