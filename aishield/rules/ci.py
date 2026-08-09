@@ -5,6 +5,7 @@ from pathlib import Path
 
 from aishield.file_utils import line_for_index
 from aishield.models import Finding, relpath
+from aishield.rules.budget import BudgetedList, RuleBudget
 
 
 CI_FILENAMES = {".gitlab-ci.yml", ".gitlab-ci.yaml", "azure-pipelines.yml", "azure-pipelines.yaml"}
@@ -17,9 +18,10 @@ def is_ci_or_deployment_path(path: Path) -> bool:
     return (".github" in parts and "workflows" in parts) or path.name.lower() in CI_FILENAMES
 
 
-def scan_ci(root: Path, files: list[Path], texts: dict[Path, str]) -> list[Finding]:
-    findings: list[Finding] = []
+def scan_ci(root: Path, files: list[Path], texts: dict[Path, str], budget: RuleBudget | None = None) -> list[Finding]:
+    findings: BudgetedList[Finding] = BudgetedList(budget)
     for path in files:
+        findings.checkpoint()
         if not is_ci_or_deployment_path(path):
             continue
         text = texts.get(path, "")

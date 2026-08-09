@@ -5,14 +5,16 @@ from pathlib import Path
 
 from aishield.file_utils import first_matching_line
 from aishield.models import Finding, relpath
+from aishield.rules.budget import BudgetedList, RuleBudget
 
 DOCKER_NAMES = {"Dockerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
 PORT_RE = re.compile(r"['\"]?(0\.0\.0\.0:)?(2375|2376|5432|6379|27017|3306|9200|15672|8080|8000):")
 
 
-def scan_docker(root: Path, files: list[Path], texts: dict[Path, str]) -> list[Finding]:
-    findings: list[Finding] = []
+def scan_docker(root: Path, files: list[Path], texts: dict[Path, str], budget: RuleBudget | None = None) -> list[Finding]:
+    findings: BudgetedList[Finding] = BudgetedList(budget)
     for path in files:
+        findings.checkpoint()
         if path.name not in DOCKER_NAMES:
             continue
         text = texts.get(path, "")

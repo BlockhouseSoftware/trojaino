@@ -5,6 +5,7 @@ from pathlib import Path
 
 from aishield.file_utils import line_for_index
 from aishield.models import Finding, relpath
+from aishield.rules.budget import BudgetedList, RuleBudget
 
 ROUTE_RE = re.compile(r"\b(app|router)\.(delete|post|put|patch|get)\s*\(\s*['\"]([^'\"]+)['\"]", re.I)
 AUTH_RE = re.compile(r"\b(requireAuth|isAuthenticated|authMiddleware|verifySession|requireAdmin|ensureAuth|authorize|protect)\b")
@@ -40,9 +41,10 @@ def is_node_file(path: Path) -> bool:
     return path.suffix.lower() in {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"}
 
 
-def scan_node_routes(root: Path, files: list[Path], texts: dict[Path, str]) -> list[Finding]:
-    findings: list[Finding] = []
+def scan_node_routes(root: Path, files: list[Path], texts: dict[Path, str], budget: RuleBudget | None = None) -> list[Finding]:
+    findings: BudgetedList[Finding] = BudgetedList(budget)
     for path in files:
+        findings.checkpoint()
         if not is_node_file(path):
             continue
         text = texts.get(path, "")

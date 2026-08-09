@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import ast
 import re
+import time
 from pathlib import Path
 
 from aishield.file_utils import line_for_index
 from aishield.models import CapabilityEvidence, Finding, relpath
 from aishield.rules.agent_files import is_agent_file
+from aishield.rules.budget import BudgetedList, RuleBudget, RuleBudgetExceeded
 from aishield.rules.ci import is_ci_or_deployment_path
 
 MCP_RUNTIME_RE = re.compile(
@@ -97,7 +99,12 @@ def looks_like_mcp(path: Path, text: str) -> bool:
     return has_mcp_runtime_signal(path, text)
 
 
-def collect_capabilities(root: Path, files: list[Path], texts: dict[Path, str]) -> list[CapabilityEvidence]:
+def collect_capabilities(
+    root: Path,
+    files: list[Path],
+    texts: dict[Path, str],
+    budget: RuleBudget | None = None,
+) -> list[CapabilityEvidence]:
     """Summarize proven MCP runtime capabilities without affecting verdicting."""
     checks = [
         ("shell_execution", "Shell execution", "MCP_SHELL_TOOL", SHELL_TOOL_RE),
@@ -106,8 +113,10 @@ def collect_capabilities(root: Path, files: list[Path], texts: dict[Path, str]) 
         ("outbound_network_access", "Outbound network access", "MCP_OUTBOUND_ENDPOINT", URL_RE),
         ("github_api_access", "GitHub/API access", "MCP_GITHUB_API_ACCESS", GITHUB_API_RE),
     ]
-    capabilities: list[CapabilityEvidence] = []
+    capabilities: BudgetedList[CapabilityEvidence] = BudgetedList(budget)
     for path in files:
+        if budget is not None and time.monotonic() >= budget.deadline:
+            raise RuleBudgetExceeded("elapsed_time_limit", list(capabilities))
         text = texts.get(path, "")
         if not looks_like_mcp(path, text) or is_agent_file(path):
             continue
@@ -121,9 +130,10 @@ def collect_capabilities(root: Path, files: list[Path], texts: dict[Path, str]) 
     return capabilities
 
 
-def scan_mcp(root: Path, files: list[Path], texts: dict[Path, str]) -> list[Finding]:
-    findings: list[Finding] = []
+def scan_mcp(root: Path, files: list[Path], texts: dict[Path, str], budget: RuleBudget | None = None) -> list[Finding]:
+    findings: BudgetedList[Finding] = BudgetedList(budget)
     for path in files:
+        findings.checkpoint()
         text = texts.get(path, "")
         if not looks_like_mcp(path, text):
             continue

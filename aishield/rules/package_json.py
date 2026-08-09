@@ -6,6 +6,7 @@ from pathlib import Path
 
 from aishield.file_utils import line_number
 from aishield.models import Finding, relpath
+from aishield.rules.budget import BudgetedList, RuleBudget
 
 LIFECYCLE_SCRIPTS = {"preinstall", "install", "postinstall", "prepare"}
 REMOTE_EXEC_RE = re.compile(r"\b(curl|wget)\b[^\n;&|]*(https?://[^\s'\"]+)[^\n]*(\|\s*(bash|sh)|-O\s*-)", re.I)
@@ -13,14 +14,16 @@ SHELL_EVAL_RE = re.compile(r"\b(node|python|perl|ruby)\s+-e\b|\beval\s*\(|\bbase
 CREDENTIAL_PATH_RE = re.compile(r"(~/(\.ssh|\.aws|\.config)|\$HOME/(\.ssh|\.aws|\.config)|/etc/passwd|\.env)", re.I)
 
 
-def scan_package_json(root: Path, files: list[Path], texts: dict[Path, str]) -> list[Finding]:
-    findings: list[Finding] = []
+def scan_package_json(root: Path, files: list[Path], texts: dict[Path, str], budget: RuleBudget | None = None) -> list[Finding]:
+    findings: BudgetedList[Finding] = BudgetedList(budget)
     for path in files:
+        findings.checkpoint()
         if path.name != "package.json":
             continue
         text = texts.get(path, "")
+        parse_text = text[1:] if text.startswith("\ufeff") else text
         try:
-            package = json.loads(text)
+            package = json.loads(parse_text)
         except json.JSONDecodeError:
             findings.append(Finding(
                 id="PKG_JSON_PARSE_ERROR",
@@ -34,10 +37,35 @@ def scan_package_json(root: Path, files: list[Path], texts: dict[Path, str]) -> 
                 recommendation="Fix package.json before installing or scanning further.",
             ))
             continue
-        scripts = package.get("scripts") or {}
+        if not isinstance(package, dict):
+            findings.append(Finding(
+                id="PKG_JSON_INVALID_TYPE",
+                severity="medium",
+                confidence="high",
+                title="package.json root must be an object",
+                file=relpath(path, root),
+                line=None,
+                evidence=f"JSON root type: {type(package).__name__}",
+                why_it_matters="Package tooling expects a JSON object; another root type can bypass manifest checks.",
+                recommendation="Replace the manifest root with a valid package object before installing.",
+            ))
+            continue
+        scripts = package.get("scripts", {})
         if not isinstance(scripts, dict):
+            findings.append(Finding(
+                id="PKG_JSON_INVALID_TYPE",
+                severity="medium",
+                confidence="high",
+                title="package.json scripts must be an object",
+                file=relpath(path, root),
+                line=line_number(text, '"scripts"'),
+                evidence=f"scripts type: {type(scripts).__name__}",
+                why_it_matters="A malformed scripts field cannot be reliably checked for install hooks.",
+                recommendation="Replace scripts with an object of script names and string commands.",
+            ))
             continue
         for name, command in scripts.items():
+            findings.checkpoint()
             if not isinstance(command, str):
                 continue
             script_evidence = f'"{name}": "{command}"'

@@ -5,10 +5,11 @@ from pathlib import Path
 
 from aishield.file_utils import line_for_index
 from aishield.models import Finding, relpath
+from aishield.rules.budget import BudgetedList, RuleBudget
 
 KEY_VALUE_RE = re.compile(
-    r"(?P<name>[A-Z0-9_]*(API_KEY|TOKEN|SECRET|PRIVATE_KEY|PASSWORD)[A-Z0-9_]*)"
-    r"\s*[:=]\s*(?P<quote>['\"]?)(?P<value>[A-Za-z0-9_./+=\-]{16,})(?P=quote)",
+    r"(?<![A-Z0-9_])(?P<name>[A-Z0-9_]{0,128}(API_KEY|TOKEN|SECRET|PRIVATE_KEY|PASSWORD)[A-Z0-9_]{0,128})"
+    r"\s{0,32}[:=]\s{0,32}(?P<quote>['\"]?)(?P<value>[A-Za-z0-9_./+=\-]{16,4096})(?P=quote)",
     re.I,
 )
 CLIENT_SECRET_RE = re.compile(r"\b(VITE_|NEXT_PUBLIC_|PUBLIC_)[A-Z0-9_]*(API_KEY|TOKEN|SECRET|PRIVATE_KEY|PASSWORD)\b", re.I)
@@ -32,9 +33,10 @@ def is_storage_key_identifier(name: str, value: str) -> bool:
     )
 
 
-def scan_secrets(root: Path, files: list[Path], texts: dict[Path, str]) -> list[Finding]:
-    findings: list[Finding] = []
+def scan_secrets(root: Path, files: list[Path], texts: dict[Path, str], budget: RuleBudget | None = None) -> list[Finding]:
+    findings: BudgetedList[Finding] = BudgetedList(budget)
     for path in files:
+        findings.checkpoint()
         text = texts.get(path, "")
         rel = relpath(path, root)
         if path.name.startswith(".env") and path.name != ".env.example":

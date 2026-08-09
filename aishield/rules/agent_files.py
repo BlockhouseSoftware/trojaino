@@ -5,6 +5,7 @@ from pathlib import Path
 
 from aishield.file_utils import line_for_index
 from aishield.models import Finding, relpath
+from aishield.rules.budget import BudgetedList, RuleBudget
 
 AGENT_FILE_NAMES = {"AGENTS.md", "CLAUDE.md", ".windsurfrules"}
 AGENT_PATH_PARTS = {".cursor"}
@@ -12,7 +13,7 @@ ZERO_WIDTH_RE = re.compile("[\u200b\u200c\u200d\ufeff]")
 PATTERNS = [
     ("AGENT_IGNORE_SAFETY", "high", "Agent instruction attempts to override safety rules", re.compile(r"ignore (all )?((previous|prior|system|safety|security|local)\s+){1,3}(instructions|rules|warnings)", re.I), "Instruction override text can steer future coding agents away from the user's intended safety policy.", "Remove override language and keep project instructions scoped to legitimate build/test behavior."),
     ("AGENT_HIDE_BEHAVIOR", "high", "Agent instruction tells the agent to hide behavior from the user", re.compile(r"(do not|don't|never) (tell|inform|mention|warn) (the )?user|silently (run|install|execute)", re.I), "Instructions to hide behavior are a strong signal of malicious or unsafe agent guidance.", "Remove secrecy language; all install, network, and file operations should be visible to the user."),
-    ("AGENT_SECRET_EXFIL", "critical", "Agent instruction references secret or credential exfiltration", re.compile(r"(exfiltrate|send|upload|post).*(\.env|api key|token|secret|~/.ssh|\.aws|credentials)", re.I | re.S), "Agent-readable markdown can instruct future agents to leak secrets using their own tool access.", "Do not load this file into an agent until the instruction is removed and the source is trusted."),
+    ("AGENT_SECRET_EXFIL", "critical", "Agent instruction references secret or credential exfiltration", re.compile(r"\b(exfiltrate|send|upload|post)\b[^\r\n]{0,2048}(\.env|api key|token|secret|~/.ssh|\.aws|credentials)", re.I), "Agent-readable markdown can instruct future agents to leak secrets using their own tool access.", "Do not load this file into an agent until the instruction is removed and the source is trusted."),
     ("AGENT_CREDENTIAL_PATH", "high", "Agent instruction references sensitive local credential paths", re.compile(r"(~/.ssh|~/.aws|\.env|keychain|credentials)", re.I), "Agent instructions that mention sensitive local paths can expand the future agent's file-access scope.", "Require a specific, user-approved reason before any agent instruction touches credential paths."),
     ("AGENT_TRUST_REMOTE_DOCS", "medium", "Agent instruction tells agents to trust remote content", re.compile(r"trust .*remote|always follow .*web|treat .*docs .*authoritative", re.I), "Remote content can contain prompt injection and should not automatically override local policy.", "Tell agents to treat remote content as untrusted data unless the user approves it."),
 ]
@@ -26,9 +27,10 @@ def is_agent_file(path: Path) -> bool:
     return path.name.lower() in {"rules", "prompts.md", "prompt.md"}
 
 
-def scan_agent_files(root: Path, files: list[Path], texts: dict[Path, str]) -> list[Finding]:
-    findings: list[Finding] = []
+def scan_agent_files(root: Path, files: list[Path], texts: dict[Path, str], budget: RuleBudget | None = None) -> list[Finding]:
+    findings: BudgetedList[Finding] = BudgetedList(budget)
     for path in files:
+        findings.checkpoint()
         if not is_agent_file(path):
             continue
         text = texts.get(path, "")
