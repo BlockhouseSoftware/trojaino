@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import stat
 import time
@@ -12,6 +13,7 @@ from aishield.file_utils import iter_files, read_bytes_no_symlink, relpath_for_i
 from aishield.models import (
     CapabilityEvidence,
     Finding,
+    PreflightEstimate,
     ScanIssue,
     ScanResult,
     SkippedFile,
@@ -36,6 +38,86 @@ class ScanLimits:
     max_report_bytes: int = 5_000_000
     max_depth: int = 50
     max_elapsed_seconds: float = 30.0
+
+    def to_dict(self, preset: str = "custom") -> dict[str, int | float | str]:
+        return {
+            "preset": preset,
+            "max_files": self.max_files,
+            "max_entries": self.max_entries,
+            "max_file_bytes": self.max_file_bytes,
+            "max_total_bytes": self.max_total_bytes,
+            "max_findings": self.max_findings,
+            "max_report_bytes": self.max_report_bytes,
+            "max_depth": self.max_depth,
+            "max_elapsed_seconds": self.max_elapsed_seconds,
+        }
+
+
+BUDGET_PRESETS = {
+    "standard": ScanLimits(),
+    "large": ScanLimits(
+        max_files=20_000,
+        max_entries=100_000,
+        max_file_bytes=5_000_000,
+        max_total_bytes=100_000_000,
+        max_findings=10_000,
+        max_report_bytes=10_000_000,
+        max_depth=75,
+        max_elapsed_seconds=120.0,
+    ),
+    "exhaustive": ScanLimits(
+        max_files=100_000,
+        max_entries=500_000,
+        max_file_bytes=20_000_000,
+        max_total_bytes=500_000_000,
+        max_findings=50_000,
+        max_report_bytes=25_000_000,
+        max_depth=100,
+        max_elapsed_seconds=600.0,
+    ),
+}
+
+MAX_SCAN_LIMITS = ScanLimits(
+    max_files=1_000_000,
+    max_entries=5_000_000,
+    max_file_bytes=1_000_000_000,
+    max_total_bytes=2_000_000_000,
+    max_findings=100_000,
+    max_report_bytes=100_000_000,
+    max_depth=200,
+    max_elapsed_seconds=3_600.0,
+)
+
+
+def limit_excesses(estimate: PreflightEstimate, limits: ScanLimits) -> list[str]:
+    """Return limits that the metadata estimate already proves insufficient."""
+    checks = (
+        ("max_files", estimate.eligible_files, limits.max_files),
+        ("max_entries", estimate.filesystem_entries, limits.max_entries),
+        ("max_file_bytes", estimate.max_file_bytes, limits.max_file_bytes),
+        ("max_total_bytes", estimate.total_bytes, limits.max_total_bytes),
+        ("max_depth", estimate.max_depth, limits.max_depth),
+    )
+    return [name for name, estimated, allowed in checks if estimated > allowed]
+
+
+def limits_for_estimate(estimate: PreflightEstimate, base: ScanLimits) -> ScanLimits:
+    """Raise metadata limits with bounded headroom; runtime limits remain hard."""
+    def headroom(value: int) -> int:
+        return value + max(value // 10, 1)
+
+    return replace(
+        base,
+        max_files=min(MAX_SCAN_LIMITS.max_files, max(base.max_files, headroom(estimate.eligible_files))),
+        max_entries=min(MAX_SCAN_LIMITS.max_entries, max(base.max_entries, headroom(estimate.filesystem_entries))),
+        max_file_bytes=min(MAX_SCAN_LIMITS.max_file_bytes, max(base.max_file_bytes, headroom(estimate.max_file_bytes))),
+        max_total_bytes=min(MAX_SCAN_LIMITS.max_total_bytes, max(base.max_total_bytes, headroom(estimate.total_bytes))),
+        max_depth=min(MAX_SCAN_LIMITS.max_depth, max(base.max_depth, estimate.max_depth)),
+        max_elapsed_seconds=min(
+            MAX_SCAN_LIMITS.max_elapsed_seconds,
+            max(base.max_elapsed_seconds, BUDGET_PRESETS["large"].max_elapsed_seconds),
+        ),
+    )
 
 
 _KNOWN_TOKEN_RE = re.compile(r"\b(?:sk-(?:ant-)?[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})\b")
@@ -123,7 +205,48 @@ def _enforce_report_budget(result: ScanResult, max_bytes: int) -> ScanResult:
     retain_largest_prefix("skipped_files")
     retain_largest_prefix("findings")
     retain_largest_prefix("issues", minimum=1)
+    if _json_report_size(bounded) > max_bytes:
+        bounded = replace(bounded, recommended_command=None)
+    if _json_report_size(bounded) > max_bytes and bounded.preflight:
+        bounded = replace(bounded, preflight=replace(bounded.preflight, issues=[]))
+    if _json_report_size(bounded) > max_bytes:
+        bounded = replace(bounded, preflight=None, budget=None)
+    if _json_report_size(bounded) > max_bytes:
+        bounded = replace(bounded, target="[omitted: report size limit]")
+    if _json_report_size(bounded) > max_bytes:
+        bounded = replace(
+            bounded,
+            findings=[],
+            capabilities=[],
+            skipped_files=[],
+            issues=[report_issue],
+            preflight=None,
+            budget=None,
+            recommended_command=None,
+            target="[omitted: report size limit]",
+        )
+    if _json_report_size(bounded) > max_bytes:
+        raise ValueError("max_report_bytes is too small for the minimal canonical report")
     return bounded
+
+
+def annotate_result(
+    result: ScanResult,
+    *,
+    preflight: PreflightEstimate,
+    limits: ScanLimits,
+    budget_name: str,
+    recommended_command: str | None,
+) -> ScanResult:
+    """Attach CLI planning metadata while preserving the report-size ceiling."""
+    bounded_preflight = replace(preflight, issues=list(preflight.issues or [])[:10])
+    annotated = replace(
+        result,
+        preflight=bounded_preflight,
+        budget=limits.to_dict(budget_name),
+        recommended_command=recommended_command,
+    )
+    return _enforce_report_budget(annotated, limits.max_report_bytes)
 
 
 def scan_path(
@@ -133,7 +256,7 @@ def scan_path(
     limits: ScanLimits | None = None,
 ) -> ScanResult:
     limits = limits or ScanLimits()
-    if any(value < 0 for value in (
+    limit_values = (
         limits.max_files,
         limits.max_entries,
         limits.max_file_bytes,
@@ -142,8 +265,25 @@ def scan_path(
         limits.max_report_bytes,
         limits.max_depth,
         limits.max_elapsed_seconds,
-    )):
-        raise ValueError("scan limits must be non-negative")
+    )
+    try:
+        invalid_limit = any(not math.isfinite(value) or value < 0 for value in limit_values)
+    except (OverflowError, TypeError):
+        invalid_limit = True
+    if invalid_limit:
+        raise ValueError("scan limits must be finite and non-negative")
+    for field in (
+        "max_files",
+        "max_entries",
+        "max_file_bytes",
+        "max_total_bytes",
+        "max_findings",
+        "max_report_bytes",
+        "max_depth",
+        "max_elapsed_seconds",
+    ):
+        if getattr(limits, field) > getattr(MAX_SCAN_LIMITS, field):
+            raise ValueError(f"{field} exceeds the supported hard ceiling")
     if limits.max_report_bytes < 4_096:
         raise ValueError("max_report_bytes must be at least 4096")
 

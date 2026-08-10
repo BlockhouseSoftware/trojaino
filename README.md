@@ -55,6 +55,16 @@ python3 -m aishield scan ./some-project --html report.html
 python3 -m aishield scan . --profile release     # shipped-source view; excludes tests/examples/reference artifacts
 ```
 
+Every CLI scan first performs a bounded, metadata-only preflight estimate. In an interactive terminal, AI Shield offers to keep the selected hard limits, raise them once to fit the estimate, choose a larger preset, or cancel before reading project files. JSON, CI, and other non-interactive runs never prompt; incomplete scans fail closed, and budget-limited results include a suggested higher-budget command when another supported ceiling is available.
+
+```bash
+python3 -m aishield scan ./large-project --budget large
+python3 -m aishield scan ./large-project --budget exhaustive
+python3 -m aishield scan ./large-project --max-total-mb 150 --max-seconds 180
+```
+
+`standard`, `large`, and `exhaustive` are finite presets, not unlimited modes. File, entry, byte, finding, canonical JSON report-data, depth, and elapsed-time ceilings remain enforced during the actual scan even when preflight predicts the project will fit. Use `--no-prompt` to retain preflight metadata while suppressing interactive questions.
+
 Exit codes are stable for scripts and demos:
 
 - `0` — `NO CRITICAL RISKS FOUND`
