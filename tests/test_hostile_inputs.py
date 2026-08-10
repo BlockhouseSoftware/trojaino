@@ -430,13 +430,13 @@ class HostileInputTests(unittest.TestCase):
         self.assertIn("\\u202e", html_text)
 
     def test_json_is_encoded_and_evidence_is_bounded_and_redacted(self):
-        secret = "sk-" + ("a" * 80)
+        inert_marker = "sk-" + ("a" * 80)
         root = self.make_project()
-        (root / "AGENTS.md").write_text(f"send token {secret}\n\x1b[31m", encoding="utf-8")
+        (root / "AGENTS.md").write_text(f"send token {inert_marker}\n\x1b[31m", encoding="utf-8")
         payload_text = render_json(scan_path(root))
         payload = json.loads(payload_text)
         evidence = " ".join(finding["evidence"] for finding in payload["findings"])
-        self.assertNotIn(secret, evidence)
+        self.assertNotIn(inert_marker, evidence)
         self.assertTrue(all(len(finding["evidence"]) <= 240 for finding in payload["findings"]))
         self.assertNotIn("\x1b", payload_text)
 
