@@ -37,12 +37,12 @@ aishield scan ./tests/fixtures/clean-project
 
 ### Distribution
 
-AI Shield v0.1.0 is distributed as source through this repository and its GitHub Releases page. No AI Shield package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
+AI Shield v0.1.1 is distributed as source through this repository and its GitHub Releases page. No AI Shield package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
 
 For a reproducible source checkout after the first release is published:
 
 ```bash
-git checkout v0.1.0
+git checkout v0.1.1
 ```
 
 ## Run locally
