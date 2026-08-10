@@ -265,6 +265,19 @@ class ScannerTests(unittest.TestCase):
         self.assertIn("PY_USER_INPUT_TO_SENSITIVE_SINK", ids)
         self.assertEqual(result.verdict, "DO NOT RUN")
 
+    def test_cli_prompt_and_unrelated_path_handling_are_not_request_data_flow(self):
+        project = self.make_project({
+            "cli.py": """
+from pathlib import Path
+
+choice = input("Selection: ")
+target = Path("safe-project")
+print(choice, target)
+""",
+        })
+        result = scan_path(project)
+        self.assertNotIn("PY_USER_INPUT_TO_SENSITIVE_SINK", {finding.id for finding in result.findings})
+
     def test_python_safe_yaml_loader_and_authenticated_route_are_not_flagged(self):
         project = self.make_project({
             "app.py": "\n".join([

@@ -87,6 +87,26 @@ class SkippedFile:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class PreflightEstimate:
+    """Bounded metadata-only estimate of the work a scan may require."""
+
+    eligible_files: int
+    filesystem_entries: int
+    total_bytes: int
+    max_file_bytes: int
+    max_depth: int
+    symlinks: int = 0
+    unreadable_entries: int = 0
+    complete: bool = True
+    issues: list[ScanIssue] | None = None
+
+    def to_dict(self) -> dict:
+        payload = asdict(self)
+        payload["issues"] = [issue.to_dict() for issue in self.issues or []]
+        return payload
+
+
 def classify_context(file: str) -> FindingContext:
     """Classify a scanned path without changing a rule's security judgment."""
     path = PurePosixPath(file.replace("\\", "/"))
@@ -151,6 +171,9 @@ class ScanResult:
     complete: bool = True
     issues: list[ScanIssue] | None = None
     skipped_files: list[SkippedFile] | None = None
+    preflight: PreflightEstimate | None = None
+    budget: dict[str, int | float | str] | None = None
+    recommended_command: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -165,6 +188,9 @@ class ScanResult:
             "skipped_files": [skipped.to_dict() for skipped in self.skipped_files or []],
             "findings": [finding.to_dict() for finding in self.findings],
             "capabilities": [capability.to_dict() for capability in self.capabilities or []],
+            "preflight": self.preflight.to_dict() if self.preflight else None,
+            "budget": self.budget,
+            "recommended_command": self.recommended_command,
         }
 
 

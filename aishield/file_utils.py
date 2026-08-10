@@ -5,7 +5,7 @@ import stat
 import time
 from pathlib import Path
 
-from aishield.models import ScanIssue
+from aishield.models import PreflightEstimate, ScanIssue
 
 TEXT_EXTENSIONS = {
     "", ".cjs", ".conf", ".css", ".env", ".html", ".js", ".json", ".jsx",
@@ -46,6 +46,27 @@ def relpath_for_issue(path: Path, root: Path) -> str:
         return path.name
 
 
+def _bounded_sorted_entries(
+    directory: Path,
+    remaining: int,
+    deadline: float | None,
+) -> tuple[list[os.DirEntry], str | None]:
+    """Return deterministic directory entries without buffering past a hard cap."""
+    try:
+        iterator = os.scandir(directory)
+    except OSError:
+        return [], "unreadable"
+    entries: list[os.DirEntry] = []
+    with iterator:
+        for entry in iterator:
+            if deadline is not None and time.monotonic() >= deadline:
+                return [], "elapsed"
+            if len(entries) >= remaining:
+                return [], "limit"
+            entries.append(entry)
+    return sorted(entries, key=lambda entry: entry.name), None
+
+
 def iter_files(
     root: Path,
     profile: str = "default",
@@ -73,52 +94,152 @@ def iter_files(
             issue_list.append(ScanIssue("elapsed_time_limit", "Elapsed scan-time limit was reached"))
             break
         directory, depth = stack.pop()
-        try:
-            entries = os.scandir(directory)
-        except OSError as exc:
+        entries, entry_error = _bounded_sorted_entries(directory, max_entries - entries_seen, deadline)
+        if entry_error == "unreadable":
             issue_list.append(ScanIssue(
                 "directory_unreadable",
-                f"Directory could not be enumerated: {exc.__class__.__name__}",
+                "Directory could not be enumerated",
                 relpath_for_issue(directory, root),
             ))
             continue
-        with entries:
-            for entry in entries:
-                if entries_seen >= max_entries:
-                    issue_list.append(ScanIssue("entry_count_limit", "Maximum filesystem-entry count was exceeded"))
-                    return sorted(files)
-                entries_seen += 1
-                path = Path(entry.path)
-                rel = relpath_for_issue(path, root)
-                try:
-                    if entry.is_symlink():
-                        issue_list.append(ScanIssue("symlink_rejected", "Child symbolic link was not followed", rel))
-                        continue
-                    if entry.is_dir(follow_symlinks=False):
-                        if entry.name in SKIP_DIRS:
-                            continue
-                        child_depth = depth + 1
-                        if child_depth > max_depth:
-                            issue_list.append(ScanIssue("depth_limit", "Maximum directory depth was exceeded", rel))
-                            continue
-                        if profile == "release" and child_depth == 1 and entry.name.lower() in RELEASE_EXCLUDED_ROOTS:
-                            continue
-                        stack.append((path, child_depth))
-                        continue
-                    if not entry.is_file(follow_symlinks=False) or not should_scan(path):
-                        continue
-                except OSError as exc:
-                    issue_list.append(ScanIssue(
-                        "file_unreadable",
-                        f"Filesystem entry could not be inspected: {exc.__class__.__name__}",
-                        rel,
-                    ))
+        if entry_error == "elapsed":
+            issue_list.append(ScanIssue("elapsed_time_limit", "Elapsed scan-time limit was reached"))
+            break
+        if entry_error == "limit":
+            issue_list.append(ScanIssue("entry_count_limit", "Maximum filesystem-entry count was exceeded"))
+            return sorted(files)
+        entries_seen += len(entries)
+        for entry in entries:
+            path = Path(entry.path)
+            rel = relpath_for_issue(path, root)
+            try:
+                if entry.is_symlink():
+                    issue_list.append(ScanIssue("symlink_rejected", "Child symbolic link was not followed", rel))
                     continue
-                if len(files) >= max_files:
-                    issue_list.append(ScanIssue("file_count_limit", "Maximum scanned-file count was exceeded"))
-                    return sorted(files)
-                files.append(path)
+                if entry.is_dir(follow_symlinks=False):
+                    if entry.name in SKIP_DIRS:
+                        continue
+                    child_depth = depth + 1
+                    if child_depth > max_depth:
+                        issue_list.append(ScanIssue("depth_limit", "Maximum directory depth was exceeded", rel))
+                        continue
+                    if profile == "release" and child_depth == 1 and entry.name.lower() in RELEASE_EXCLUDED_ROOTS:
+                        continue
+                    stack.append((path, child_depth))
+                    continue
+                if not entry.is_file(follow_symlinks=False) or not should_scan(path):
+                    continue
+            except OSError as exc:
+                issue_list.append(ScanIssue(
+                    "file_unreadable",
+                    f"Filesystem entry could not be inspected: {exc.__class__.__name__}",
+                    rel,
+                ))
+                continue
+            if len(files) >= max_files:
+                issue_list.append(ScanIssue("file_count_limit", "Maximum scanned-file count was exceeded"))
+                return sorted(files)
+            files.append(path)
     return sorted(files)
+
+
+def estimate_project(
+    root: Path,
+    profile: str = "default",
+    *,
+    max_entries: int = 100_000,
+    max_depth: int = 100,
+    max_elapsed_seconds: float = 5.0,
+) -> PreflightEstimate:
+    """Estimate eligible scan work from metadata without opening file contents."""
+    if profile not in SCAN_PROFILES:
+        raise ValueError(f"unknown scan profile: {profile}")
+
+    deadline = time.monotonic() + max_elapsed_seconds
+    files = entries_seen = total_bytes = largest_file = deepest = 0
+    symlinks = unreadable = 0
+    issues: list[ScanIssue] = []
+
+    def result(complete: bool = True) -> PreflightEstimate:
+        return PreflightEstimate(
+            eligible_files=files,
+            filesystem_entries=entries_seen,
+            total_bytes=total_bytes,
+            max_file_bytes=largest_file,
+            max_depth=deepest,
+            symlinks=symlinks,
+            unreadable_entries=unreadable,
+            complete=complete,
+            issues=issues,
+        )
+
+    try:
+        root_info = root.lstat()
+    except OSError:
+        issues.append(ScanIssue("preflight_target_unreadable", "Selected target metadata could not be inspected"))
+        return result(False)
+    if stat.S_ISLNK(root_info.st_mode):
+        symlinks = 1
+        return result()
+    if stat.S_ISREG(root_info.st_mode):
+        if should_scan(root):
+            files = 1
+            total_bytes = root_info.st_size
+            largest_file = root_info.st_size
+        return result()
+    if not stat.S_ISDIR(root_info.st_mode):
+        issues.append(ScanIssue("preflight_target_unsupported", "Selected target is not a regular file or directory"))
+        return result(False)
+
+    stack = [(root, 0)]
+    while stack:
+        if time.monotonic() >= deadline:
+            issues.append(ScanIssue("preflight_elapsed_time_limit", "Preflight estimate reached its time limit"))
+            return result(False)
+        directory, depth = stack.pop()
+        entries, entry_error = _bounded_sorted_entries(directory, max_entries - entries_seen, deadline)
+        if entry_error == "unreadable":
+            unreadable += 1
+            continue
+        if entry_error == "elapsed":
+            issues.append(ScanIssue("preflight_elapsed_time_limit", "Preflight estimate reached its time limit"))
+            return result(False)
+        if entry_error == "limit":
+            issues.append(ScanIssue("preflight_entry_count_limit", "Preflight estimate reached its entry limit"))
+            return result(False)
+        entries_seen += len(entries)
+        for entry in entries:
+            path = Path(entry.path)
+            try:
+                if entry.is_symlink():
+                    symlinks += 1
+                    continue
+                if entry.is_dir(follow_symlinks=False):
+                    if entry.name in SKIP_DIRS:
+                        continue
+                    child_depth = depth + 1
+                    deepest = max(deepest, child_depth)
+                    if child_depth > max_depth:
+                        issues.append(ScanIssue(
+                            "preflight_depth_limit",
+                            "Preflight estimate reached its directory-depth limit",
+                            relpath_for_issue(path, root),
+                        ))
+                        return result(False)
+                    if profile == "release" and child_depth == 1 and entry.name.lower() in RELEASE_EXCLUDED_ROOTS:
+                        continue
+                    stack.append((path, child_depth))
+                    continue
+                if not entry.is_file(follow_symlinks=False) or not should_scan(path):
+                    continue
+                size = entry.stat(follow_symlinks=False).st_size
+            except OSError:
+                unreadable += 1
+                continue
+            files += 1
+            total_bytes += size
+            largest_file = max(largest_file, size)
+    return result(unreadable == 0)
 
 
 def read_text(path: Path) -> str | None:

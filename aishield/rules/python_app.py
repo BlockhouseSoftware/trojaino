@@ -29,8 +29,7 @@ PERMISSIVE_CORS_RE = re.compile(
     re.I | re.S,
 )
 REQUEST_SOURCE_RE = re.compile(
-    r"\brequest\s*\.\s*(?:args|form|json|files|values|get_json)\b"
-    r"|\binput\s*\(",
+    r"\brequest\s*\.\s*(?:args|form|json|files|values|get_json)\b",
     re.I,
 )
 SINK_RE = re.compile(

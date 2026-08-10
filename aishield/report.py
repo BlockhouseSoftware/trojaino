@@ -42,6 +42,17 @@ def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
         f"Coverage: {result.files_scanned} files scanned · {result.unreadable_files} unreadable",
         "",
     ]
+    if result.preflight:
+        estimate = result.preflight
+        budget_name = (result.budget or {}).get("preset", "custom")
+        lines.extend([
+            f"Preflight estimate: {estimate.eligible_files} eligible files · {estimate.total_bytes} bytes · "
+            f"{estimate.symlinks} symlinks · {estimate.unreadable_entries} unreadable entries",
+            f"Budget: {sanitize_human(budget_name)}",
+        ])
+        if result.recommended_command:
+            lines.append(f"Suggested higher-budget command: {sanitize_human(result.recommended_command)}")
+        lines.append("")
     if not result.complete:
         lines.append("INCOMPLETE SCAN: coverage limits or input errors prevented a clean assessment.")
         for issue in result.issues or []:
@@ -151,6 +162,21 @@ def render_html(result: ScanResult) -> str:
         f"<li><strong>{_html(capability.title)}</strong><span>{_html(capability.file if capability.line is None else f'{capability.file}:{capability.line}')} · <code>{_html(capability.rule)}</code></span><code>{_html(capability.evidence)}</code></li>"
         for capability in result.capabilities or []
     ) or '<li class="empty-capability">No proven MCP runtime capabilities detected.</li>'
+    preflight_panel = ""
+    if result.preflight:
+        estimate = result.preflight
+        budget_name = (result.budget or {}).get("preset", "custom")
+        recommendation = (
+            f"<p><strong>Suggested higher-budget rerun:</strong> <code>{_html(result.recommended_command)}</code></p>"
+            if result.recommended_command else ""
+        )
+        preflight_panel = f"""
+  <section aria-label="Preflight estimate" class="section-card">
+    <p class="eyebrow">Bounded preflight</p>
+    <h2>Estimated scan scope</h2>
+    <p>{estimate.eligible_files} eligible files · {_html(estimate.total_bytes)} bytes · {estimate.symlinks} symlinks · {estimate.unreadable_entries} unreadable entries · budget {_html(budget_name)}</p>
+    {recommendation}
+  </section>"""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -230,6 +256,7 @@ def render_html(result: ScanResult) -> str:
       <p class="coverage">{_html('Complete' if result.complete else 'Incomplete')} · {total_findings} findings · {result.files_scanned} files scanned · {result.unreadable_files} unreadable</p>
     </aside>
   </header>
+  {preflight_panel}
   {incomplete_panel}
   <section aria-label="Finding summary" class="summary">{summary_cards}</section>
   <section class="section-card">
