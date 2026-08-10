@@ -4,6 +4,8 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
+from aishield import __version__
+
 Severity = Literal["critical", "high", "medium", "low"]
 Confidence = Literal["high", "medium", "low"]
 Verdict = Literal["DO NOT RUN", "CAUTION", "NO CRITICAL RISKS FOUND"]
@@ -177,6 +179,7 @@ class ScanResult:
 
     def to_dict(self) -> dict:
         return {
+            "scanner_version": __version__,
             "target": self.target,
             "profile": self.profile,
             "verdict": self.verdict,
