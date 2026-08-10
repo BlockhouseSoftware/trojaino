@@ -7,6 +7,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
+from aishield import __version__
 from aishield.cli import main
 from aishield.models import Finding, classify_context, default_disposition, sort_findings, verdict_for
 from aishield.report import render_html, render_json, render_text
@@ -388,8 +389,9 @@ print(choice, target)
         self.assertTrue(payload["findings"])
         self.assertIn("context", payload["findings"][0])
         self.assertIn("disposition", payload["findings"][0])
+        self.assertEqual(payload["scanner_version"], __version__)
         text = render_text(result)
-        self.assertIn("AI Shield v0.1", text)
+        self.assertIn(f"AI Shield v{__version__}", text)
         self.assertIn("Context: package_manifest", text)
         self.assertIn("actionable]", text)
         self.assertIn("Recommended next step", text)
@@ -411,6 +413,7 @@ print(choice, target)
         result = base.__class__(base.target, base.verdict, ordered, base.files_scanned)
         text = render_text(result, max_findings=None)
         html_text = render_html(result)
+        self.assertIn(f"Local pre-flight report · v{__version__} alpha", html_text)
         self.assertLess(text.index("Action"), text.index("Review"))
         self.assertIn("Context: application_code", text)
         self.assertIn("likely test or example", html_text)

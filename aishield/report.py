@@ -3,6 +3,8 @@ from __future__ import annotations
 import html
 import json
 import unicodedata
+
+from aishield import __version__
 from aishield.models import ScanResult
 
 
@@ -34,7 +36,7 @@ def _html(value: object) -> str:
 
 def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
     lines = [
-        "AI Shield v0.1",
+        f"AI Shield v{__version__}",
         "",
         f"Target: {sanitize_human(result.target)}",
         f"Profile: {sanitize_human(result.profile)}",
@@ -70,7 +72,7 @@ def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
         return "\n".join(lines)
     if not result.findings:
         lines.extend([
-            "No critical risks found by deterministic v0.1 rules.",
+            f"No critical risks found by deterministic v{__version__} rules.",
             "This is not a guarantee of safety. Use --deep in future versions for model-assisted review.",
         ])
         return "\n".join(lines)
@@ -143,7 +145,7 @@ def render_html(result: ScanResult) -> str:
     if rows:
         body = "\n".join(rows)
     elif result.complete:
-        body = '<section class="empty-state"><p class="eyebrow">Release signal</p><h2>No critical risks found</h2><p>No findings were produced by the deterministic v0.1 rules. This is useful evidence, not a safety certification.</p></section>'
+        body = f'<section class="empty-state"><p class="eyebrow">Release signal</p><h2>No critical risks found</h2><p>No findings were produced by the deterministic v{__version__} rules. This is useful evidence, not a safety certification.</p></section>'
     else:
         body = '<section class="empty-state"><p class="eyebrow">Coverage warning</p><h2>Scan incomplete</h2><p>No risk-free conclusion is available because coverage limits or input errors prevented a complete scan.</p></section>'
     incomplete_panel = ""
@@ -243,7 +245,7 @@ def render_html(result: ScanResult) -> str:
 </head>
 <body>
 <main>
-  <div class="report-topline"><span>AI Shield</span><span>Local pre-flight report · v0.1 alpha</span></div>
+  <div class="report-topline"><span>AI Shield</span><span>Local pre-flight report · v{__version__} alpha</span></div>
   <header>
     <div>
       <p class="eyebrow">Deterministic scan record</p>
