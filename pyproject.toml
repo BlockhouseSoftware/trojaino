@@ -23,4 +23,4 @@ aishield = "aishield.cli:main"  # Legacy CLI alias; use trojaino in new scripts.
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aishield*"]
+include = ["aishield*", "trojaino*"]
