@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Trojaino social preview</title>
+  <desc id="desc">Trojaino wordmark beside a local pre-install scan verdict panel.</desc>
+  <defs>
+    <radialGradient id="halo" cx="52%" cy="0%" r="68%">
+      <stop offset="0" stop-color="#00e5a0" stop-opacity=".15"/>
+      <stop offset="1" stop-color="#07090c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#00e5a0"/>
+      <stop offset="1" stop-color="#00a874"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" rx="30" fill="#07090c"/>
+  <rect width="1280" height="640" rx="30" fill="url(#halo)"/>
+  <path d="M0 518C246 470 442 552 676 506C910 460 1095 510 1280 466V640H0Z" fill="#0f141b" opacity=".78"/>
+  <g transform="translate(92 78)">
+    <g fill="none" stroke="#00e5a0" stroke-linejoin="round" stroke-width="4">
+      <path d="M20 0l20 8v18c0 13-8.1 24-20 28-11.9-4-20-15-20-28V8l20-8z"/>
+      <path d="M10 27l7 7 14-15" stroke-linecap="round"/>
+    </g>
+    <text x="62" y="35" fill="#e8edf4" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="29" font-weight="700">Trojaino</text>
+    <text x="0" y="130" fill="#e8edf4" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="70" font-weight="750" letter-spacing="-2.5">Know what an AI tool</text>
+    <text x="0" y="201" fill="#e8edf4" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="70" font-weight="750" letter-spacing="-2.5">does before it runs.</text>
+    <text x="2" y="258" fill="#96a2b3" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="25">Local, deterministic evidence before installation.</text>
+    <g transform="translate(0 302)">
+      <rect width="114" height="38" rx="19" fill="#0f141b" stroke="#1d242e"/>
+      <text x="57" y="25" text-anchor="middle" fill="#00e5a0" font-family="ui-monospace,Menlo,monospace" font-size="14" font-weight="700" letter-spacing="1">LOCAL</text>
+      <rect x="130" width="196" height="38" rx="19" fill="#0f141b" stroke="#1d242e"/>
+      <text x="228" y="25" text-anchor="middle" fill="#00e5a0" font-family="ui-monospace,Menlo,monospace" font-size="14" font-weight="700" letter-spacing="1">DETERMINISTIC</text>
+      <rect x="342" width="185" height="38" rx="19" fill="#0f141b" stroke="#1d242e"/>
+      <text x="434" y="25" text-anchor="middle" fill="#00e5a0" font-family="ui-monospace,Menlo,monospace" font-size="14" font-weight="700" letter-spacing="1">EVIDENCE-FIRST</text>
+    </g>
+  </g>
+  <g transform="translate(744 356)">
+    <rect width="444" height="212" rx="16" fill="#0f141b" stroke="#1d242e" stroke-width="2"/>
+    <rect width="444" height="52" rx="16" fill="#0a0e13"/>
+    <path d="M0 52h444" stroke="#1d242e"/>
+    <circle cx="24" cy="26" r="6" fill="#2a323d"/><circle cx="44" cy="26" r="6" fill="#2a323d"/><circle cx="64" cy="26" r="6" fill="#2a323d"/>
+    <text x="91" y="31" fill="#6b7789" font-family="ui-monospace,Menlo,monospace" font-size="14">trojaino · pre-install check</text>
+    <text x="28" y="97" fill="#6b7789" font-family="ui-monospace,Menlo,monospace" font-size="13" letter-spacing="1.5">ONE CLEAR VERDICT</text>
+    <rect x="28" y="120" width="388" height="64" rx="10" fill="#0a0e13" stroke="#1d242e"/>
+    <text x="48" y="151" fill="#00e5a0" font-family="ui-monospace,Menlo,monospace" font-size="16" font-weight="700">NO CRITICAL RISKS FOUND</text>
+    <text x="48" y="170" fill="#96a2b3" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="14">Useful evidence before you install.</text>
+    <path d="M28 201h388" stroke="#1d242e" stroke-width="10" stroke-linecap="round"/>
+    <path d="M28 201h187" stroke="url(#edge)" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  <rect x="1" y="1" width="1278" height="638" rx="29" fill="none" stroke="#1d242e" stroke-width="2"/>
+</svg>

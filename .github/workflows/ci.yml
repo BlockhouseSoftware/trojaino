@@ -38,5 +38,5 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run release-profile self-scan
         run: |
-          python -m aishield scan . --profile release --json > "$RUNNER_TEMP/aishield-release.json"
-          python -c 'import json, os, pathlib; report=json.loads(pathlib.Path(os.environ["RUNNER_TEMP"], "aishield-release.json").read_text()); assert report["verdict"] == "NO CRITICAL RISKS FOUND"; assert {"verdict", "findings", "capabilities"} <= report.keys()'
+          python -m aishield scan . --profile release --json > "$RUNNER_TEMP/trojaino-release.json"
+          python -c 'import json, os, pathlib; report=json.loads(pathlib.Path(os.environ["RUNNER_TEMP"], "trojaino-release.json").read_text()); assert report["verdict"] == "NO CRITICAL RISKS FOUND"; assert {"verdict", "findings", "capabilities"} <= report.keys()'

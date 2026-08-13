@@ -10,7 +10,7 @@ from aishield.scanner import scan_path
 
 class ReleaseProfileTests(unittest.TestCase):
     def make_project(self, files: dict[str, str]) -> Path:
-        root = Path(tempfile.mkdtemp(prefix="aishield-release-"))
+        root = Path(tempfile.mkdtemp(prefix="trojaino-release-"))
         for relative_path, content in files.items():
             path = root / relative_path
             path.parent.mkdir(parents=True, exist_ok=True)

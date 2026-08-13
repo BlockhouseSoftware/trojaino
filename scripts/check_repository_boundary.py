@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject files that belong in AI Shield's internal or local-only workspaces."""
+"""Reject files that belong in Trojaino's internal or local-only workspaces."""
 from __future__ import annotations
 
 import subprocess

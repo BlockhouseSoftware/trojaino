@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import shlex
 import sys
@@ -36,10 +37,30 @@ def _positive_float(value: str) -> float:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="aishield",
-        description="Local deterministic trust scanner for AI-built and downloaded software.",
+        prog="trojaino",
+        description="Local deterministic install gate for AI tools and downloaded software.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser(
+        "gui",
+        help="Open the optional desktop scan window",
+        description="Open Trojaino's optional desktop scan window. The CLI remains available for scripts and CI.",
+    )
+    share = sub.add_parser(
+        "share",
+        help="Preview or explicitly send anonymous scan statistics from a local JSON report",
+        description="Build an allowlisted anonymous summary. It never uploads the report file, source code, paths, or evidence.",
+    )
+    share.add_argument("report", help="Local Trojaino JSON report to summarize")
+    share.add_argument("--send", action="store_true", help="Explicitly send the previewed anonymous summary")
+    unshare = sub.add_parser(
+        "unshare",
+        help="Delete a previously shared anonymous scan summary",
+        description="Delete an anonymous summary using the receipt and deletion token shown when it was sent.",
+    )
+    unshare.add_argument("receipt", help="Receipt shown after the anonymous summary was sent")
+    unshare.add_argument("deletion_token", help="One-time deletion token shown with the receipt")
+
     scan = sub.add_parser(
         "scan",
         help="Scan a local file or folder",
@@ -120,7 +141,7 @@ def _format_bytes(value: int) -> str:
 
 
 def _command_for_limits(target: Path, profile: str, limits: ScanLimits) -> str:
-    prefix = f"aishield scan {shlex.quote(str(target))} --profile {profile}"
+    prefix = f"trojaino scan {shlex.quote(str(target))} --profile {profile}"
     return " ".join((
         prefix,
         "--budget standard",
@@ -167,7 +188,7 @@ def _runtime_recommendation(target: Path, profile: str, estimate, limits: ScanLi
     relevant = issue_codes & set(field_by_issue)
     if not relevant:
         return None
-    prefix = f"aishield scan {shlex.quote(str(target))} --profile {profile}"
+    prefix = f"trojaino scan {shlex.quote(str(target))} --profile {profile}"
     relevant_fields = {field_by_issue[code] for code in relevant}
     for name in ("large", "exhaustive"):
         preset = BUDGET_PRESETS[name]
@@ -258,6 +279,52 @@ def _choose_interactive_budget(estimate, limits: ScanLimits, budget_name: str) -
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "gui":
+        from aishield.gui import launch_gui
+
+        return launch_gui()
+    if args.command == "unshare":
+        from aishield.contributions import ContributionError, delete_contribution
+
+        try:
+            delete_contribution(args.receipt, args.deletion_token)
+        except ContributionError as exc:
+            print(f"Contribution was not deleted: {exc}", file=sys.stderr)
+            return 1
+        print("Anonymous statistics contribution deleted.")
+        return 0
+    if args.command == "share":
+        from aishield.contributions import (
+            ContributionError,
+            build_contribution_payload_from_report,
+            contribution_preview,
+            submit_contribution,
+        )
+
+        report_path = Path(args.report).expanduser().absolute()
+        try:
+            if report_path.stat().st_size > 10_000_000:
+                raise ContributionError("report exceeds the 10 MB local read limit")
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            if not isinstance(report, dict):
+                raise ContributionError("report must be a JSON object")
+            payload = build_contribution_payload_from_report(report)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ContributionError) as exc:
+            parser.error(f"could not prepare anonymous contribution: {exc}")
+        print("Anonymous contribution preview (this is the complete payload):")
+        print(contribution_preview(payload))
+        if not args.send:
+            print("Nothing was sent. Re-run with --send after reviewing this payload.")
+            return 0
+        try:
+            receipt = submit_contribution(payload)
+        except ContributionError as exc:
+            print(f"Nothing was sent: {exc}", file=sys.stderr)
+            return 1
+        print("Anonymous statistics sent. Save both values to delete this contribution later:")
+        print(f"Receipt: {receipt.receipt_id}")
+        print(f"Deletion token: {receipt.deletion_token}")
+        return 0
     if args.command == "scan":
         target = Path(args.target).expanduser().absolute()
         if not target.exists():
