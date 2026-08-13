@@ -1,3 +1,3 @@
-"""AI Shield local trust scanner."""
+"""Trojaino local deterministic install gate."""
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"

@@ -298,7 +298,7 @@ class HostileInputTests(unittest.TestCase):
             preflight=preflight,
             limits=limits,
             budget_name="standard",
-            recommended_command="aishield scan /tmp/project --budget large",
+            recommended_command="trojaino scan /tmp/project --budget large",
         )
         self.assertFalse(result.complete)
         self.assertIn("report_size_limit", {issue.code for issue in result.issues or []})

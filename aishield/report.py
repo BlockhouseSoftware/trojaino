@@ -36,7 +36,7 @@ def _html(value: object) -> str:
 
 def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
     lines = [
-        f"AI Shield v{__version__}",
+        f"Trojaino v{__version__}",
         "",
         f"Target: {sanitize_human(result.target)}",
         f"Profile: {sanitize_human(result.profile)}",
@@ -184,72 +184,57 @@ def render_html(result: ScanResult) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Shield · Scan Report</title>
+  <meta name="theme-color" content="#07090c">
+  <title>Trojaino · Pre-install Report</title>
   <style>
-    :root {{ --burgundy:#5A1E2D; --burgundy-deep:#421622; --beige:#C8B49A; --cream:#F7F6F4; --paper:#fffdf9; --charcoal:#222222; --muted:#6f6864; --line:#eadfd4; --soft:#f1e8df; --danger:#a3213d; --shadow:0 16px 36px rgba(72, 43, 32, .10); --shadow-soft:0 8px 22px rgba(72, 43, 32, .07); }}
+    :root {{ --bg:#07090c; --panel:#0f141b; --panel-deep:#0a0e13; --line:#1d242e; --line-soft:#161c24; --text:#e8edf4; --muted:#96a2b3; --dim:#6b7789; --accent:#00e5a0; --accent-dim:#00b47e; --warn:#ffb340; --danger:#ff5f5f; --danger-soft:rgba(255,95,95,.10); --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif; --shadow:0 24px 60px -30px rgba(0,0,0,.9); }}
     * {{ box-sizing: border-box; }}
-    body {{ margin:0; color:var(--charcoal); font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height:1.55; background:radial-gradient(circle at 86% 3%, rgba(200,180,154,.40), transparent 25rem), linear-gradient(180deg,#fffdf9 0%,var(--cream) 54%,#efe5dc 100%); }}
-    main {{ width:min(1120px, calc(100% - 40px)); margin:0 auto; padding:28px 0 60px; }}
-    .report-topline {{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin:0 0 18px; color:var(--burgundy); font-size:12px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }}
-    .report-topline span:last-child {{ color:var(--muted); letter-spacing:.08em; }}
-    header {{ position:relative; overflow:hidden; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(240px,.75fr); gap:28px; align-items:end; padding:clamp(28px,5vw,54px); border:1px solid rgba(90,30,45,.16); border-radius:32px; background:linear-gradient(135deg,#fffdf9 0%,#f3ebe3 53%,#eaded2 100%); box-shadow:var(--shadow); }}
-    header::after {{ content:""; position:absolute; width:300px; height:300px; right:-145px; top:-165px; border-radius:50%; border:1px solid rgba(90,30,45,.12); box-shadow:0 0 0 28px rgba(90,30,45,.035), 0 0 0 56px rgba(90,30,45,.025); pointer-events:none; }}
-    .eyebrow {{ margin:0 0 9px; color:var(--burgundy); font-size:12px; font-weight:900; letter-spacing:.15em; text-transform:uppercase; }}
-    h1,h2 {{ font-family:Georgia, "Times New Roman", serif; letter-spacing:-.035em; }}
-    h1 {{ max-width:660px; margin:0; color:var(--burgundy); font-size:clamp(38px,6vw,68px); line-height:.96; }}
-    .target {{ max-width:670px; margin:18px 0 0; color:#514b48; overflow-wrap:anywhere; }}
-    .target strong {{ color:var(--charcoal); }}
-    .verdict-panel {{ position:relative; z-index:1; padding:22px; border:1px solid rgba(90,30,45,.15); border-radius:24px; background:rgba(255,253,249,.78); box-shadow:var(--shadow-soft); }}
-    .verdict-label {{ display:block; margin-bottom:8px; color:var(--muted); font-size:11px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }}
-    .verdict {{ display:inline-block; padding:8px 11px; border-radius:999px; font-size:12px; font-weight:900; letter-spacing:.05em; }}
-    .verdict-clear {{ background:#e8f0e8; color:var(--burgundy); border:1px solid rgba(90,30,45,.18); }}
-    .verdict-caution {{ background:#f6e8c5; color:#654d18; border:1px solid #d5bc75; }}
-    .verdict-stop {{ background:#f5dfe3; color:var(--danger); border:1px solid #d99aa8; }}
-    .coverage {{ margin:14px 0 0; color:#514b48; font-size:14px; }}
+    body {{ margin:0; color:var(--text); font-family:var(--sans); line-height:1.6; background:var(--bg); -webkit-font-smoothing:antialiased; }}
+    body::before {{ content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; background:radial-gradient(900px 500px at 50% -8%,rgba(0,229,160,.10),transparent 62%),radial-gradient(700px 420px at 92% 6%,rgba(0,140,255,.07),transparent 60%); }}
+    main {{ width:min(1080px,calc(100% - 40px)); margin:0 auto; padding:28px 0 60px; }}
+    .report-topline {{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin:0 0 18px; color:var(--accent); font:600 12px var(--mono); letter-spacing:.12em; text-transform:uppercase; }}
+    .report-topline span:last-child {{ color:var(--dim); letter-spacing:.08em; }}
+    header {{ display:grid; grid-template-columns:minmax(0,1.25fr) minmax(240px,.75fr); gap:28px; align-items:end; padding:clamp(28px,5vw,54px); border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,#0d1219,#080b0f); box-shadow:var(--shadow); }}
+    .eyebrow {{ margin:0 0 9px; color:var(--accent-dim); font:600 12px var(--mono); letter-spacing:.14em; text-transform:uppercase; }}
+    h1,h2 {{ letter-spacing:-.03em; }}
+    h1 {{ max-width:660px; margin:0; font-size:clamp(38px,6vw,66px); line-height:1.06; }}
+    .target {{ max-width:670px; margin:18px 0 0; color:var(--muted); overflow-wrap:anywhere; }}
+    .target strong,.finding strong {{ color:var(--text); }}
+    .verdict-panel {{ padding:22px; border:1px solid var(--line); border-radius:12px; background:var(--panel-deep); }}
+    .verdict-label {{ display:block; margin-bottom:8px; color:var(--dim); font:600 11px var(--mono); letter-spacing:.12em; text-transform:uppercase; }}
+    .verdict {{ display:inline-block; padding:8px 11px; border-radius:8px; font:650 12px var(--mono); letter-spacing:.05em; }}
+    .verdict-clear {{ background:rgba(0,229,160,.09); color:var(--accent); border:1px solid rgba(0,229,160,.28); }}
+    .verdict-caution {{ background:rgba(255,179,64,.10); color:var(--warn); border:1px solid rgba(255,179,64,.32); }}
+    .verdict-stop {{ background:var(--danger-soft); color:var(--danger); border:1px solid rgba(255,95,95,.34); }}
+    .coverage {{ margin:14px 0 0; color:var(--muted); font-size:14px; }}
     .summary {{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:18px 0; }}
-    .summary-card {{ padding:18px 20px; border:1px solid var(--line); border-radius:22px; background:linear-gradient(145deg,var(--paper),#f5ece3); box-shadow:var(--shadow-soft); }}
-    .summary-card .count {{ display:block; color:var(--burgundy); font-family:Georgia, "Times New Roman", serif; font-size:36px; font-weight:700; line-height:1; }}
-    .summary-card span:last-child {{ display:block; margin-top:8px; color:var(--muted); font-size:11px; font-weight:900; letter-spacing:.11em; text-transform:uppercase; }}
-    .summary-card.severity-critical .count {{ color:var(--danger); }}
-    .summary-card.severity-high .count {{ color:#8c3d35; }}
-    .summary-card.severity-medium .count {{ color:#80651c; }}
-    .section-card {{ margin:18px 0; padding:28px; border:1px solid var(--line); border-radius:28px; background:rgba(255,253,249,.88); box-shadow:var(--shadow-soft); }}
-    .section-card h2 {{ margin:0 0 8px; color:var(--burgundy); font-size:28px; }}
-    .section-card p {{ margin:0; color:#514b48; }}
+    .summary-card {{ padding:18px 20px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }}
+    .summary-card .count {{ display:block; color:var(--accent); font:700 36px var(--mono); line-height:1; }}
+    .summary-card span:last-child {{ display:block; margin-top:8px; color:var(--dim); font:600 11px var(--mono); letter-spacing:.11em; text-transform:uppercase; }}
+    .summary-card.severity-critical .count {{ color:var(--danger); }} .summary-card.severity-high .count {{ color:#ff8b72; }} .summary-card.severity-medium .count {{ color:var(--warn); }}
+    .section-card {{ margin:18px 0; padding:28px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }}
+    .section-card h2 {{ margin:0 0 8px; font-size:28px; }} .section-card p {{ margin:0; color:var(--muted); }}
     .capability-list {{ display:grid; gap:10px; margin:18px 0 0; padding:0; list-style:none; }}
-    .capability-list li {{ display:grid; gap:3px; padding:14px 16px; border:1px solid var(--line); border-radius:18px; background:var(--paper); }}
-    .capability-list strong {{ color:var(--burgundy); }}
-    .capability-list span {{ color:var(--muted); font-size:13px; overflow-wrap:anywhere; }}
-    .capability-list code {{ width:max-content; max-width:100%; overflow-wrap:anywhere; }}
-    .empty-capability {{ color:var(--muted); font-style:italic; }}
-    .finding {{ margin:18px 0; padding:28px; border:1px solid var(--line); border-left:5px solid var(--beige); border-radius:26px; background:rgba(255,253,249,.94); box-shadow:var(--shadow-soft); }}
-    .finding.severity-critical {{ border-left-color:var(--danger); }}
-    .finding.severity-high {{ border-left-color:#a85a4c; }}
-    .finding.severity-medium {{ border-left-color:#b39847; }}
-    .finding-kicker {{ color:var(--burgundy); font-size:11px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }}
-    .finding h2 {{ margin:7px 0 5px; color:var(--burgundy); font-size:27px; line-height:1.1; }}
-    .finding p {{ color:#514b48; }}
-    .finding strong {{ color:var(--charcoal); }}
-    .meta {{ margin:0; color:var(--muted)!important; font-size:14px; overflow-wrap:anywhere; }}
-    .labels {{ display:flex; flex-wrap:wrap; gap:8px; margin:15px 0; }}
-    .labels span {{ padding:5px 9px; border:1px solid rgba(90,30,45,.15); border-radius:999px; background:var(--soft); color:var(--burgundy); font-size:11px; font-weight:850; text-transform:capitalize; }}
-    .finding-detail {{ display:grid; gap:7px; margin:16px 0; }}
-    code {{ padding:3px 6px; border-radius:6px; background:#f5eee7; color:var(--burgundy-deep); font-family:"SFMono-Regular", Consolas, monospace; font-size:.88em; overflow-wrap:anywhere; }}
-    .empty-state {{ margin:18px 0; padding:clamp(30px,6vw,60px); border:1px solid rgba(90,30,45,.16); border-radius:30px; background:linear-gradient(145deg,var(--paper),#f2e7dc); box-shadow:var(--shadow-soft); }}
-    .empty-state h2 {{ margin:0 0 8px; color:var(--burgundy); font-size:38px; }}
-    .empty-state p:last-child {{ max-width:620px; color:#514b48; }}
-    footer {{ display:flex; justify-content:space-between; gap:16px; margin:30px 4px 0; color:var(--muted); font-size:13px; }}
-    footer strong {{ color:var(--burgundy); }}
-    @media (max-width:720px) {{ main {{ width:min(100% - 28px,1120px); padding-top:18px; }} header {{ grid-template-columns:1fr; padding:28px; border-radius:26px; }} .summary {{ grid-template-columns:repeat(2,1fr); }} .section-card,.finding {{ padding:22px; border-radius:22px; }} footer {{ display:block; }} footer p + p {{ margin-top:8px; }} }}
+    .capability-list li {{ display:grid; gap:3px; padding:14px 16px; border:1px solid var(--line-soft); border-radius:10px; background:var(--panel-deep); }}
+    .capability-list strong {{ color:var(--text); }} .capability-list span {{ color:var(--muted); font-size:13px; overflow-wrap:anywhere; }} .capability-list code {{ width:max-content; max-width:100%; overflow-wrap:anywhere; }} .empty-capability {{ color:var(--dim); font-style:italic; }}
+    .finding {{ margin:18px 0; padding:28px; border:1px solid var(--line); border-left:5px solid var(--dim); border-radius:12px; background:var(--panel); }}
+    .finding.severity-critical {{ border-left-color:var(--danger); }} .finding.severity-high {{ border-left-color:#ff8b72; }} .finding.severity-medium {{ border-left-color:var(--warn); }}
+    .finding-kicker {{ color:var(--accent-dim); font:600 11px var(--mono); letter-spacing:.12em; text-transform:uppercase; }}
+    .finding h2 {{ margin:7px 0 5px; font-size:27px; line-height:1.1; }} .finding p {{ color:var(--muted); }} .meta {{ margin:0; color:var(--dim)!important; font:14px var(--mono); overflow-wrap:anywhere; }}
+    .labels {{ display:flex; flex-wrap:wrap; gap:8px; margin:15px 0; }} .labels span {{ padding:5px 9px; border:1px solid var(--line); border-radius:999px; background:var(--panel-deep); color:var(--muted); font:600 11px var(--mono); text-transform:capitalize; }}
+    .finding-detail {{ display:grid; gap:7px; margin:16px 0; }} code {{ padding:3px 6px; border-radius:6px; background:#080c10; color:#b9f8df; font-family:var(--mono); font-size:.88em; overflow-wrap:anywhere; }}
+    .empty-state {{ margin:18px 0; padding:clamp(30px,6vw,60px); border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,#0d1219,#080b0f); }} .empty-state h2 {{ margin:0 0 8px; font-size:38px; }} .empty-state p:last-child {{ max-width:620px; color:var(--muted); }}
+    footer {{ display:flex; justify-content:space-between; gap:16px; margin:30px 4px 0; color:var(--dim); font-size:13px; }} footer strong {{ color:var(--text); }}
+    @media (max-width:720px) {{ main {{ width:min(100% - 28px,1080px); padding-top:18px; }} header {{ grid-template-columns:1fr; padding:28px; }} .summary {{ grid-template-columns:repeat(2,1fr); }} .section-card,.finding {{ padding:22px; }} footer {{ display:block; }} footer p + p {{ margin-top:8px; }} }}
   </style>
 </head>
 <body>
 <main>
-  <div class="report-topline"><span>AI Shield</span><span>Local pre-flight report · v{__version__} alpha</span></div>
+  <div class="report-topline"><span>Trojaino</span><span>Local pre-install report · v{__version__} alpha</span></div>
   <header>
     <div>
-      <p class="eyebrow">Deterministic scan record</p>
-      <h1>Clear evidence.<br>Better decisions.</h1>
+      <p class="eyebrow">Local deterministic scan record</p>
+      <h1>Know what it does<br>before it runs.</h1>
       <p class="target"><strong>Target:</strong> {_html(result.target)}<br><strong>Profile:</strong> {_html(result.profile)}</p>
     </div>
     <aside class="verdict-panel">
@@ -263,8 +248,8 @@ def render_html(result: ScanResult) -> str:
   <section aria-label="Finding summary" class="summary">{summary_cards}</section>
   <section class="section-card">
     <p class="eyebrow">How to read this</p>
-    <h2>Evidence before certainty.</h2>
-    <p>Findings are ordered with <em>actionable</em> items first. <em>Review</em> needs human judgment; test/example and documentation context remain visible but do not independently make an artifact unsafe. AI Shield is a deterministic alpha scanner, not a safety certification.</p>
+    <h2>Evidence before execution.</h2>
+    <p>Findings are ordered with <em>actionable</em> items first. <em>Review</em> needs human judgment; test/example and documentation context remain visible but do not independently make an artifact unsafe. Trojaino is a deterministic alpha scanner, not a safety certification.</p>
   </section>
   <section aria-label="Runtime capability summary" class="section-card">
     <p class="eyebrow">Capability summary</p>
@@ -274,7 +259,7 @@ def render_html(result: ScanResult) -> str:
   </section>
   {body}
   <footer>
-    <p><strong>AI Shield</strong> · Local deterministic pre-flight scanning</p>
+    <p><strong>Trojaino</strong> · Local deterministic pre-install scanning</p>
     <p>Review evidence before running install commands, giving the project secrets, or deploying it.</p>
   </footer>
 </main>

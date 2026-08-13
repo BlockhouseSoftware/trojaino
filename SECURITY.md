@@ -1,6 +1,6 @@
 # Security Policy
 
-AI Shield is an alpha deterministic scanner. It does not prove that scanned software is safe, complete a full security audit, or replace human review.
+Trojaino is an alpha deterministic scanner. It does not prove that scanned software is safe, complete a full security audit, or replace human review.
 
 ## Supported version
 
@@ -18,4 +18,4 @@ Include the affected version or commit, a minimal reproduction, impact, and any 
 
 - Reports about deterministic rule bypasses, unsafe evidence disclosure, path-boundary failures, and package or CLI behavior are in scope.
 - Do not test against systems or repositories you do not own or lack permission to assess.
-- AI Shield reports may contain sensitive paths or evidence. Review and redact them before sharing.
+- Trojaino reports may contain sensitive paths or evidence. Review and redact them before sharing.

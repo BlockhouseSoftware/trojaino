@@ -1,6 +1,6 @@
-# AI Shield v0.1.1 (unreleased)
+# Trojaino v0.1.2
 
-AI Shield is a local deterministic trust scanner for AI-built and downloaded software. The first version focuses on Node/TypeScript and Python projects, MCP/tooling repos, Docker configs, and agent instruction files.
+Trojaino is a local deterministic install gate for AI tools and downloaded software. The first version focuses on Node/TypeScript and Python projects, MCP/tooling repos, Docker configs, and agent instruction files.
 
 It is intentionally not a generic "ask an LLM to review this repo" wrapper. v0.1 runs repeatable rule packs and produces evidence-first findings with a conservative verdict:
 
@@ -21,8 +21,8 @@ Generated reports should be written to a local-only workspace. A report belongs 
 Clone the repo, then run the CLI directly from the checkout:
 
 ```bash
-git clone https://github.com/BlockhouseSoftware/ai-shield.git
-cd ai-shield
+git clone https://github.com/BlockhouseSoftware/trojaino.git
+cd trojaino
 python3 -m aishield scan ./tests/fixtures/clean-project
 ```
 
@@ -32,35 +32,65 @@ For local development, install it in editable mode inside a virtual environment:
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e .
-aishield scan ./tests/fixtures/clean-project
+trojaino scan ./tests/fixtures/clean-project
 ```
 
 ### Distribution
 
-AI Shield v0.1.1 is distributed as source through this repository and its GitHub Releases page. No AI Shield package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
+Trojaino v0.1.2 is distributed as source through this repository and its GitHub Releases page. No Trojaino package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
 
 For a reproducible source checkout after the first release is published:
 
 ```bash
-git checkout v0.1.1
+git checkout v0.1.2
 ```
 
 ## Run locally
 
+### Desktop scan window
+
+For a file-picker-based local scan, run:
+
 ```bash
-python3 -m aishield scan ./some-project          # terminal summary, top 5 findings
-python3 -m aishield scan ./some-project --all    # terminal summary, all findings
-python3 -m aishield scan ./some-project --json   # full machine-readable report
-python3 -m aishield scan ./some-project --html report.html
-python3 -m aishield scan . --profile release     # shipped-source view; excludes tests/examples/reference artifacts
+trojaino gui
 ```
 
-Every CLI scan first performs a bounded, metadata-only preflight estimate. In an interactive terminal, AI Shield offers to keep the selected hard limits, raise them once to fit the estimate, choose a larger preset, or cancel before reading project files. JSON, CI, and other non-interactive runs never prompt; incomplete scans fail closed, and budget-limited results include a suggested higher-budget command when another supported ceiling is available.
+The optional desktop window uses the same local scanner, bounded resource presets, and report renderers as the CLI. Choose a project or file, select Standard, Large, or Exhaustive, then choose HTML, JSON, or both report formats. It proposes a visible `TrojainoReports/` folder beside the selected artifact, but outside a containing Git repository; you can choose any other report folder before scanning. It does not upload or execute the selected code.
+
+The GUI requires a graphical desktop session and a Python installation with Tkinter. On a server, SSH session, or minimal Python installation without Tk support, use the CLI commands below instead.
+
+Trojaino scans local files and folders. To scan a Git repository, clone it first, then select or pass the local checkout. Remote-URL cloning is not implemented in this alpha.
+
+### Optional anonymous scan statistics
+
+Trojaino never uploads code, reports, paths, filenames, line numbers, evidence, credentials, or the selected target. After a desktop scan, **Share anonymous statistics…** shows the exact aggregate JSON before anything can leave the device. Sharing is optional and off by default.
+
+The CLI has the same explicit preview-first flow. It reads a local Trojaino JSON report only to create a new allowlisted summary; it never uploads that report file.
 
 ```bash
-python3 -m aishield scan ./large-project --budget large
-python3 -m aishield scan ./large-project --budget exhaustive
-python3 -m aishield scan ./large-project --max-total-mb 150 --max-seconds 180
+# Prints the complete anonymous payload and sends nothing.
+trojaino share ./TrojainoReports/project-20260812-221530.json
+
+# Sends only after the user has reviewed the preview and explicitly opts in.
+trojaino share ./TrojainoReports/project-20260812-221530.json --send
+```
+
+The contribution service is not included in this local scanner repository. Before an official endpoint is enabled, the GUI still provides the privacy preview but deliberately cannot send anything.
+
+```bash
+trojaino scan ./some-project          # terminal summary, top 5 findings
+trojaino scan ./some-project --all    # terminal summary, all findings
+trojaino scan ./some-project --json   # full machine-readable report
+trojaino scan ./some-project --html report.html
+trojaino scan . --profile release     # shipped-source view; excludes tests/examples/reference artifacts
+```
+
+Every CLI scan first performs a bounded, metadata-only preflight estimate. In an interactive terminal, Trojaino offers to keep the selected hard limits, raise them once to fit the estimate, choose a larger preset, or cancel before reading project files. JSON, CI, and other non-interactive runs never prompt; incomplete scans fail closed, and budget-limited results include a suggested higher-budget command when another supported ceiling is available.
+
+```bash
+trojaino scan ./large-project --budget large
+trojaino scan ./large-project --budget exhaustive
+trojaino scan ./large-project --max-total-mb 150 --max-seconds 180
 ```
 
 `standard`, `large`, and `exhaustive` are finite presets, not unlimited modes. File, entry, byte, finding, canonical JSON report-data, depth, and elapsed-time ceilings remain enforced during the actual scan even when preflight predicts the project will fit. Use `--no-prompt` to retain preflight metadata while suppressing interactive questions.
@@ -81,7 +111,7 @@ It is not a blanket suppression mechanism: a committed `.env`, dangerous package
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 -m aishield scan . --profile release --json
+trojaino scan . --profile release --json
 ```
 
 ## Demo fixtures
@@ -89,11 +119,11 @@ python3 -m aishield scan . --profile release --json
 Use the included fixtures to see the alpha behavior without scanning an unrelated project:
 
 ```bash
-python3 -m aishield scan tests/fixtures/bad-node-app
-python3 -m aishield scan tests/fixtures/poisoned-agent-file
-python3 -m aishield scan tests/fixtures/risky-mcp-server
-python3 -m aishield scan tests/fixtures/unsafe-docker-config
-python3 -m aishield scan tests/fixtures/clean-project
+trojaino scan tests/fixtures/bad-node-app
+trojaino scan tests/fixtures/poisoned-agent-file
+trojaino scan tests/fixtures/risky-mcp-server
+trojaino scan tests/fixtures/unsafe-docker-config
+trojaino scan tests/fixtures/clean-project
 ```
 
 The intentionally bad fixtures should produce `Verdict: DO NOT RUN` and exit `2`. That is expected: they demonstrate catches such as remote package install scripts, committed env files, client-exposed key names, poisoned agent instructions, risky MCP access, and unsafe Docker settings.
@@ -113,7 +143,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 
 ## Limitations
 
-AI Shield v0.1 is an alpha deterministic scanner:
+Trojaino v0.1 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.
@@ -131,4 +161,4 @@ python3 -m unittest discover -s tests -v
 
 Copyright © 2026 Blockhouse Software.
 
-AI Shield is licensed under the [GNU Affero General Public License version 3](LICENSE) only (`AGPL-3.0-only`).
+Trojaino is licensed under the [GNU Affero General Public License version 3](LICENSE) only (`AGPL-3.0-only`).
