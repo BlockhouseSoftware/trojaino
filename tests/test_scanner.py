@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -15,6 +17,18 @@ from aishield.scanner import scan_path
 
 
 class ScannerTests(unittest.TestCase):
+    def test_public_trojaino_module_entry_point_runs_the_cli(self):
+        completed = subprocess.run(
+            [sys.executable, "-m", "trojaino", "--help"],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn("usage: trojaino", completed.stdout)
+        self.assertIn("Open the optional desktop scan window", completed.stdout)
+
     def make_project(self, files: dict[str, str]) -> Path:
         tmp = Path(tempfile.mkdtemp(prefix="aishield-test-"))
         for rel, content in files.items():

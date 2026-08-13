@@ -16,23 +16,31 @@ This repository contains only the product source, public documentation, tests, a
 
 Generated reports should be written to a local-only workspace. A report belongs in this repository only when it is deliberately selected as a public example, sanitized, and manually reviewed.
 
-## Install
+## Install and run
 
-Clone the repo, then run the CLI directly from the checkout:
+Trojaino is currently distributed as source, not through PyPI. For normal use,
+clone the verified repository and run it directly — no installation is required:
 
 ```bash
 git clone https://github.com/BlockhouseSoftware/trojaino.git
 cd trojaino
-python3 -m aishield scan ./tests/fixtures/clean-project
+python3 -m trojaino gui
 ```
 
-For local development, install it in editable mode inside a virtual environment:
+To run a scan from the terminal without installing anything:
+
+```bash
+python3 -m trojaino scan ./tests/fixtures/clean-project
+```
+
+If you prefer the shorter `trojaino` command, install it in an isolated virtual
+environment. This is optional; it is not required to use the desktop window.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e .
-trojaino scan ./tests/fixtures/clean-project
+trojaino gui
 ```
 
 ### Distribution
@@ -49,11 +57,14 @@ git checkout v0.1.2
 
 ### Desktop scan window
 
-For a file-picker-based local scan, run:
+For a file-picker-based local scan from a source checkout, run:
 
 ```bash
-trojaino gui
+python3 -m trojaino gui
 ```
+
+If you completed the optional virtual-environment installation above, the
+equivalent shorter command is `trojaino gui`.
 
 The optional desktop window uses the same local scanner, bounded resource presets, and report renderers as the CLI. Choose a project or file, select Standard, Large, or Exhaustive, then choose HTML, JSON, or both report formats. It proposes a visible `TrojainoReports/` folder beside the selected artifact, but outside a containing Git repository; you can choose any other report folder before scanning. It does not upload or execute the selected code.
 
