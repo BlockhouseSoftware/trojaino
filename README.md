@@ -73,9 +73,20 @@ trojaino share ./TrojainoReports/project-20260812-221530.json
 
 # Sends only after the user has reviewed the preview and explicitly opts in.
 trojaino share ./TrojainoReports/project-20260812-221530.json --send
+
+# Deletes a prior submission. Both values are displayed only after sending.
+trojaino unshare <receipt> <deletion-token>
 ```
 
-The contribution service is not included in this local scanner repository. Before an official endpoint is enabled, the GUI still provides the privacy preview but deliberately cannot send anything.
+The contribution service is hosted separately from this local scanner repository. It accepts only this allowlisted aggregate schema and labels each row anonymous and unverified. It does not accept report files or arbitrary user content. Trojaino shows a one-time receipt and deletion token after a submission; save both together to delete the contribution using `trojaino unshare`. The hosted service uses `https://trojaino.llamaheads.com/v1/scan-statistics` only; Trojaino will not send data to a user-supplied destination.
+
+### Anonymous statistics privacy notice
+
+Sharing is optional and disabled unless you explicitly choose **Send anonymous statistics** in the desktop window or add `--send` to `trojaino share`. Before either action, Trojaino displays the complete JSON payload.
+
+The service receives only scanner version, profile, verdict, completion status, a coarse scan-size band, and counts grouped by supported detection rule/category and coverage-issue IDs. It does not receive source code, HTML or JSON reports, paths, filenames, line numbers, evidence, credentials, the selected target, hashes, contact details, archives, or arbitrary metadata.
+
+Contributions are anonymous and unverified: they may be incorrect or fabricated and are not treated as authoritative research. The service retains them for at most 90 days, then deletes them automatically. You can delete a contribution earlier using the receipt and one-time deletion token returned after you submit it. Keep those values private; without both, the service cannot identify or remove an anonymous row.
 
 ```bash
 trojaino scan ./some-project          # terminal summary, top 5 findings

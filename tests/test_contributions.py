@@ -12,16 +12,16 @@ from aishield.contributions import (
     build_contribution_payload,
     build_contribution_payload_from_report,
     contribution_preview,
+    delete_contribution,
     submit_contribution,
 )
 from aishield.scanner import scan_path
 
 
 class _FakeResponse:
-    status = 201
-
-    def __init__(self, body: bytes = b'{"receipt_id":"receipt-123"}'):
+    def __init__(self, body: bytes = b'{"receipt_id":"receipt-123","deletion_token":"delete-456"}', status: int = 201):
         self.body = body
+        self.status = status
 
     def read(self, size: int = -1) -> bytes:
         return self.body[:size]
@@ -107,13 +107,27 @@ class ContributionTests(unittest.TestCase):
         ):
             receipt = submit_contribution(payload)
 
-        self.assertEqual(receipt, "receipt-123")
+        self.assertEqual(receipt.receipt_id, "receipt-123")
+        self.assertEqual(receipt.deletion_token, "delete-456")
         request = mocked_open.call_args.args[0]
         self.assertEqual(request.get_method(), "POST")
         self.assertEqual(request.get_header("Content-type"), "application/json")
         self.assertLess(len(request.data), 64 * 1024)
         posted = json.loads(request.data.decode("utf-8"))
         self.assertEqual(posted["contribution_id"], payload["contribution_id"])
+
+    def test_delete_uses_the_fixed_official_endpoint_and_confirms_deletion(self):
+        endpoint = "https://contribute.example.test/v1/scan-statistics"
+        with (
+            patch.object(contributions, "OFFICIAL_CONTRIBUTION_ENDPOINT", endpoint),
+            patch("aishield.contributions.urlopen", return_value=_FakeResponse(b'{"deleted":true}', status=200)) as mocked_open,
+        ):
+            delete_contribution("receipt-123", "delete-456")
+
+        request = mocked_open.call_args.args[0]
+        self.assertEqual(request.get_method(), "DELETE")
+        self.assertEqual(request.full_url, f"{endpoint}/receipt-123")
+        self.assertEqual(json.loads(request.data.decode("utf-8")), {"deletion_token": "delete-456"})
 
 
 if __name__ == "__main__":

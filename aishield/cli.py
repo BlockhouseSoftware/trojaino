@@ -53,6 +53,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     share.add_argument("report", help="Local Trojaino JSON report to summarize")
     share.add_argument("--send", action="store_true", help="Explicitly send the previewed anonymous summary")
+    unshare = sub.add_parser(
+        "unshare",
+        help="Delete a previously shared anonymous scan summary",
+        description="Delete an anonymous summary using the receipt and deletion token shown when it was sent.",
+    )
+    unshare.add_argument("receipt", help="Receipt shown after the anonymous summary was sent")
+    unshare.add_argument("deletion_token", help="One-time deletion token shown with the receipt")
 
     scan = sub.add_parser(
         "scan",
@@ -276,6 +283,16 @@ def main(argv: list[str] | None = None) -> int:
         from aishield.gui import launch_gui
 
         return launch_gui()
+    if args.command == "unshare":
+        from aishield.contributions import ContributionError, delete_contribution
+
+        try:
+            delete_contribution(args.receipt, args.deletion_token)
+        except ContributionError as exc:
+            print(f"Contribution was not deleted: {exc}", file=sys.stderr)
+            return 1
+        print("Anonymous statistics contribution deleted.")
+        return 0
     if args.command == "share":
         from aishield.contributions import (
             ContributionError,
@@ -300,11 +317,13 @@ def main(argv: list[str] | None = None) -> int:
             print("Nothing was sent. Re-run with --send after reviewing this payload.")
             return 0
         try:
-            receipt_id = submit_contribution(payload)
+            receipt = submit_contribution(payload)
         except ContributionError as exc:
             print(f"Nothing was sent: {exc}", file=sys.stderr)
             return 1
-        print(f"Anonymous statistics sent. Receipt: {receipt_id}")
+        print("Anonymous statistics sent. Save both values to delete this contribution later:")
+        print(f"Receipt: {receipt.receipt_id}")
+        print(f"Deletion token: {receipt.deletion_token}")
         return 0
     if args.command == "scan":
         target = Path(args.target).expanduser().absolute()

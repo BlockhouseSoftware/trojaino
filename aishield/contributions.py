@@ -9,6 +9,7 @@ import json
 import ssl
 import uuid
 from collections import Counter
+from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -23,7 +24,7 @@ REQUEST_TIMEOUT_SECONDS = 10
 # Set only in an official release after the hosted service, privacy notice, and
 # deletion process exist. Keeping this unset means the local scanner can show a
 # complete preview but cannot contact an arbitrary network destination.
-OFFICIAL_CONTRIBUTION_ENDPOINT: str | None = None
+OFFICIAL_CONTRIBUTION_ENDPOINT: str | None = "https://trojaino.llamaheads.com/v1/scan-statistics"
 _REPORT_RULE_IDS = {
     "AGENT_CREDENTIAL_PATH", "AGENT_HIDE_BEHAVIOR", "AGENT_HIDDEN_UNICODE", "AGENT_IGNORE_SAFETY",
     "AGENT_SECRET_EXFIL", "AGENT_TRUST_REMOTE_DOCS", "CI_SECRET_REFERENCE", "CI_SECRET_TRANSMISSION",
@@ -46,6 +47,14 @@ _ISSUE_CODES = {
 
 class ContributionError(ValueError):
     """A local contribution could not be created or sent safely."""
+
+
+@dataclass(frozen=True)
+class ContributionReceipt:
+    """One-time proof needed to later delete an anonymous contribution."""
+
+    receipt_id: str
+    deletion_token: str
 
 
 def _count_records(records: list[dict[str, str]], *, fields: tuple[str, ...]) -> list[dict[str, str | int]]:
@@ -191,7 +200,7 @@ def _ensure_payload_size(payload: dict[str, Any]) -> bytes:
     return encoded
 
 
-def submit_contribution(payload: dict[str, Any], endpoint: str | None = None) -> str:
+def submit_contribution(payload: dict[str, Any], endpoint: str | None = None) -> ContributionReceipt:
     """POST an allowlisted payload to a fixed HTTPS contribution endpoint.
 
     The endpoint is compiled into an official release rather than supplied by
@@ -228,6 +237,46 @@ def submit_contribution(payload: dict[str, Any], endpoint: str | None = None) ->
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ContributionError("contribution service returned an invalid response") from exc
     receipt_id = response_data.get("receipt_id") if isinstance(response_data, dict) else None
+    deletion_token = response_data.get("deletion_token") if isinstance(response_data, dict) else None
     if not isinstance(receipt_id, str) or not receipt_id or len(receipt_id) > 128:
         raise ContributionError("contribution service did not return a valid receipt")
-    return receipt_id
+    if not isinstance(deletion_token, str) or not deletion_token or len(deletion_token) > 128:
+        raise ContributionError("contribution service did not return a valid deletion token")
+    return ContributionReceipt(receipt_id=receipt_id, deletion_token=deletion_token)
+
+
+def delete_contribution(receipt_id: str, deletion_token: str) -> None:
+    """Delete a prior anonymous contribution using its one-time receipt pair."""
+    if not OFFICIAL_CONTRIBUTION_ENDPOINT:
+        raise ContributionError("anonymous sharing is not available until an official Trojaino service is configured")
+    if not isinstance(receipt_id, str) or not receipt_id or len(receipt_id) > 128:
+        raise ContributionError("receipt must be a bounded string")
+    if not isinstance(deletion_token, str) or not deletion_token or len(deletion_token) > 128:
+        raise ContributionError("deletion token must be a bounded string")
+    parsed = urlparse(OFFICIAL_CONTRIBUTION_ENDPOINT)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ContributionError("contribution endpoint must be a clean HTTPS URL")
+    url = f"{OFFICIAL_CONTRIBUTION_ENDPOINT.rstrip('/')}/{receipt_id}"
+    request = Request(
+        url,
+        data=json.dumps({"deletion_token": deletion_token}, separators=(",", ":")).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": f"Trojaino/{__version__}"},
+        method="DELETE",
+    )
+    try:
+        with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS, context=ssl.create_default_context()) as response:
+            if response.status != 200:
+                raise ContributionError(f"contribution service returned HTTP {response.status}")
+            response_body = response.read(4_096)
+    except HTTPError as exc:
+        if exc.code == 404:
+            raise ContributionError("receipt or deletion token was not found") from exc
+        raise ContributionError(f"contribution service returned HTTP {exc.code}") from exc
+    except URLError as exc:
+        raise ContributionError("could not reach the contribution service") from exc
+    try:
+        response_data = json.loads(response_body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ContributionError("contribution service returned an invalid response") from exc
+    if response_data != {"deleted": True}:
+        raise ContributionError("contribution service did not confirm deletion")

@@ -356,12 +356,17 @@ class TrojainoGui:
         if not OFFICIAL_CONTRIBUTION_ENDPOINT:
             return
         try:
-            receipt_id = submit_contribution(payload)
+            receipt = submit_contribution(payload)
         except ContributionError as exc:
             self.messagebox.showerror("Anonymous statistics were not sent", str(exc), parent=dialog)
             return
         dialog.destroy()
-        self.messagebox.showinfo("Anonymous statistics sent", f"Thank you. Receipt: {receipt_id}")
+        self.messagebox.showinfo(
+            "Anonymous statistics sent",
+            "Thank you. Save these values together; they are required to delete the contribution later.\n\n"
+            f"Receipt: {receipt.receipt_id}\n"
+            f"Deletion token: {receipt.deletion_token}",
+        )
 
 
 def launch_gui() -> int:
