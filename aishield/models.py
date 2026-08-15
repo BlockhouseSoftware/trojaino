@@ -176,6 +176,7 @@ class ScanResult:
     preflight: PreflightEstimate | None = None
     budget: dict[str, int | float | str] | None = None
     recommended_command: str | None = None
+    scanned_at: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -194,6 +195,7 @@ class ScanResult:
             "preflight": self.preflight.to_dict() if self.preflight else None,
             "budget": self.budget,
             "recommended_command": self.recommended_command,
+            "scanned_at": self.scanned_at,
         }
 
 

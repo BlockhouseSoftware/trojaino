@@ -1,6 +1,13 @@
-# Trojaino v0.1.2
+# Trojaino v0.1.3
 
 Trojaino is a local deterministic install gate for AI tools and downloaded software. The first version focuses on Node/TypeScript and Python projects, MCP/tooling repos, Docker configs, and agent instruction files.
+
+## Requirements
+
+The CLI requires Python 3.11 or newer and has no runtime third-party Python
+dependencies. The optional desktop GUI uses the same scanner and additionally
+requires Tkinter plus a graphical desktop session. If you only use the CLI,
+Tkinter is not required.
 
 It is intentionally not a generic "ask an LLM to review this repo" wrapper. v0.1 runs repeatable rule packs and produces evidence-first findings with a conservative verdict:
 
@@ -22,6 +29,7 @@ Trojaino is currently distributed as source, not through PyPI. For normal use,
 clone the verified repository and run it directly — no installation is required:
 
 ```bash
+python3 --version
 git clone https://github.com/BlockhouseSoftware/trojaino.git
 cd trojaino
 python3 -m trojaino gui
@@ -39,18 +47,19 @@ environment. This is optional; it is not required to use the desktop window.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+python3 -m pip install --upgrade pip setuptools
 python3 -m pip install -e .
 trojaino gui
 ```
 
 ### Distribution
 
-Trojaino v0.1.2 is distributed as source through this repository and its GitHub Releases page. No Trojaino package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
+Trojaino v0.1.3 is distributed as source through this repository and its GitHub Releases page. No Trojaino package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
 
 For a reproducible source checkout after the first release is published:
 
 ```bash
-git checkout v0.1.2
+git checkout v0.1.3
 ```
 
 ## Run locally

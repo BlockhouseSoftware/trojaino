@@ -73,10 +73,14 @@ class GuiSupportTests(unittest.TestCase):
         write_reports(result, html_path=html_path, json_path=json_path)
 
         self.assertTrue(html_path.exists())
-        self.assertIn("Trojaino · Pre-install Report", html_path.read_text(encoding="utf-8"))
+        html_text = html_path.read_text(encoding="utf-8")
+        self.assertIn("Trojaino · Scan Report", html_text)
+        self.assertIn("Blockhouse Software", html_text)
+        self.assertIn("Scanned:", html_text)
         payload = json.loads(json_path.read_text(encoding="utf-8"))
         self.assertEqual(payload["target"], str(project.absolute()))
         self.assertEqual(payload["budget"]["preset"], "standard")
+        self.assertIsNotNone(payload["scanned_at"])
 
 
 if __name__ == "__main__":

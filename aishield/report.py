@@ -121,6 +121,10 @@ def render_html(result: ScanResult) -> str:
         "CAUTION": "verdict-caution",
         "NO CRITICAL RISKS FOUND": "verdict-clear",
     }[result.verdict]
+    scan_metadata = (
+        f"<span><strong>Scanned:</strong> {_html(result.scanned_at)}</span>"
+        if result.scanned_at else "<span><strong>Scanned:</strong> unavailable</span>"
+    )
     summary_cards = "\n".join(
         f"""
         <div class="summary-card severity-{_html(severity)}">
@@ -184,58 +188,59 @@ def render_html(result: ScanResult) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#07090c">
-  <title>Trojaino · Pre-install Report</title>
+  <meta name="theme-color" content="#f3efe6">
+  <title>Trojaino · Scan Report</title>
   <style>
-    :root {{ --bg:#07090c; --panel:#0f141b; --panel-deep:#0a0e13; --line:#1d242e; --line-soft:#161c24; --text:#e8edf4; --muted:#96a2b3; --dim:#6b7789; --accent:#00e5a0; --accent-dim:#00b47e; --warn:#ffb340; --danger:#ff5f5f; --danger-soft:rgba(255,95,95,.10); --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif; --shadow:0 24px 60px -30px rgba(0,0,0,.9); }}
+    :root {{ --bg:#f3efe6; --panel:#faf7f0; --panel-deep:#e5dfd3; --line:rgba(18,17,15,.22); --line-soft:rgba(18,17,15,.14); --text:#12110f; --muted:#5e5b55; --dim:#53615c; --accent:#f7931a; --accent-dim:#a77218; --warn:#a77218; --danger:#b74437; --danger-soft:rgba(183,68,55,.10); --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif; }}
     * {{ box-sizing: border-box; }}
-    body {{ margin:0; color:var(--text); font-family:var(--sans); line-height:1.6; background:var(--bg); -webkit-font-smoothing:antialiased; }}
-    body::before {{ content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; background:radial-gradient(900px 500px at 50% -8%,rgba(0,229,160,.10),transparent 62%),radial-gradient(700px 420px at 92% 6%,rgba(0,140,255,.07),transparent 60%); }}
-    main {{ width:min(1080px,calc(100% - 40px)); margin:0 auto; padding:28px 0 60px; }}
-    .report-topline {{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin:0 0 18px; color:var(--accent); font:600 12px var(--mono); letter-spacing:.12em; text-transform:uppercase; }}
+    body {{ margin:0; color:var(--text); font-family:var(--sans); line-height:1.6; background-color:var(--bg); background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px); background-size:36px 36px; -webkit-font-smoothing:antialiased; }}
+    main {{ width:min(1180px,calc(100% - 48px)); margin:0 auto; padding:28px 0 60px; }}
+    .report-topline {{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin:0 0 18px; padding:0 0 18px; border-bottom:1px solid var(--text); color:var(--dim); font:700 11px var(--mono); letter-spacing:.13em; text-transform:uppercase; }}
+    .report-logo {{ display:block; width:190px; height:auto; }}
     .report-topline span:last-child {{ color:var(--dim); letter-spacing:.08em; }}
-    header {{ display:grid; grid-template-columns:minmax(0,1.25fr) minmax(240px,.75fr); gap:28px; align-items:end; padding:clamp(28px,5vw,54px); border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,#0d1219,#080b0f); box-shadow:var(--shadow); }}
+    header {{ position:relative; overflow:hidden; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(240px,.75fr); gap:28px; align-items:end; padding:clamp(30px,5vw,60px); border:1px solid var(--text); background:var(--panel); }}
+    header::after {{ content:"FIELD CHECK"; position:absolute; right:clamp(24px,4vw,52px); top:clamp(24px,4vw,45px); display:grid; place-items:center; width:96px; height:96px; border:2px solid var(--accent); border-radius:50%; color:var(--accent); font:800 11px/1 var(--mono); letter-spacing:.08em; text-align:center; transform:rotate(-9deg); pointer-events:none; }}
     .eyebrow {{ margin:0 0 9px; color:var(--accent-dim); font:600 12px var(--mono); letter-spacing:.14em; text-transform:uppercase; }}
-    h1,h2 {{ letter-spacing:-.03em; }}
-    h1 {{ max-width:660px; margin:0; font-size:clamp(38px,6vw,66px); line-height:1.06; }}
-    .target {{ max-width:670px; margin:18px 0 0; color:var(--muted); overflow-wrap:anywhere; }}
+    h1,h2 {{ letter-spacing:-.055em; }}
+    h1 {{ max-width:670px; margin:0; font-size:clamp(42px,6vw,78px); font-weight:850; line-height:.9; text-transform:uppercase; }}
+    .target {{ max-width:670px; margin:22px 0 0; color:#34322e; overflow-wrap:anywhere; }}
     .target strong,.finding strong {{ color:var(--text); }}
-    .verdict-panel {{ padding:22px; border:1px solid var(--line); border-radius:12px; background:var(--panel-deep); }}
+    .scan-metadata {{ display:flex; flex-wrap:wrap; gap:7px 18px; max-width:670px; margin:14px 0 0; color:var(--dim); font:700 10px var(--mono); letter-spacing:.04em; text-transform:uppercase; }}
+    .verdict-panel {{ position:relative; z-index:1; padding:22px; border:1px solid var(--text); background:var(--text); color:var(--bg); }}
     .verdict-label {{ display:block; margin-bottom:8px; color:var(--dim); font:600 11px var(--mono); letter-spacing:.12em; text-transform:uppercase; }}
     .verdict {{ display:inline-block; padding:8px 11px; border-radius:8px; font:650 12px var(--mono); letter-spacing:.05em; }}
-    .verdict-clear {{ background:rgba(0,229,160,.09); color:var(--accent); border:1px solid rgba(0,229,160,.28); }}
-    .verdict-caution {{ background:rgba(255,179,64,.10); color:var(--warn); border:1px solid rgba(255,179,64,.32); }}
-    .verdict-stop {{ background:var(--danger-soft); color:var(--danger); border:1px solid rgba(255,95,95,.34); }}
-    .coverage {{ margin:14px 0 0; color:var(--muted); font-size:14px; }}
-    .summary {{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:18px 0; }}
-    .summary-card {{ padding:18px 20px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }}
-    .summary-card .count {{ display:block; color:var(--accent); font:700 36px var(--mono); line-height:1; }}
+    .verdict-clear {{ color:#a9bead; }} .verdict-caution {{ color:var(--accent); }} .verdict-stop {{ color:#e96b60; }}
+    .coverage {{ margin:14px 0 0; color:#c1beb7; font-size:14px; }}
+    .summary {{ display:grid; grid-template-columns:repeat(4,1fr); gap:0; margin:28px 0; border-top:1px solid var(--text); border-left:1px solid var(--text); }}
+    .summary-card {{ min-height:142px; padding:22px; border-right:1px solid var(--text); border-bottom:1px solid var(--text); background:var(--panel); }}
+    .summary-card .count {{ display:block; color:var(--text); font:800 42px var(--mono); line-height:1; }}
     .summary-card span:last-child {{ display:block; margin-top:8px; color:var(--dim); font:600 11px var(--mono); letter-spacing:.11em; text-transform:uppercase; }}
     .summary-card.severity-critical .count {{ color:var(--danger); }} .summary-card.severity-high .count {{ color:#ff8b72; }} .summary-card.severity-medium .count {{ color:var(--warn); }}
-    .section-card {{ margin:18px 0; padding:28px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }}
-    .section-card h2 {{ margin:0 0 8px; font-size:28px; }} .section-card p {{ margin:0; color:var(--muted); }}
+    .section-card {{ margin:28px 0; padding:clamp(26px,4vw,42px); border:1px solid var(--text); background:var(--panel); }}
+    .section-card h2 {{ margin:0 0 12px; font-size:clamp(26px,3vw,38px); line-height:1; }} .section-card p {{ margin:0; color:#45423d; }}
     .capability-list {{ display:grid; gap:10px; margin:18px 0 0; padding:0; list-style:none; }}
-    .capability-list li {{ display:grid; gap:3px; padding:14px 16px; border:1px solid var(--line-soft); border-radius:10px; background:var(--panel-deep); }}
+    .capability-list li {{ display:grid; gap:3px; padding:14px 16px; border:1px solid var(--line-soft); background:var(--bg); }}
     .capability-list strong {{ color:var(--text); }} .capability-list span {{ color:var(--muted); font-size:13px; overflow-wrap:anywhere; }} .capability-list code {{ width:max-content; max-width:100%; overflow-wrap:anywhere; }} .empty-capability {{ color:var(--dim); font-style:italic; }}
-    .finding {{ margin:18px 0; padding:28px; border:1px solid var(--line); border-left:5px solid var(--dim); border-radius:12px; background:var(--panel); }}
+    .finding {{ margin:28px 0; padding:clamp(26px,4vw,42px); border:1px solid var(--text); border-left:6px solid var(--dim); background:var(--panel); }}
     .finding.severity-critical {{ border-left-color:var(--danger); }} .finding.severity-high {{ border-left-color:#ff8b72; }} .finding.severity-medium {{ border-left-color:var(--warn); }}
     .finding-kicker {{ color:var(--accent-dim); font:600 11px var(--mono); letter-spacing:.12em; text-transform:uppercase; }}
     .finding h2 {{ margin:7px 0 5px; font-size:27px; line-height:1.1; }} .finding p {{ color:var(--muted); }} .meta {{ margin:0; color:var(--dim)!important; font:14px var(--mono); overflow-wrap:anywhere; }}
-    .labels {{ display:flex; flex-wrap:wrap; gap:8px; margin:15px 0; }} .labels span {{ padding:5px 9px; border:1px solid var(--line); border-radius:999px; background:var(--panel-deep); color:var(--muted); font:600 11px var(--mono); text-transform:capitalize; }}
-    .finding-detail {{ display:grid; gap:7px; margin:16px 0; }} code {{ padding:3px 6px; border-radius:6px; background:#080c10; color:#b9f8df; font-family:var(--mono); font-size:.88em; overflow-wrap:anywhere; }}
-    .empty-state {{ margin:18px 0; padding:clamp(30px,6vw,60px); border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,#0d1219,#080b0f); }} .empty-state h2 {{ margin:0 0 8px; font-size:38px; }} .empty-state p:last-child {{ max-width:620px; color:var(--muted); }}
-    footer {{ display:flex; justify-content:space-between; gap:16px; margin:30px 4px 0; color:var(--dim); font-size:13px; }} footer strong {{ color:var(--text); }}
+    .labels {{ display:flex; flex-wrap:wrap; gap:8px; margin:15px 0; }} .labels span {{ padding:5px 9px; border:1px solid var(--line); background:var(--bg); color:var(--dim); font:600 11px var(--mono); text-transform:capitalize; }}
+    .finding-detail {{ display:grid; gap:7px; margin:16px 0; }} code {{ padding:3px 6px; background:var(--panel-deep); color:var(--text); font-family:var(--mono); font-size:.88em; overflow-wrap:anywhere; }}
+    .empty-state {{ margin:28px 0; padding:clamp(34px,6vw,64px); border:1px solid var(--text); background:var(--panel); }} .empty-state h2 {{ margin:0 0 8px; font-size:38px; }} .empty-state p:last-child {{ max-width:620px; color:#45423d; }}
+    footer {{ display:flex; justify-content:space-between; gap:16px; margin-top:28px; padding:28px; background:var(--text); color:#aaa79f; font-size:13px; }} footer strong {{ color:var(--bg); }}
     @media (max-width:720px) {{ main {{ width:min(100% - 28px,1080px); padding-top:18px; }} header {{ grid-template-columns:1fr; padding:28px; }} .summary {{ grid-template-columns:repeat(2,1fr); }} .section-card,.finding {{ padding:22px; }} footer {{ display:block; }} footer p + p {{ margin-top:8px; }} }}
   </style>
 </head>
 <body>
 <main>
-  <div class="report-topline"><span>Trojaino</span><span>Local pre-install report · v{__version__} alpha</span></div>
+  <div class="report-topline"><img class="report-logo" src="https://blockhousesoftware.com/brand/blockhouse-horizontal-lockup.png" alt="Blockhouse Software"><span>Trojaino · local scan record</span></div>
   <header>
     <div>
-      <p class="eyebrow">Local deterministic scan record</p>
-      <h1>Know what it does<br>before it runs.</h1>
+      <p class="eyebrow">Deterministic scan record</p>
+      <h1>Inspect before<br>you run it.</h1>
       <p class="target"><strong>Target:</strong> {_html(result.target)}<br><strong>Profile:</strong> {_html(result.profile)}</p>
+      <div class="scan-metadata">{scan_metadata}<span><strong>Trojaino:</strong> v{_html(__version__)}</span></div>
     </div>
     <aside class="verdict-panel">
       <span class="verdict-label">Assessment</span>
