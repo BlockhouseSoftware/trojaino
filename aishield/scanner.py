@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 import math
 import re
@@ -447,5 +448,6 @@ def scan_path(
         complete=complete,
         issues=issues,
         skipped_files=skipped,
+        scanned_at=datetime.now(timezone.utc).isoformat(),
     )
     return _enforce_report_budget(result, limits.max_report_bytes)
