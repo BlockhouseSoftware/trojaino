@@ -3,9 +3,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from aishield.file_utils import line_for_index
-from aishield.models import Finding, relpath
-from aishield.rules.budget import BudgetedList, RuleBudget
+from trojaino.file_utils import line_for_index
+from trojaino.models import Finding, relpath
+from trojaino.rules.budget import BudgetedList, RuleBudget
 
 KEY_VALUE_RE = re.compile(
     r"(?<![A-Z0-9_])(?P<name>[A-Z0-9_]{0,128}(API_KEY|TOKEN|SECRET|PRIVATE_KEY|PASSWORD)[A-Z0-9_]{0,128})"

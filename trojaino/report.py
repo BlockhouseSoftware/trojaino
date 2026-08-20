@@ -4,8 +4,8 @@ import html
 import json
 import unicodedata
 
-from aishield import __version__
-from aishield.models import ScanResult
+from trojaino import __version__
+from trojaino.models import ScanResult
 
 
 _BIDI_CONTROLS = {

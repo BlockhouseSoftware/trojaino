@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import aishield.contributions as contributions
-from aishield.contributions import (
+import trojaino.contributions as contributions
+from trojaino.contributions import (
     ContributionError,
     build_contribution_payload,
     build_contribution_payload_from_report,
@@ -15,7 +15,7 @@ from aishield.contributions import (
     delete_contribution,
     submit_contribution,
 )
-from aishield.scanner import scan_path
+from trojaino.scanner import scan_path
 
 
 class _FakeResponse:
@@ -35,7 +35,7 @@ class _FakeResponse:
 
 class ContributionTests(unittest.TestCase):
     def make_project(self) -> Path:
-        project = Path(tempfile.mkdtemp(prefix="aishield-contribution-test-"))
+        project = Path(tempfile.mkdtemp(prefix="trojaino-contribution-test-"))
         (project / ".env").write_text("OPENAI_API_KEY=sk-not-a-real-secret-1234567890", encoding="utf-8")
         (project / "src").mkdir()
         (project / "src" / "app.py").write_text("print('hello')", encoding="utf-8")
@@ -103,7 +103,7 @@ class ContributionTests(unittest.TestCase):
         endpoint = "https://contribute.example.test/v1/scan-statistics"
         with (
             patch.object(contributions, "OFFICIAL_CONTRIBUTION_ENDPOINT", endpoint),
-            patch("aishield.contributions.urlopen", return_value=_FakeResponse()) as mocked_open,
+            patch("trojaino.contributions.urlopen", return_value=_FakeResponse()) as mocked_open,
         ):
             receipt = submit_contribution(payload)
 
@@ -120,7 +120,7 @@ class ContributionTests(unittest.TestCase):
         endpoint = "https://contribute.example.test/v1/scan-statistics"
         with (
             patch.object(contributions, "OFFICIAL_CONTRIBUTION_ENDPOINT", endpoint),
-            patch("aishield.contributions.urlopen", return_value=_FakeResponse(b'{"deleted":true}', status=200)) as mocked_open,
+            patch("trojaino.contributions.urlopen", return_value=_FakeResponse(b'{"deleted":true}', status=200)) as mocked_open,
         ):
             delete_contribution("receipt-123", "delete-456")
 

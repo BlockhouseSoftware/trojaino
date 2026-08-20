@@ -5,7 +5,7 @@ import stat
 import time
 from pathlib import Path
 
-from aishield.models import PreflightEstimate, ScanIssue
+from trojaino.models import PreflightEstimate, ScanIssue
 
 TEXT_EXTENSIONS = {
     "", ".cjs", ".conf", ".css", ".env", ".html", ".js", ".json", ".jsx",

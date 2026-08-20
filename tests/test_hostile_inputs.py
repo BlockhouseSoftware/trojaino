@@ -11,16 +11,16 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from aishield.cli import main
-from aishield.file_utils import estimate_project, iter_files
-from aishield.models import Finding, PreflightEstimate, ScanIssue, ScanResult
-from aishield.report import render_html, render_json, render_text
-from aishield.scanner import BUDGET_PRESETS, ScanLimits, annotate_result, limit_excesses, limits_for_estimate, scan_path
+from trojaino.cli import main
+from trojaino.file_utils import estimate_project, iter_files
+from trojaino.models import Finding, PreflightEstimate, ScanIssue, ScanResult
+from trojaino.report import render_html, render_json, render_text
+from trojaino.scanner import BUDGET_PRESETS, ScanLimits, annotate_result, limit_excesses, limits_for_estimate, scan_path
 
 
 class HostileInputTests(unittest.TestCase):
     def make_project(self) -> Path:
-        return Path(tempfile.mkdtemp(prefix="aishield-hostile-"))
+        return Path(tempfile.mkdtemp(prefix="trojaino-hostile-"))
 
     def test_child_file_and_directory_symlinks_are_rejected(self):
         root = self.make_project()
@@ -44,7 +44,7 @@ class HostileInputTests(unittest.TestCase):
         (root / "code.ts").write_text("safe", encoding="utf-8")
         (outside / "code.ts").write_text("eval('outside')", encoding="utf-8")
 
-        from aishield import scanner
+        from trojaino import scanner
         original_iter_files = scanner.iter_files
 
         def replace_root(*args, **kwargs):
@@ -65,7 +65,7 @@ class HostileInputTests(unittest.TestCase):
         target = root / "code.ts"
         target.write_text("safe", encoding="utf-8")
 
-        from aishield import scanner
+        from trojaino import scanner
         original_iter_files = scanner.iter_files
 
         def replace_file(*args, **kwargs):
@@ -191,7 +191,7 @@ class HostileInputTests(unittest.TestCase):
             with original_scandir(path) as entries:
                 return ReversedEntries(list(reversed(list(entries))))
 
-        with patch("aishield.file_utils.os.scandir", side_effect=reversed_scandir):
+        with patch("trojaino.file_utils.os.scandir", side_effect=reversed_scandir):
             reversed_estimate = estimate_project(root, max_entries=2)
             reversed_issues = []
             reversed_files = iter_files(root, issues=reversed_issues, max_entries=2)
@@ -341,7 +341,7 @@ class HostileInputTests(unittest.TestCase):
             patch.object(sys.stdin, "isatty", return_value=True),
             patch.object(stdout, "isatty", return_value=True),
             patch("builtins.input", return_value="5"),
-            patch("aishield.cli.scan_path") as scan,
+            patch("trojaino.cli.scan_path") as scan,
         ):
             exit_code = main(["scan", str(root), "--max-total-mb", "0.00001"])
         self.assertEqual(exit_code, 2)
@@ -386,7 +386,7 @@ class HostileInputTests(unittest.TestCase):
         def broken_rule(*_args):
             raise ValueError("hostile rule input")
 
-        from aishield import scanner
+        from trojaino import scanner
         node_rule = next(rule for rule in scanner.RULES if rule.__name__ == "scan_node_routes")
         with patch.object(scanner, "RULES", [broken_rule, node_rule]):
             result = scan_path(root)

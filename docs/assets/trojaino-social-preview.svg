@@ -1,49 +1,94 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
   <title id="title">Trojaino social preview</title>
-  <desc id="desc">Trojaino wordmark beside a local pre-install scan verdict panel.</desc>
+  <desc id="desc">Trojaino wordmark beside a geometric shield and evidence scan visualization.</desc>
   <defs>
-    <radialGradient id="halo" cx="52%" cy="0%" r="68%">
-      <stop offset="0" stop-color="#00e5a0" stop-opacity=".15"/>
-      <stop offset="1" stop-color="#07090c" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#00e5a0"/>
-      <stop offset="1" stop-color="#00a874"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071116"/>
+      <stop offset="0.55" stop-color="#0b1820"/>
+      <stop offset="1" stop-color="#0f242b"/>
     </linearGradient>
+    <radialGradient id="glow" cx="78%" cy="50%" r="48%">
+      <stop offset="0" stop-color="#28d7c0" stop-opacity="0.18"/>
+      <stop offset="0.55" stop-color="#12a8b5" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#071116" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#73f0d4"/>
+      <stop offset="0.48" stop-color="#29d3c3"/>
+      <stop offset="1" stop-color="#2da7d7"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#72f1d3" stop-opacity="0"/>
+      <stop offset="0.52" stop-color="#72f1d3" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#2da7d7" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#9fc9c7" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
   </defs>
-  <rect width="1280" height="640" rx="30" fill="#07090c"/>
-  <rect width="1280" height="640" rx="30" fill="url(#halo)"/>
-  <path d="M0 518C246 470 442 552 676 506C910 460 1095 510 1280 466V640H0Z" fill="#0f141b" opacity=".78"/>
-  <g transform="translate(92 78)">
-    <g fill="none" stroke="#00e5a0" stroke-linejoin="round" stroke-width="4">
-      <path d="M20 0l20 8v18c0 13-8.1 24-20 28-11.9-4-20-15-20-28V8l20-8z"/>
-      <path d="M10 27l7 7 14-15" stroke-linecap="round"/>
+
+  <rect width="1280" height="640" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="640" rx="28" fill="url(#grid)"/>
+  <rect width="1280" height="640" rx="28" fill="url(#glow)"/>
+  <path d="M0 522C242 460 430 520 636 488C852 454 995 330 1280 350V640H0Z" fill="#17313a" opacity="0.18"/>
+
+  <g transform="translate(88 116)">
+    <rect x="0" y="0" width="66" height="8" rx="4" fill="url(#accent)"/>
+    <text x="0" y="108" fill="#f4f5ed" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="82" font-weight="760" letter-spacing="-3">TROJAINO</text>
+    <text x="2" y="164" fill="#b8c9c8" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" font-weight="460" letter-spacing="0.2">Trojaino: Local Trust Scanner</text>
+    <text x="2" y="204" fill="#b8c9c8" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" font-weight="460" letter-spacing="0.2">Your first line of defense.</text>
+
+    <g transform="translate(0 266)" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="650" letter-spacing="1.4">
+      <rect width="104" height="42" rx="21" fill="#10272d" stroke="#3bd7c5" stroke-opacity="0.34"/>
+      <text x="52" y="27" text-anchor="middle" fill="#79e8d3">LOCAL</text>
+      <rect x="120" width="174" height="42" rx="21" fill="#10272d" stroke="#3bd7c5" stroke-opacity="0.34"/>
+      <text x="207" y="27" text-anchor="middle" fill="#79e8d3">DETERMINISTIC</text>
+      <rect x="310" width="194" height="42" rx="21" fill="#10272d" stroke="#3bd7c5" stroke-opacity="0.34"/>
+      <text x="407" y="27" text-anchor="middle" fill="#79e8d3">EVIDENCE-FIRST</text>
     </g>
-    <text x="62" y="35" fill="#e8edf4" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="29" font-weight="700">Trojaino</text>
-    <text x="0" y="130" fill="#e8edf4" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="70" font-weight="750" letter-spacing="-2.5">Know what an AI tool</text>
-    <text x="0" y="201" fill="#e8edf4" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="70" font-weight="750" letter-spacing="-2.5">does before it runs.</text>
-    <text x="2" y="258" fill="#96a2b3" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="25">Local, deterministic evidence before installation.</text>
-    <g transform="translate(0 302)">
-      <rect width="114" height="38" rx="19" fill="#0f141b" stroke="#1d242e"/>
-      <text x="57" y="25" text-anchor="middle" fill="#00e5a0" font-family="ui-monospace,Menlo,monospace" font-size="14" font-weight="700" letter-spacing="1">LOCAL</text>
-      <rect x="130" width="196" height="38" rx="19" fill="#0f141b" stroke="#1d242e"/>
-      <text x="228" y="25" text-anchor="middle" fill="#00e5a0" font-family="ui-monospace,Menlo,monospace" font-size="14" font-weight="700" letter-spacing="1">DETERMINISTIC</text>
-      <rect x="342" width="185" height="38" rx="19" fill="#0f141b" stroke="#1d242e"/>
-      <text x="434" y="25" text-anchor="middle" fill="#00e5a0" font-family="ui-monospace,Menlo,monospace" font-size="14" font-weight="700" letter-spacing="1">EVIDENCE-FIRST</text>
+
+    <g transform="translate(0 348)" fill="#879d9d" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="15">
+      <text x="0" y="0">DO NOT RUN</text>
+      <circle cx="130" cy="-5" r="2.5" fill="#536b6d"/>
+      <text x="151" y="0">CAUTION</text>
+      <circle cx="245" cy="-5" r="2.5" fill="#536b6d"/>
+      <text x="266" y="0">NO CRITICAL RISKS FOUND</text>
     </g>
   </g>
-  <g transform="translate(744 356)">
-    <rect width="444" height="212" rx="16" fill="#0f141b" stroke="#1d242e" stroke-width="2"/>
-    <rect width="444" height="52" rx="16" fill="#0a0e13"/>
-    <path d="M0 52h444" stroke="#1d242e"/>
-    <circle cx="24" cy="26" r="6" fill="#2a323d"/><circle cx="44" cy="26" r="6" fill="#2a323d"/><circle cx="64" cy="26" r="6" fill="#2a323d"/>
-    <text x="91" y="31" fill="#6b7789" font-family="ui-monospace,Menlo,monospace" font-size="14">trojaino · pre-install check</text>
-    <text x="28" y="97" fill="#6b7789" font-family="ui-monospace,Menlo,monospace" font-size="13" letter-spacing="1.5">ONE CLEAR VERDICT</text>
-    <rect x="28" y="120" width="388" height="64" rx="10" fill="#0a0e13" stroke="#1d242e"/>
-    <text x="48" y="151" fill="#00e5a0" font-family="ui-monospace,Menlo,monospace" font-size="16" font-weight="700">NO CRITICAL RISKS FOUND</text>
-    <text x="48" y="170" fill="#96a2b3" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="14">Useful evidence before you install.</text>
-    <path d="M28 201h388" stroke="#1d242e" stroke-width="10" stroke-linecap="round"/>
-    <path d="M28 201h187" stroke="url(#edge)" stroke-width="10" stroke-linecap="round"/>
+
+  <g transform="translate(790 74)">
+    <ellipse cx="205" cy="260" rx="224" ry="224" fill="#1dcdbd" opacity="0.08" filter="url(#softGlow)"/>
+
+    <g opacity="0.46" stroke="#77d9d0" fill="#0c1b22">
+      <rect x="-14" y="116" width="155" height="236" rx="15" stroke-opacity="0.16"/>
+      <path d="M12 151H112M12 177H91M12 203H120M12 255H105M12 281H78M12 307H116" stroke-opacity="0.24" stroke-width="5" stroke-linecap="round"/>
+      <rect x="270" y="136" width="150" height="216" rx="15" stroke-opacity="0.16"/>
+      <path d="M295 170H392M295 196H370M295 248H386M295 274H354M295 300H393" stroke-opacity="0.24" stroke-width="5" stroke-linecap="round"/>
+    </g>
+
+    <path d="M203 42L345 99V230C345 338 288 424 203 468C118 424 61 338 61 230V99L203 42Z" fill="#0b1c23" stroke="url(#accent)" stroke-width="7"/>
+    <path d="M203 77L311 120V228C311 310 270 375 203 414C136 375 95 310 95 228V120L203 77Z" fill="#10272d" stroke="#5adbcf" stroke-opacity="0.25" stroke-width="2"/>
+
+    <g fill="none" stroke="url(#accent)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M165 183L132 216L165 249"/>
+      <path d="M241 183L274 216L241 249"/>
+      <path d="M218 164L188 268" stroke-width="8" opacity="0.9"/>
+    </g>
+
+    <rect x="25" y="289" width="356" height="4" rx="2" fill="url(#beam)"/>
+    <rect x="68" y="277" width="270" height="28" rx="14" fill="#55ead5" opacity="0.12" filter="url(#softGlow)"/>
+    <circle cx="203" cy="291" r="7" fill="#87f4df"/>
+
+    <g transform="translate(117 326)">
+      <rect width="172" height="58" rx="14" fill="#0a181e" stroke="#4ce1cf" stroke-opacity="0.32"/>
+      <circle cx="27" cy="29" r="8" fill="#42d5c3"/>
+      <path d="M23 29L26 32L32 25" fill="none" stroke="#071116" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="49" y="35" fill="#d9e8e5" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="15" font-weight="600">EVIDENCE FOUND</text>
+    </g>
   </g>
-  <rect x="1" y="1" width="1278" height="638" rx="29" fill="none" stroke="#1d242e" stroke-width="2"/>
+
+  <rect x="1" y="1" width="1278" height="638" rx="27" fill="none" stroke="#8ee7db" stroke-opacity="0.10" stroke-width="2"/>
 </svg>

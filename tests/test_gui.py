@@ -6,12 +6,12 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from aishield.gui import default_output_dir, report_paths, run_scan, write_reports
+from trojaino.gui import default_output_dir, report_paths, run_scan, write_reports
 
 
 class GuiSupportTests(unittest.TestCase):
     def make_project(self) -> Path:
-        return Path(tempfile.mkdtemp(prefix="aishield-gui-test-"))
+        return Path(tempfile.mkdtemp(prefix="trojaino-gui-test-"))
 
     def test_default_output_dir_is_adjacent_to_selected_target(self):
         project = self.make_project()

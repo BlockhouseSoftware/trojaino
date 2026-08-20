@@ -19,7 +19,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e .
 python3 -m unittest discover -s tests -v
-trojaino scan . --profile release --json
+python3 -m trojaino scan . --profile release --json
 ```
 
 Risky fixtures intentionally produce nonzero CLI exit codes. A release-profile self-scan should produce `NO CRITICAL RISKS FOUND` and exit `0`.

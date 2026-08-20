@@ -15,8 +15,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from aishield import __version__
-from aishield.models import ScanResult
+from trojaino import __version__
+from trojaino.models import ScanResult
 
 CONTRIBUTION_SCHEMA_VERSION = 1
 MAX_CONTRIBUTION_BYTES = 64 * 1024
