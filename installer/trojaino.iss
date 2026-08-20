@@ -24,6 +24,7 @@ DefaultDirName={localappdata}\Programs\Trojaino
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir={#OutputDir}
+SourceDir={#SourceDir}
 OutputBaseFilename=Trojaino-Setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
@@ -35,7 +36,7 @@ UninstallDisplayIcon={app}\{#AppExecutable}
 ChangesEnvironment=yes
 
 [Files]
-Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Code]
 function NormalizedPath(Value: string): string;

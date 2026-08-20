@@ -16,7 +16,8 @@ class WindowsInstallerDefinitionTests(unittest.TestCase):
         self.assertIn("DefaultDirName={localappdata}\\Programs\\Trojaino", script)
         self.assertIn("PrivilegesRequired=lowest", script)
         self.assertIn("ArchitecturesAllowed=x64compatible", script)
-        self.assertIn("Source: \"{#SourceDir}\\*\"; DestDir: \"{app}\"", script)
+        self.assertIn("SourceDir={#SourceDir}", script)
+        self.assertIn("Source: \"*\"; DestDir: \"{app}\"", script)
 
     def test_installer_adds_and_removes_only_its_user_path_entry(self):
         script = INSTALLER_SCRIPT.read_text(encoding="utf-8")
