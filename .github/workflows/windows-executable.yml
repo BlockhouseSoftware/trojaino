@@ -63,6 +63,10 @@ jobs:
           if ($LASTEXITCODE -ne 2) {
             throw "Risky fixture returned exit code $LASTEXITCODE; expected 2"
           }
+
+          # PowerShell otherwise propagates tjscan's expected risk exit code (2)
+          # as the step's failure status after this assertion has passed.
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: tjscan-windows-standalone
