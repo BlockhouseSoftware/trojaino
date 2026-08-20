@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from aishield.file_utils import iter_files, read_text
-from aishield.models import ScanResult, sort_findings, verdict_for, with_classified_context
-from aishield.rules import RULES
-from aishield.rules.mcp import collect_capabilities
+from trojaino.file_utils import iter_files, read_text
+from trojaino.models import ScanResult, sort_findings, verdict_for, with_classified_context
+from trojaino.rules import RULES
+from trojaino.rules.mcp import collect_capabilities
 
 
 def scan_path(target: str | Path, profile: str = "default") -> ScanResult:

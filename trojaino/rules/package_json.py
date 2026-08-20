@@ -4,8 +4,8 @@ import json
 import re
 from pathlib import Path
 
-from aishield.file_utils import line_number
-from aishield.models import Finding, relpath
+from trojaino.file_utils import line_number
+from trojaino.models import Finding, relpath
 
 LIFECYCLE_SCRIPTS = {"preinstall", "install", "postinstall", "prepare"}
 REMOTE_EXEC_RE = re.compile(r"\b(curl|wget)\b[^\n;&|]*(https?://[^\s'\"]+)[^\n]*(\|\s*(bash|sh)|-O\s*-)", re.I)

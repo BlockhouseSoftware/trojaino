@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import html
 import json
-from aishield.models import ScanResult
+from trojaino import __version__
+from trojaino.models import ScanResult
 
 
 def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
     lines = [
-        "AI Shield v0.1",
+        f"Trojaino v{__version__}",
         "",
         f"Target: {result.target}",
         f"Profile: {result.profile}",
@@ -23,7 +24,7 @@ def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
         lines.append("")
     if not result.findings:
         lines.extend([
-            "No critical risks found by deterministic v0.1 rules.",
+            f"No critical risks found by Trojaino v{__version__} deterministic rules.",
             "This is not a guarantee of safety. Use --deep in future versions for model-assisted review.",
         ])
         return "\n".join(lines)
@@ -93,7 +94,7 @@ def render_html(result: ScanResult) -> str:
           <p><strong>Why it matters</strong><br>{html.escape(finding.why_it_matters)}</p>
           <p><strong>Recommended action</strong><br>{html.escape(finding.recommendation)}</p>
         </article>""")
-    body = "\n".join(rows) or '<section class="empty-state"><p class="eyebrow">Release signal</p><h2>No critical risks found</h2><p>No findings were produced by the deterministic v0.1 rules. This is useful evidence, not a safety certification.</p></section>'
+    body = "\n".join(rows) or f'<section class="empty-state"><p class="eyebrow">Release signal</p><h2>No critical risks found</h2><p>No findings were produced by Trojaino v{__version__} deterministic rules. This is useful evidence, not a safety certification.</p></section>'
     capability_rows = "\n".join(
         f"<li><strong>{html.escape(capability.title)}</strong><span>{html.escape(capability.file if capability.line is None else f'{capability.file}:{capability.line}')} · <code>{html.escape(capability.rule)}</code></span><code>{html.escape(capability.evidence)}</code></li>"
         for capability in result.capabilities or []
@@ -103,7 +104,7 @@ def render_html(result: ScanResult) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Shield · Scan Report</title>
+  <title>Trojaino · Scan Report</title>
   <style>
     :root {{ --burgundy:#5A1E2D; --burgundy-deep:#421622; --beige:#C8B49A; --cream:#F7F6F4; --paper:#fffdf9; --charcoal:#222222; --muted:#6f6864; --line:#eadfd4; --soft:#f1e8df; --danger:#a3213d; --shadow:0 16px 36px rgba(72, 43, 32, .10); --shadow-soft:0 8px 22px rgba(72, 43, 32, .07); }}
     * {{ box-sizing: border-box; }}
@@ -164,7 +165,7 @@ def render_html(result: ScanResult) -> str:
 </head>
 <body>
 <main>
-  <div class="report-topline"><span>AI Shield</span><span>Local pre-flight report · v0.1 alpha</span></div>
+  <div class="report-topline"><span>Trojaino</span><span>Your first line of defense · Local pre-flight report · v{__version__} alpha</span></div>
   <header>
     <div>
       <p class="eyebrow">Deterministic scan record</p>
@@ -181,7 +182,7 @@ def render_html(result: ScanResult) -> str:
   <section class="section-card">
     <p class="eyebrow">How to read this</p>
     <h2>Evidence before certainty.</h2>
-    <p>Findings are ordered with <em>actionable</em> items first. <em>Review</em> needs human judgment; test/example and documentation context remain visible but do not independently make an artifact unsafe. AI Shield is a deterministic alpha scanner, not a safety certification.</p>
+    <p>Findings are ordered with <em>actionable</em> items first. <em>Review</em> needs human judgment; test/example and documentation context remain visible but do not independently make an artifact unsafe. Trojaino is a deterministic alpha scanner, not a safety certification.</p>
   </section>
   <section aria-label="Runtime capability summary" class="section-card">
     <p class="eyebrow">Capability summary</p>
@@ -191,7 +192,7 @@ def render_html(result: ScanResult) -> str:
   </section>
   {body}
   <footer>
-    <p><strong>AI Shield</strong> · Local deterministic pre-flight scanning</p>
+    <p><strong>Trojaino: Local Trust Scanner</strong> · Your first line of defense</p>
     <p>Review evidence before running install commands, giving the project secrets, or deploying it.</p>
   </footer>
 </main>

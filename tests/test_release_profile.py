@@ -4,13 +4,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aishield.report import render_json
-from aishield.scanner import scan_path
+from trojaino.report import render_json
+from trojaino.scanner import scan_path
 
 
 class ReleaseProfileTests(unittest.TestCase):
     def make_project(self, files: dict[str, str]) -> Path:
-        root = Path(tempfile.mkdtemp(prefix="aishield-release-"))
+        root = Path(tempfile.mkdtemp(prefix="trojaino-release-"))
         for relative_path, content in files.items():
             path = root / relative_path
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -21,7 +21,7 @@ class ReleaseProfileTests(unittest.TestCase):
         project = self.make_project({
             "tests/fixtures/bad/.env": "OPENAI_API_KEY=sk-test-repository-fixture-value\n",
             "reference/scan-reports/example.json": '{"evidence": "credentials"}',
-            "aishield/core.py": "def main():\n    return 0\n",
+            "trojaino/core.py": "def main():\n    return 0\n",
             "pyproject.toml": '[project]\nname = "example"\n',
         })
 
@@ -36,7 +36,7 @@ class ReleaseProfileTests(unittest.TestCase):
 
     def test_python_rule_regex_declarations_are_not_mcp_runtime_proof(self):
         project = self.make_project({
-            "aishield/rules/mcp.py": """
+            "trojaino/rules/mcp.py": """
 import re
 MCP_RUNTIME_RE = re.compile(r'\\bMcpServer\\b|@modelcontextprotocol')
 SHELL_TOOL_RE = re.compile(r'\\bexec\\b')

@@ -1,6 +1,10 @@
-# AI Shield v0.1.1
+# Trojaino v0.1.4
 
-AI Shield is a local deterministic trust scanner for AI-built and downloaded software. The first version focuses on Node/TypeScript and Python projects, MCP/tooling repos, Docker configs, and agent instruction files.
+**Trojaino: Local Trust Scanner**
+
+**Your first line of defense.**
+
+Scan AI-built and downloaded software locally before you run it. Trojaino is a local deterministic trust scanner for Node/TypeScript and Python projects, MCP/tooling repos, Docker configs, and agent instruction files.
 
 It is intentionally not a generic "ask an LLM to review this repo" wrapper. v0.1 runs repeatable rule packs and produces evidence-first findings with a conservative verdict:
 
@@ -21,9 +25,9 @@ Generated reports should be written to a local-only workspace. A report belongs 
 Clone the repo, then run the CLI directly from the checkout:
 
 ```bash
-git clone https://github.com/BlockhouseSoftware/ai-shield.git
-cd ai-shield
-python3 -m aishield scan ./tests/fixtures/clean-project
+git clone https://github.com/BlockhouseSoftware/trojaino.git
+cd trojaino
+python3 -m trojaino scan ./tests/fixtures/clean-project
 ```
 
 For local development, install it in editable mode inside a virtual environment:
@@ -32,27 +36,27 @@ For local development, install it in editable mode inside a virtual environment:
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e .
-aishield scan ./tests/fixtures/clean-project
+tjscan scan ./tests/fixtures/clean-project
 ```
 
 ### Distribution
 
-AI Shield v0.1.0 is distributed as source through this repository and its GitHub Releases page. No AI Shield package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
+Trojaino is distributed as source through this repository and its GitHub Releases page. No Trojaino package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
 
-For a reproducible source checkout after the first release is published:
+For a reproducible source checkout, select a published release tag:
 
 ```bash
-git checkout v0.1.0
+git checkout v0.1.4
 ```
 
 ## Run locally
 
 ```bash
-python3 -m aishield scan ./some-project          # terminal summary, top 5 findings
-python3 -m aishield scan ./some-project --all    # terminal summary, all findings
-python3 -m aishield scan ./some-project --json   # full machine-readable report
-python3 -m aishield scan ./some-project --html report.html
-python3 -m aishield scan . --profile release     # shipped-source view; excludes tests/examples/reference artifacts
+tjscan scan ./some-project          # terminal summary, top 5 findings
+tjscan scan ./some-project --all    # terminal summary, all findings
+tjscan scan ./some-project --json   # full machine-readable report
+tjscan scan ./some-project --html report.html
+tjscan scan . --profile release     # shipped-source view; excludes tests/examples/reference artifacts
 ```
 
 Exit codes are stable for scripts and demos:
@@ -71,7 +75,7 @@ It is not a blanket suppression mechanism: a committed `.env`, dangerous package
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 -m aishield scan . --profile release --json
+tjscan scan . --profile release --json
 ```
 
 ## Demo fixtures
@@ -79,16 +83,16 @@ python3 -m aishield scan . --profile release --json
 Use the included fixtures to see the alpha behavior without scanning an unrelated project:
 
 ```bash
-python3 -m aishield scan tests/fixtures/bad-node-app
-python3 -m aishield scan tests/fixtures/poisoned-agent-file
-python3 -m aishield scan tests/fixtures/risky-mcp-server
-python3 -m aishield scan tests/fixtures/unsafe-docker-config
-python3 -m aishield scan tests/fixtures/clean-project
+tjscan scan tests/fixtures/bad-node-app
+tjscan scan tests/fixtures/poisoned-agent-file
+tjscan scan tests/fixtures/risky-mcp-server
+tjscan scan tests/fixtures/unsafe-docker-config
+tjscan scan tests/fixtures/clean-project
 ```
 
 The intentionally bad fixtures should produce `Verdict: DO NOT RUN` and exit `2`. That is expected: they demonstrate catches such as remote package install scripts, committed env files, client-exposed key names, poisoned agent instructions, risky MCP access, and unsafe Docker settings.
 
-The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL RISKS FOUND` for the deterministic v0.1 rules, not a guarantee that the project is safe.
+The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL RISKS FOUND` for Trojaino's deterministic rules, not a guarantee that the project is safe.
 
 ## Current deterministic checks
 
@@ -103,7 +107,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 
 ## Limitations
 
-AI Shield v0.1 is an alpha deterministic scanner:
+Trojaino v0.1.4 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.
@@ -121,4 +125,4 @@ python3 -m unittest discover -s tests -v
 
 Copyright © 2026 Blockhouse Software.
 
-AI Shield is licensed under the [GNU Affero General Public License version 3](LICENSE) only (`AGPL-3.0-only`).
+Trojaino is licensed under the [GNU Affero General Public License version 3](LICENSE) only (`AGPL-3.0-only`).

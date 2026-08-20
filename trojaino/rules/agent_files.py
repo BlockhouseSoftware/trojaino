@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from aishield.file_utils import line_for_index
-from aishield.models import Finding, relpath
+from trojaino.file_utils import line_for_index
+from trojaino.models import Finding, relpath
 
 AGENT_FILE_NAMES = {"AGENTS.md", "CLAUDE.md", ".windsurfrules"}
 AGENT_PATH_PARTS = {".cursor"}

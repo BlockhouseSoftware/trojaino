@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from aishield.file_utils import line_for_index
-from aishield.models import Finding, relpath
+from trojaino.file_utils import line_for_index
+from trojaino.models import Finding, relpath
 
 ROUTE_RE = re.compile(r"\b(app|router)\.(delete|post|put|patch|get)\s*\(\s*['\"]([^'\"]+)['\"]", re.I)
 AUTH_RE = re.compile(r"\b(requireAuth|isAuthenticated|authMiddleware|verifySession|requireAdmin|ensureAuth|authorize|protect)\b")

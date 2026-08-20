@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from aishield.file_utils import first_matching_line
-from aishield.models import Finding, relpath
+from trojaino.file_utils import first_matching_line
+from trojaino.models import Finding, relpath
 
 DOCKER_NAMES = {"Dockerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
 PORT_RE = re.compile(r"['\"]?(0\.0\.0\.0:)?(2375|2376|5432|6379|27017|3306|9200|15672|8080|8000):")

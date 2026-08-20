@@ -4,14 +4,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aishield.models import classify_context
-from aishield.report import render_html, render_json
-from aishield.scanner import scan_path
+from trojaino.models import classify_context
+from trojaino.report import render_html, render_json
+from trojaino.scanner import scan_path
 
 
 class FalsePositivePrecisionTests(unittest.TestCase):
     def make_project(self, files: dict[str, str]) -> Path:
-        root = Path(tempfile.mkdtemp(prefix="aishield-fp-"))
+        root = Path(tempfile.mkdtemp(prefix="trojaino-fp-"))
         for relative_path, content in files.items():
             path = root / relative_path
             path.parent.mkdir(parents=True, exist_ok=True)

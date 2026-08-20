@@ -4,14 +4,14 @@ import argparse
 import sys
 from pathlib import Path
 
-from aishield.report import render_html, render_json, render_text
-from aishield.scanner import scan_path
+from trojaino.report import render_html, render_json, render_text
+from trojaino.scanner import scan_path
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="aishield",
-        description="Local deterministic trust scanner for AI-built and downloaded software.",
+        prog="tjscan",
+        description="Trojaino: Local Trust Scanner. Scan AI-built and downloaded software locally before you run it.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
     scan = sub.add_parser(

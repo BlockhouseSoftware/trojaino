@@ -4,10 +4,10 @@ import ast
 import re
 from pathlib import Path
 
-from aishield.file_utils import line_for_index
-from aishield.models import CapabilityEvidence, Finding, relpath
-from aishield.rules.agent_files import is_agent_file
-from aishield.rules.ci import is_ci_or_deployment_path
+from trojaino.file_utils import line_for_index
+from trojaino.models import CapabilityEvidence, Finding, relpath
+from trojaino.rules.agent_files import is_agent_file
+from trojaino.rules.ci import is_ci_or_deployment_path
 
 MCP_RUNTIME_RE = re.compile(
     r"@modelcontextprotocol(?:/|\b)|\bMcpServer\b|\b(?:server\.)?(?:registerTool|register_tools|tool)\s*\(|\btools/(?:list|call)\b",
