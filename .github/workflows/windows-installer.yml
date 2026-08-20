@@ -76,6 +76,9 @@ jobs:
           }
 
           $installedExe = Join-Path $installRoot "tjscan.exe"
+          for ($attempt = 0; $attempt -lt 60 -and -not (Test-Path $installedExe); $attempt++) {
+            Start-Sleep -Seconds 1
+          }
           if (-not (Test-Path $installedExe)) {
             if (Test-Path $installLog) {
               Get-Content $installLog
