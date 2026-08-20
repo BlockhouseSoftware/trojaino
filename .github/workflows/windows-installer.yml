@@ -64,7 +64,7 @@ jobs:
         run: |
           $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
           $installer = "$env:RUNNER_TEMP/trojaino-installer/Trojaino-Setup-$version.exe"
-          $installRoot = "$env:LOCALAPPDATA/Programs/Trojaino"
+          $installRoot = Join-Path $env:LOCALAPPDATA 'Programs\Trojaino'
 
           $installLog = "$env:RUNNER_TEMP/trojaino-install.log"
           $installProcess = Start-Process -FilePath $installer -ArgumentList @(

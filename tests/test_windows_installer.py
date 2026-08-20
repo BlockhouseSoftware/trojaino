@@ -35,6 +35,8 @@ class WindowsInstallerDefinitionTests(unittest.TestCase):
         self.assertIn("choco install innosetup", workflow)
         self.assertIn("iscc", workflow)
         self.assertIn("/VERYSILENT", workflow)
+        self.assertIn("Join-Path $env:LOCALAPPDATA 'Programs\\Trojaino'", workflow)
+        self.assertIn("Start-Process -FilePath $installer", workflow)
         self.assertIn("tests/fixtures/clean-project", workflow)
         self.assertIn("tests/fixtures/bad-node-app", workflow)
         self.assertIn("unins000.exe", workflow)
