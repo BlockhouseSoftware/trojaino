@@ -9,6 +9,15 @@ on:
       - "scripts/build_windows_executable.py"
       - ".github/workflows/windows-executable.yml"
       - "pyproject.toml"
+  push:
+    branches:
+      - "loop/**"
+    paths:
+      - "trojaino/**"
+      - "requirements/windows-build.txt"
+      - "scripts/build_windows_executable.py"
+      - ".github/workflows/windows-executable.yml"
+      - "pyproject.toml"
 
 permissions:
   contents: read
