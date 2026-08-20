@@ -66,13 +66,19 @@ jobs:
           $installer = "$env:RUNNER_TEMP/trojaino-installer/Trojaino-Setup-$version.exe"
           $installRoot = "$env:LOCALAPPDATA/Programs/Trojaino"
 
-          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+          $installLog = "$env:RUNNER_TEMP/trojaino-install.log"
+          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/LOG=$installLog"
           if ($LASTEXITCODE -ne 0) {
             throw "Installer returned exit code $LASTEXITCODE"
           }
 
           $installedExe = Join-Path $installRoot "tjscan.exe"
           if (-not (Test-Path $installedExe)) {
+            if (Test-Path $installLog) {
+              Get-Content $installLog
+            }
+            Get-ChildItem -Path $env:LOCALAPPDATA -Recurse -Filter tjscan.exe -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty FullName
             throw "Installer did not place tjscan.exe in $installRoot"
           }
           $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
