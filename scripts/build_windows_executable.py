@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -59,6 +60,8 @@ def main(argv: list[str] | None = None) -> int:
         str(REPOSITORY_ROOT),
         "--copy-metadata",
         "trojaino",
+        "--add-data",
+        f"{REPOSITORY_ROOT / 'pyproject.toml'}{os.pathsep}.",
         "--distpath",
         str(args.distpath),
         "--workpath",

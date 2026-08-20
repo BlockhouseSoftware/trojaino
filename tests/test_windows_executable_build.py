@@ -26,6 +26,8 @@ class WindowsExecutableBuildTests(unittest.TestCase):
                 self.assertIn("--onedir", command)
                 self.assertIn("--copy-metadata", command)
                 self.assertIn("trojaino", command)
+                self.assertIn("--add-data", command)
+                self.assertIn("pyproject.toml", command[command.index("--add-data") + 1])
                 executable = distpath / "tjscan" / "tjscan.exe"
                 executable.parent.mkdir(parents=True)
                 executable.touch()
