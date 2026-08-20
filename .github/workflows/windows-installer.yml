@@ -67,7 +67,9 @@ jobs:
           $installRoot = "$env:LOCALAPPDATA/Programs/Trojaino"
 
           $installLog = "$env:RUNNER_TEMP/trojaino-install.log"
-          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/LOG=$installLog"
+          # Explicitly select the documented per-user location so the CI runner
+          # is not affected by any pre-existing Inno Setup directory history.
+          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$installRoot" "/LOG=$installLog"
           if ($LASTEXITCODE -ne 0) {
             throw "Installer returned exit code $LASTEXITCODE"
           }
