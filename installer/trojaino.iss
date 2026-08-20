@@ -53,7 +53,7 @@ begin
   if not RegQueryStringValue(HKCU, 'Environment', 'Path', ExistingPath) then
     Exit;
 
-  Entries := StringSplit(ExistingPath, ';');
+  Entries := StringSplit(ExistingPath, [';'], stExcludeEmpty);
   for Index := 0 to GetArrayLength(Entries) - 1 do
   begin
     if NormalizedPath(Entries[Index]) = NormalizedPath(Directory) then
@@ -88,7 +88,7 @@ begin
   if not RegQueryStringValue(HKCU, 'Environment', 'Path', ExistingPath) then
     Exit;
 
-  Entries := StringSplit(ExistingPath, ';');
+  Entries := StringSplit(ExistingPath, [';'], stExcludeEmpty);
   RebuiltPath := '';
   for Index := 0 to GetArrayLength(Entries) - 1 do
   begin

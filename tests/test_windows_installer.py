@@ -24,6 +24,7 @@ class WindowsInstallerDefinitionTests(unittest.TestCase):
         self.assertIn("procedure AddToUserPath", script)
         self.assertIn("procedure RemoveFromUserPath", script)
         self.assertIn("UserPathContains(Directory)", script)
+        self.assertIn("StringSplit(ExistingPath, [';'], stExcludeEmpty)", script)
         self.assertIn("CurUninstallStep = usPostUninstall", script)
         self.assertIn("RegWriteExpandStringValue(HKCU, 'Environment', 'Path'", script)
 
