@@ -43,6 +43,8 @@ tjscan scan ./tests/fixtures/clean-project
 
 Trojaino is distributed as source through this repository and its GitHub Releases page. No Trojaino package has been published to PyPI yet. Until an official release links to a verified PyPI project, do not install similarly named packages from PyPI or with `pipx`.
 
+For the verified Windows installer, SHA-256 and publisher-signature checks, SmartScreen guidance, command usage, and uninstall behavior, see [Install and verify Trojaino on Windows](docs/windows-installation.md).
+
 For a reproducible source checkout, select a published release tag:
 
 ```bash
