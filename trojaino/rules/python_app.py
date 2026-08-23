@@ -4,9 +4,9 @@ import ast
 import re
 from pathlib import Path
 
-from aishield.file_utils import line_for_index
-from aishield.models import Finding, relpath
-from aishield.rules.budget import BudgetedList, RuleBudget
+from trojaino.file_utils import line_for_index
+from trojaino.models import Finding, relpath
+from trojaino.rules.budget import BudgetedList, RuleBudget
 
 ROUTE_DECORATOR_RE = re.compile(
     r"@\s*(?:app|router|blueprint|bp)\s*\.\s*(?:route|get|post|put|patch|delete)\s*\(\s*['\"]([^'\"]+)['\"]",

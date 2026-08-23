@@ -8,16 +8,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from aishield.contributions import (
+from trojaino.contributions import (
     ContributionError,
     OFFICIAL_CONTRIBUTION_ENDPOINT,
     build_contribution_payload,
     contribution_preview,
     submit_contribution,
 )
-from aishield.file_utils import estimate_project
-from aishield.report import render_html, render_json
-from aishield.scanner import BUDGET_PRESETS, annotate_result, scan_path
+from trojaino.file_utils import estimate_project
+from trojaino.report import render_html, render_json
+from trojaino.scanner import BUDGET_PRESETS, annotate_result, scan_path
 
 
 DEFAULT_REPORT_DIRNAME = "TrojainoReports"

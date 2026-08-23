@@ -1,0 +1,146 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "trojaino/**"
+      - "installer/**"
+      - "requirements/windows-build.txt"
+      - "scripts/build_windows_executable.py"
+      - ".github/workflows/windows-installer.yml"
+      - "pyproject.toml"
+  push:
+    branches:
+      - "loop/**"
+    paths:
+      - "trojaino/**"
+      - "installer/**"
+      - "requirements/windows-build.txt"
+      - "scripts/build_windows_executable.py"
+      - ".github/workflows/windows-installer.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-installer:
+    name: Build, install, and remove Trojaino
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install build tooling
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+          python -m pip install -r requirements/windows-build.txt
+          choco install innosetup --no-progress --yes
+      - name: Build standalone tjscan bundle
+        shell: pwsh
+        run: |
+          python scripts/build_windows_executable.py `
+            --distpath "$env:RUNNER_TEMP/trojaino-dist" `
+            --workpath "$env:RUNNER_TEMP/trojaino-build" `
+            --specpath "$env:RUNNER_TEMP/trojaino-spec"
+      - name: Build conventional per-user installer
+        shell: pwsh
+        run: |
+          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
+          $sourceDir = "$env:RUNNER_TEMP/trojaino-dist/tjscan"
+          $outputDir = "$env:RUNNER_TEMP/trojaino-installer"
+          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+          iscc "/DSourceDir=$sourceDir" "/DOutputDir=$outputDir" "/DAppVersion=$version" installer/trojaino.iss
+          $installer = Join-Path $outputDir "Trojaino-Setup-$version.exe"
+          if (-not (Test-Path $installer)) {
+            throw "Inno Setup did not produce $installer"
+          }
+      - name: Install, smoke-test, and uninstall
+        shell: pwsh
+        run: |
+          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
+          $installer = "$env:RUNNER_TEMP/trojaino-installer/Trojaino-Setup-$version.exe"
+          $installRoot = Join-Path $env:LOCALAPPDATA 'Programs\Trojaino'
+
+          $installLog = "$env:RUNNER_TEMP/trojaino-install.log"
+          $installProcess = Start-Process -FilePath $installer -ArgumentList @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-',
+            "/DIR=$installRoot", "/LOG=$installLog"
+          ) -Wait -PassThru
+          if ($installProcess.ExitCode -ne 0) {
+            throw "Installer returned exit code $($installProcess.ExitCode)"
+          }
+
+          $installedExe = Join-Path $installRoot "tjscan.exe"
+          for ($attempt = 0; $attempt -lt 60 -and -not (Test-Path $installedExe); $attempt++) {
+            Start-Sleep -Seconds 1
+          }
+          if (-not (Test-Path $installedExe)) {
+            if (Test-Path $installLog) {
+              Get-Content $installLog
+            }
+            Get-ChildItem -Path $env:LOCALAPPDATA -Recurse -Filter tjscan.exe -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty FullName
+            throw "Installer did not place tjscan.exe in $installRoot"
+          }
+          $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+          if (($userPath -split ';') -notcontains $installRoot) {
+            throw "Installer did not add $installRoot to the user PATH"
+          }
+
+          # A new terminal reads this registered user PATH. Set it for this
+          # runner process as an equivalent command-resolution smoke test.
+          $env:Path = "$installRoot;$env:Path"
+          $cleanOutput = & tjscan scan tests/fixtures/clean-project
+          $cleanText = $cleanOutput -join "`n"
+          Write-Host $cleanText
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installed tjscan returned exit code $LASTEXITCODE on clean fixture"
+          }
+          if ($cleanText -notmatch "Trojaino v$version") {
+            throw "Installed tjscan did not report canonical version $version"
+          }
+
+          & tjscan scan tests/fixtures/bad-node-app
+          if ($LASTEXITCODE -ne 2) {
+            throw "Installed tjscan returned exit code $LASTEXITCODE on risky fixture; expected 2"
+          }
+
+          $reportPath = Join-Path $env:RUNNER_TEMP "trojaino-user-report.html"
+          & tjscan scan tests/fixtures/clean-project --html $reportPath
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $reportPath)) {
+            throw "Installed tjscan did not preserve a user-created report outside its install directory"
+          }
+
+          $uninstaller = Join-Path $installRoot "unins000.exe"
+          $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'
+          ) -Wait -PassThru
+          if ($uninstallProcess.ExitCode -ne 0) {
+            throw "Uninstaller returned exit code $($uninstallProcess.ExitCode)"
+          }
+          for ($attempt = 0; $attempt -lt 60 -and (Test-Path $installedExe); $attempt++) {
+            Start-Sleep -Seconds 1
+          }
+          if (Test-Path $installedExe) {
+            throw "Uninstall left tjscan.exe behind"
+          }
+          $userPathAfterUninstall = [Environment]::GetEnvironmentVariable("Path", "User")
+          if (($userPathAfterUninstall -split ';') -contains $installRoot) {
+            throw "Uninstall did not remove $installRoot from the user PATH"
+          }
+          if (-not (Test-Path $reportPath)) {
+            throw "Uninstall removed a user-created report outside the install directory"
+          }
+
+          # The risky scan's expected exit must not become the workflow status.
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trojaino-windows-installer
+          path: ${{ runner.temp }}/trojaino-installer/Trojaino-Setup-*.exe
+          if-no-files-found: error

@@ -8,9 +8,9 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
-from aishield.file_utils import estimate_project
-from aishield.report import render_html, render_json, render_text
-from aishield.scanner import (
+from trojaino.file_utils import estimate_project
+from trojaino.report import render_html, render_json, render_text
+from trojaino.scanner import (
     BUDGET_PRESETS,
     MAX_SCAN_LIMITS,
     ScanLimits,
@@ -280,11 +280,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "gui":
-        from aishield.gui import launch_gui
+        from trojaino.gui import launch_gui
 
         return launch_gui()
     if args.command == "unshare":
-        from aishield.contributions import ContributionError, delete_contribution
+        from trojaino.contributions import ContributionError, delete_contribution
 
         try:
             delete_contribution(args.receipt, args.deletion_token)
@@ -294,7 +294,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Anonymous statistics contribution deleted.")
         return 0
     if args.command == "share":
-        from aishield.contributions import (
+        from trojaino.contributions import (
             ContributionError,
             build_contribution_payload_from_report,
             contribution_preview,

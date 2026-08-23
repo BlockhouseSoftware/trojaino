@@ -10,8 +10,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import cast
 
-from aishield.file_utils import iter_files, read_bytes_no_symlink, relpath_for_issue
-from aishield.models import (
+from trojaino.file_utils import iter_files, read_bytes_no_symlink, relpath_for_issue
+from trojaino.models import (
     CapabilityEvidence,
     Finding,
     PreflightEstimate,
@@ -22,9 +22,9 @@ from aishield.models import (
     verdict_for,
     with_classified_context,
 )
-from aishield.rules import RULES
-from aishield.rules.budget import BudgetedList, RuleBudget, RuleBudgetExceeded
-from aishield.rules.mcp import collect_capabilities
+from trojaino.rules import RULES
+from trojaino.rules.budget import BudgetedList, RuleBudget, RuleBudgetExceeded
+from trojaino.rules.mcp import collect_capabilities
 
 
 @dataclass(frozen=True)

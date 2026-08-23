@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from aishield import __version__
+from trojaino import __version__
 
 Severity = Literal["critical", "high", "medium", "low"]
 Confidence = Literal["high", "medium", "low"]

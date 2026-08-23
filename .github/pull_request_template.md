@@ -6,7 +6,7 @@
 
 - [ ] Added or updated synthetic, no-secret fixtures where behavior changed
 - [ ] `python3 -m unittest discover -s tests -v`
-- [ ] `trojaino scan . --profile release --json` (record verdict and exit code)
+- [ ] `python3 -m trojaino scan . --profile release --json` (record verdict and exit code)
 - [ ] `git diff --check`
 
 ## Risk and compatibility
