@@ -139,7 +139,7 @@ jobs:
 
           # The risky scan's expected exit must not become the workflow status.
           exit 0
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: trojaino-windows-installer
           path: ${{ runner.temp }}/trojaino-installer/Trojaino-Setup-*.exe
