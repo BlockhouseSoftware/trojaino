@@ -1,4 +1,4 @@
-# Trojaino v0.1.4
+# Trojaino v0.1.4.1
 
 **Trojaino: Local Trust Scanner**
 
@@ -48,7 +48,7 @@ For the verified Windows installer, SHA-256 and publisher-signature checks, Smar
 For a reproducible source checkout, select a published release tag:
 
 ```bash
-git checkout v0.1.4
+git checkout v0.1.4.1
 ```
 
 ## Run locally
@@ -109,7 +109,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 
 ## Limitations
 
-Trojaino v0.1.4 is an alpha deterministic scanner:
+Trojaino v0.1.4.1 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.

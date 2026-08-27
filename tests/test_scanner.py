@@ -10,13 +10,27 @@ from io import StringIO
 from pathlib import Path
 
 from trojaino import __version__
-from trojaino.cli import main
+from trojaino.cli import invocation_arguments, main
 from trojaino.models import Finding, classify_context, default_disposition, sort_findings, verdict_for
 from trojaino.report import render_html, render_json, render_text
 from trojaino.scanner import scan_path
 
 
 class ScannerTests(unittest.TestCase):
+    def test_frozen_windows_executable_without_arguments_opens_gui(self):
+        self.assertEqual(
+            invocation_arguments(None, process_arguments=[], is_windows=True, is_frozen=True),
+            ["gui"],
+        )
+        self.assertEqual(
+            invocation_arguments(["scan", "project"], is_windows=True, is_frozen=True),
+            ["scan", "project"],
+        )
+
+    def test_source_and_non_windows_no_argument_invocations_remain_cli(self):
+        self.assertEqual(invocation_arguments(None, process_arguments=[], is_windows=True, is_frozen=False), [])
+        self.assertEqual(invocation_arguments(None, process_arguments=[], is_windows=False, is_frozen=True), [])
+
     def test_public_trojaino_module_entry_point_runs_the_cli(self):
         completed = subprocess.run(
             [sys.executable, "-m", "trojaino", "--help"],
