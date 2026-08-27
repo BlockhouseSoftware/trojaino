@@ -21,6 +21,27 @@ from trojaino.scanner import (
 )
 
 
+def invocation_arguments(
+    argv: list[str] | None,
+    *,
+    process_arguments: list[str] | None = None,
+    is_windows: bool | None = None,
+    is_frozen: bool | None = None,
+) -> list[str]:
+    """Select GUI mode when a packaged Windows executable is double-clicked."""
+    if argv is not None:
+        return argv
+
+    arguments = sys.argv[1:] if process_arguments is None else process_arguments
+    if is_windows is None:
+        is_windows = sys.platform == "win32"
+    if is_frozen is None:
+        is_frozen = bool(getattr(sys, "frozen", False))
+    if not arguments and is_windows and is_frozen:
+        return ["gui"]
+    return arguments
+
+
 def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed <= 0:
@@ -278,7 +299,7 @@ def _choose_interactive_budget(estimate, limits: ScanLimits, budget_name: str) -
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(invocation_arguments(argv))
     if args.command == "gui":
         from trojaino.gui import launch_gui
 

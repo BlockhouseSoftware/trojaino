@@ -68,6 +68,10 @@ Windows SmartScreen reputation and publisher verification are separate controls.
    tjscan --help
    ```
 
+   Double-clicking `tjscan.exe` in the Trojaino installation folder opens the
+   desktop scanner. Running `tjscan` with an argument in PowerShell or Command
+   Prompt continues to use the command-line interface.
+
 5. Scan a project before installing, running, or deploying it:
 
    ```powershell

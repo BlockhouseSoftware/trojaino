@@ -8,7 +8,7 @@
   #define OutputDir "..\dist\installer"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.1.4"
+  #define AppVersion "0.1.4.1"
 #endif
 
 #define AppName "Trojaino"
