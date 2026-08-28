@@ -64,11 +64,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def resolve_wheel(path: Path) -> Path:
+    if path.is_file():
+        return path
+    if path.is_dir():
+        wheels = sorted(path.glob("*.whl"))
+        if len(wheels) == 1:
+            return wheels[0]
+        raise RuntimeError(f"Expected exactly one wheel in {path}, found {len(wheels)}")
+    raise RuntimeError(f"Wheel not found: {path}")
+
+
 def main() -> int:
     args = parse_args()
-    wheel = args.wheel.resolve()
-    if not wheel.is_file():
-        raise SystemExit(f"Wheel not found: {wheel}")
+    wheel = resolve_wheel(args.wheel.resolve())
     validate_wheel_metadata(wheel)
 
     with tempfile.TemporaryDirectory(prefix="trojaino-wheel-smoke-") as temporary:
