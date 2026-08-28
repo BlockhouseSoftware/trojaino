@@ -293,6 +293,7 @@ def scan_path(
     root = Path(target).expanduser().absolute()
     issues: list[ScanIssue] = []
     skipped: list[SkippedFile] = []
+    excluded_ds_store_files: list[str] = []
     try:
         selected_info = root.stat(follow_symlinks=False)
     except OSError:
@@ -317,6 +318,7 @@ def scan_path(
         max_depth=limits.max_depth,
         deadline=deadline,
         issues=issues,
+        excluded=excluded_ds_store_files,
     )
     texts: dict[Path, str] = {}
     total_bytes = 0
@@ -448,6 +450,7 @@ def scan_path(
         complete=complete,
         issues=issues,
         skipped_files=skipped,
+        excluded_ds_store_files=len(excluded_ds_store_files),
         scanned_at=datetime.now(timezone.utc).isoformat(),
     )
     return _enforce_report_budget(result, limits.max_report_bytes)

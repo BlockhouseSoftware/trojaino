@@ -173,6 +173,7 @@ class ScanResult:
     complete: bool = True
     issues: list[ScanIssue] | None = None
     skipped_files: list[SkippedFile] | None = None
+    excluded_ds_store_files: int = 0
     preflight: PreflightEstimate | None = None
     budget: dict[str, int | float | str] | None = None
     recommended_command: str | None = None
@@ -190,6 +191,7 @@ class ScanResult:
             "status": "complete" if self.complete else "incomplete",
             "issues": [issue.to_dict() for issue in self.issues or []],
             "skipped_files": [skipped.to_dict() for skipped in self.skipped_files or []],
+            "excluded_ds_store_files": self.excluded_ds_store_files,
             "findings": [finding.to_dict() for finding in self.findings],
             "capabilities": [capability.to_dict() for capability in self.capabilities or []],
             "preflight": self.preflight.to_dict() if self.preflight else None,

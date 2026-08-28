@@ -94,6 +94,26 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(result.verdict, "DO NOT RUN")
         self.assertIn("PKG_REMOTE_LIFECYCLE_EXEC", {f.id for f in result.findings})
 
+    def test_ds_store_is_excluded_without_masking_other_unreadable_files(self):
+        project = self.make_project({"src/app.ts": "export const answer = 42;"})
+        (project / ".DS_Store").write_bytes(b"\x00\x01\xff\x00")
+        result = scan_path(project)
+
+        self.assertTrue(result.complete)
+        self.assertEqual(result.files_scanned, 1)
+        self.assertEqual(result.unreadable_files, 0)
+        self.assertEqual(result.excluded_ds_store_files, 1)
+        self.assertIn("1 .DS_Store file excluded from this scan.", render_text(result))
+        self.assertIn("1 .DS_Store file excluded", render_html(result))
+        self.assertEqual(json.loads(render_json(result))["excluded_ds_store_files"], 1)
+
+        (project / "src" / "invalid.ts").write_bytes(b"eval('hidden')\xff")
+        incomplete = scan_path(project)
+        self.assertFalse(incomplete.complete)
+        self.assertEqual(incomplete.excluded_ds_store_files, 1)
+        self.assertEqual(incomplete.unreadable_files, 1)
+        self.assertEqual((incomplete.skipped_files or [])[0].status, "invalid_utf8")
+
     def test_client_exposed_key_name_is_high_risk(self):
         project = self.make_project({"src/lib/openai.ts": "const key = import.meta.env.VITE_OPENAI_API_KEY;"})
         ids = self.finding_ids(project)
