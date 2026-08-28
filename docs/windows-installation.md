@@ -61,8 +61,10 @@ Windows SmartScreen reputation and publisher verification are separate controls.
 
 1. Run `Trojaino-Setup-<version>.exe` from the verified download.
 2. The installer is per-user and installs Trojaino under your local application-data directory. It does not require Python, pip, or administrator elevation.
-3. Open a **new** PowerShell or Command Prompt window so Windows reads the updated user `PATH`.
-4. Confirm the command is available:
+3. The installer creates a Trojaino desktop shortcut by default. Uncheck
+   **Create a desktop shortcut** in the installer if you do not want one.
+4. Open a **new** PowerShell or Command Prompt window so Windows reads the updated user `PATH`.
+5. Confirm the command is available:
 
    ```powershell
    tjscan --help
@@ -89,7 +91,7 @@ Exit codes are intended for automation:
 
 ## Uninstall
 
-Use **Installed apps** in Windows Settings and select Trojaino, or run the uninstaller from the Trojaino install directory. Uninstall removes the installed program and its Trojaino `PATH` entry. Reports you wrote outside the installation directory are not removed.
+Use **Installed apps** in Windows Settings and select Trojaino, or run the uninstaller from the Trojaino install directory. Uninstall removes the installed program, its Trojaino `PATH` entry, and its desktop shortcut. Reports you wrote outside the installation directory are not removed.
 
 ## Scope: one layer, not the whole program
 
