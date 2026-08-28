@@ -61,6 +61,11 @@ tjscan scan ./some-project --html report.html
 tjscan scan . --profile release     # shipped-source view; excludes tests/examples/reference artifacts
 ```
 
+When stderr is an interactive terminal, Trojaino shows a compact progress bar
+while it reads eligible files. Progress is written only to stderr, so reports,
+JSON, exit codes, redirected output, and CI remain stable and quiet. Use
+`--no-progress` to hide it in an interactive terminal.
+
 Exit codes are stable for scripts and demos:
 
 - `0` — `NO CRITICAL RISKS FOUND`
