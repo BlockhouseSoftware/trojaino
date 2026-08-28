@@ -8,7 +8,7 @@ import stat
 import time
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import cast
+from typing import Callable, cast
 
 from trojaino.file_utils import iter_files, read_bytes_no_symlink, relpath_for_issue
 from trojaino.models import (
@@ -255,6 +255,7 @@ def scan_path(
     profile: str = "default",
     *,
     limits: ScanLimits | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> ScanResult:
     limits = limits or ScanLimits()
     limit_values = (
@@ -323,6 +324,9 @@ def scan_path(
     texts: dict[Path, str] = {}
     total_bytes = 0
 
+    if on_progress:
+        on_progress(0, len(files))
+
     for index, path in enumerate(files):
         rel = relpath_for_issue(path, scan_root)
         if time.monotonic() >= deadline:
@@ -347,6 +351,8 @@ def scan_path(
             }.get(status, "File could not be safely read")
             _add_issue_once(issues, ScanIssue(code, message, rel))
             skipped.append(SkippedFile(rel, status, message))
+            if on_progress and ((index + 1) % 100 == 0 or index + 1 == len(files)):
+                on_progress(index + 1, len(files))
             continue
         assert data is not None
         if total_bytes + len(data) > limits.max_total_bytes:
@@ -363,6 +369,8 @@ def scan_path(
             message = "File is not valid UTF-8 and was not partially decoded"
             _add_issue_once(issues, ScanIssue("invalid_utf8", message, rel))
             skipped.append(SkippedFile(rel, "invalid_utf8", message))
+        if on_progress and ((index + 1) % 100 == 0 or index + 1 == len(files)):
+            on_progress(index + 1, len(files))
 
     findings: list[Finding] = []
     text_files = list(texts)

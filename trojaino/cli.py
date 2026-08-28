@@ -21,6 +21,30 @@ from trojaino.scanner import (
 )
 
 
+class _ProgressReporter:
+    """Render TTY-only scan progress without changing report output."""
+
+    _BAR_WIDTH = 20
+
+    def __init__(self, output) -> None:
+        self._output = output
+        self._last_width = 0
+
+    def update(self, completed: int, total: int) -> None:
+        filled = self._BAR_WIDTH if total == 0 else min(self._BAR_WIDTH, completed * self._BAR_WIDTH // total)
+        bar = "#" * filled + "-" * (self._BAR_WIDTH - filled)
+        message = f"Scanning files: [{bar}] {completed:,}/{total:,}"
+        self._output.write(f"\r{message}{' ' * max(0, self._last_width - len(message))}")
+        self._output.flush()
+        self._last_width = len(message)
+
+    def complete(self, files_scanned: int, complete: bool) -> None:
+        status = "Scan complete" if complete else "Scan incomplete"
+        message = f"{status}: {files_scanned:,} files scanned."
+        self._output.write(f"\r{message}{' ' * max(0, self._last_width - len(message))}\n")
+        self._output.flush()
+
+
 def invocation_arguments(
     argv: list[str] | None,
     *,
@@ -112,6 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--max-depth", type=_positive_int, help="Override the directory-depth limit")
     scan.add_argument("--max-seconds", type=_positive_float, help="Override the elapsed scan-time limit")
     scan.add_argument("--no-prompt", action="store_true", help="Never ask to raise a budget in an interactive terminal")
+    scan.add_argument("--no-progress", action="store_true", help="Hide interactive scan progress")
     return parser
 
 
@@ -370,7 +395,16 @@ def main(argv: list[str] | None = None) -> int:
                     print("Scan cancelled before reading project files.")
                     return 2
                 limits, budget_name = selected
-        result = scan_path(target, profile=args.profile, limits=limits)
+        show_progress = not args.json and not args.no_progress and sys.stderr.isatty()
+        progress = _ProgressReporter(sys.stderr) if show_progress else None
+        result = scan_path(
+            target,
+            profile=args.profile,
+            limits=limits,
+            on_progress=progress.update if progress else None,
+        )
+        if progress:
+            progress.complete(result.files_scanned, result.complete)
         result = annotate_result(
             result,
             preflight=estimate,
