@@ -38,6 +38,12 @@ ChangesEnvironment=yes
 [Files]
 Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[Tasks]
+Name: "desktopicon"; Description: "Create a &desktop shortcut"
+
+[Icons]
+Name: "{autodesktop}\\Trojaino"; Filename: "{app}\\{#AppExecutable}"; Tasks: desktopicon
+
 [Code]
 function NormalizedPath(Value: string): string;
 begin
