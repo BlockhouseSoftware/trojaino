@@ -89,6 +89,15 @@ Exit codes are intended for automation:
 
 `NO CRITICAL RISKS FOUND` means Trojaino’s current deterministic checks did not identify a critical risk. It is not a safety guarantee.
 
+## Windows-specific detector limits
+
+Trojaino runs on Windows and scans text-based project files locally, but its
+current package-script path rules recognize POSIX credential locations such as
+`~/.ssh`, `$HOME/.aws`, and `.env`. They do not yet classify native Windows
+command runners (`cmd.exe` or PowerShell) or `%USERPROFILE%` / `%APPDATA%`
+credential-path references as findings on their own. Review Windows-native
+install and lifecycle scripts manually until that detector coverage is added.
+
 ## Uninstall
 
 Use **Installed apps** in Windows Settings and select Trojaino, or run the uninstaller from the Trojaino install directory. Uninstall removes the installed program, its Trojaino `PATH` entry, and its desktop shortcut. Reports you wrote outside the installation directory are not removed.
