@@ -144,6 +144,35 @@ jobs:
             throw "Uninstall removed a user-created report outside the install directory"
           }
 
+          # Explicitly disabling the selected-by-default task must not create
+          # a shortcut. This exercises the end-user opt-out path rather than
+          # inferring it from the Inno Setup source.
+          $optOutInstallLog = "$env:RUNNER_TEMP/trojaino-install-no-shortcut.log"
+          $optOutInstallProcess = Start-Process -FilePath $installer -ArgumentList @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-',
+            '/TASKS=""', "/DIR=$installRoot", "/LOG=$optOutInstallLog"
+          ) -Wait -PassThru
+          if ($optOutInstallProcess.ExitCode -ne 0) {
+            throw "Opt-out installer returned exit code $($optOutInstallProcess.ExitCode)"
+          }
+          if (-not (Test-Path $installedExe)) {
+            throw "Opt-out installer did not place tjscan.exe in $installRoot"
+          }
+          if (Test-Path $desktopShortcut) {
+            throw "Installer created a desktop shortcut after the task was disabled"
+          }
+
+          $optOutUninstaller = Join-Path $installRoot "unins000.exe"
+          $optOutUninstallProcess = Start-Process -FilePath $optOutUninstaller -ArgumentList @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'
+          ) -Wait -PassThru
+          if ($optOutUninstallProcess.ExitCode -ne 0) {
+            throw "Opt-out uninstaller returned exit code $($optOutUninstallProcess.ExitCode)"
+          }
+          if (Test-Path $installedExe) {
+            throw "Opt-out uninstall left tjscan.exe behind"
+          }
+
           # The risky scan's expected exit must not become the workflow status.
           exit 0
       - uses: actions/upload-artifact@v7
