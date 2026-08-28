@@ -7,6 +7,7 @@ from typing import Literal
 import unicodedata
 
 from trojaino import __version__
+from trojaino.contract import REPORT_SCHEMA_VERSION, RULE_PACK_ID, RULE_PACK_VERSION
 
 Severity = Literal["critical", "high", "medium", "low"]
 Confidence = Literal["high", "medium", "low"]
@@ -32,11 +33,6 @@ DISPOSITION_RANK = {
 }
 TEST_EXAMPLE_PARTS = {"test", "tests", "spec", "fixture", "fixtures", "example", "examples", "sample", "mock", "mocks"}
 AGENT_FILENAMES = {"agents.md", "claude.md", ".windsurfrules"}
-REPORT_SCHEMA_VERSION = "1.0.0"
-RULE_PACK_ID = "trojaino-core"
-RULE_PACK_VERSION = "1.0.0"
-
-
 def _normalized_fingerprint_text(value: object) -> str:
     return " ".join(unicodedata.normalize("NFC", str(value)).split())
 
@@ -147,7 +143,7 @@ def classify_context(file: str) -> FindingContext:
         return "ci_or_deployment"
     if name in {"dockerfile", "docker-compose.yml", "docker-compose.yaml"} or path.suffix.lower() == ".dockerfile":
         return "docker_config"
-    if name in {"package.json", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml"}:
+    if name in {"package.json", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "pyproject.toml", "setup.py"}:
         return "package_manifest"
     if (
         parts & TEST_EXAMPLE_PARTS

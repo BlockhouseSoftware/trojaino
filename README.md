@@ -1,4 +1,4 @@
-# Trojaino v0.1.4.1
+# Trojaino v0.1.5
 
 **Trojaino: Local Trust Scanner**
 
@@ -48,7 +48,7 @@ For the verified Windows installer, SHA-256 and publisher-signature checks, Smar
 For a reproducible source checkout, select a published release tag:
 
 ```bash
-git checkout v0.1.4.1
+git checkout <published-release-tag>
 ```
 
 ## Run locally
@@ -104,6 +104,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 ## Current deterministic checks
 
 - Dangerous package lifecycle scripts (`postinstall`, `preinstall`, `curl | bash`, remote script execution)
+- Python packaging metadata: malformed `pyproject.toml`, direct build/runtime dependency sources, extra package indexes, and module-level `setup.py` network access
 - Suspicious package script access to home/credential paths
 - Committed `.env` files and client-exposed key patterns (`VITE_*KEY`, `NEXT_PUBLIC_*SECRET`, etc.)
 - Docker host escape/overexposure risks (`privileged: true`, Docker socket mounts, home-directory mounts, exposed admin/database ports)
@@ -114,12 +115,12 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 
 ## Limitations
 
-Trojaino v0.1.4.1 is an alpha deterministic scanner:
+Trojaino v0.1.5 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.
 - It is strongest today on Node/TypeScript and Python apps, package scripts, MCP/tooling code, Docker/self-hosted config, and agent instruction files.
-- Python support is heuristic and stdlib-only. It catches common AI-generated Flask/FastAPI/script risks, but it is not comprehensive Python SAST.
+- Python support is heuristic and stdlib-only. It catches common AI-generated Flask/FastAPI/script risks and narrow pre-run packaging signals, but it is not comprehensive Python SAST.
 - Findings are evidence-first heuristics. Treat `DO NOT RUN` as a stop-and-review signal, not as an automated fix plan.
 
 ## Test

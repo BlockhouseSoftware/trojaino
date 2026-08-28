@@ -26,7 +26,7 @@ JSON example:
 {
   "schema_version": "1.0.0",
   "scanner_version": "0.1.5",
-  "rule_pack": {"id": "trojaino-core", "version": "1.0.0"},
+  "rule_pack": {"id": "trojaino-core", "version": "1.1.0"},
   "scan_profile": {"id": "default"},
   "findings": [{"id": "PKG_REMOTE_LIFECYCLE_EXEC", "fingerprint": "e7d2c69c46fd1f1e204a16c4"}]
 }
