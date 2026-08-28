@@ -44,6 +44,9 @@ def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
         f"Coverage: {result.files_scanned} files scanned · {result.unreadable_files} unreadable",
         "",
     ]
+    if result.excluded_ds_store_files:
+        suffix = "file" if result.excluded_ds_store_files == 1 else "files"
+        lines.insert(5, f"{result.excluded_ds_store_files} .DS_Store {suffix} excluded from this scan.")
     if result.preflight:
         estimate = result.preflight
         budget_name = (result.budget or {}).get("preset", "custom")
@@ -124,6 +127,11 @@ def render_html(result: ScanResult) -> str:
     scan_metadata = (
         f"<span><strong>Scanned:</strong> {_html(result.scanned_at)}</span>"
         if result.scanned_at else "<span><strong>Scanned:</strong> unavailable</span>"
+    )
+    excluded_metadata = (
+        f" · {result.excluded_ds_store_files} .DS_Store "
+        f"{'file' if result.excluded_ds_store_files == 1 else 'files'} excluded"
+        if result.excluded_ds_store_files else ""
     )
     summary_cards = "\n".join(
         f"""
@@ -245,7 +253,7 @@ def render_html(result: ScanResult) -> str:
     <aside class="verdict-panel">
       <span class="verdict-label">Assessment</span>
       <span class="verdict {verdict_class}">{_html(result.verdict)}</span>
-      <p class="coverage">{_html('Complete' if result.complete else 'Incomplete')} · {total_findings} findings · {result.files_scanned} files scanned · {result.unreadable_files} unreadable</p>
+      <p class="coverage">{_html('Complete' if result.complete else 'Incomplete')} · {total_findings} findings · {result.files_scanned} files scanned · {result.unreadable_files} unreadable{excluded_metadata}</p>
     </aside>
   </header>
   {preflight_panel}

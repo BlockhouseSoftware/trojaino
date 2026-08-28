@@ -22,10 +22,15 @@ SKIP_DIRS = {
 }
 RELEASE_EXCLUDED_ROOTS = {"tests", "reference", "docs", "examples", "example"}
 SCAN_PROFILES = {"default", "release"}
+# Finder metadata is a known binary artifact, not project source. Match only
+# the canonical filename so other extensionless files remain eligible.
+EXCLUDED_METADATA_FILENAMES = {".DS_Store"}
 
 
 def should_scan(path: Path) -> bool:
     if any(part in SKIP_DIRS for part in path.parts):
+        return False
+    if path.name in EXCLUDED_METADATA_FILENAMES:
         return False
     return path.name in TEXT_FILENAMES or path.suffix.lower() in TEXT_EXTENSIONS
 
@@ -76,6 +81,7 @@ def iter_files(
     max_depth: int = 50,
     deadline: float | None = None,
     issues: list[ScanIssue] | None = None,
+    excluded: list[str] | None = None,
 ) -> list[Path]:
     """Enumerate regular files without following child symbolic links."""
     if profile not in SCAN_PROFILES:
@@ -85,6 +91,10 @@ def iter_files(
         issue_list.append(ScanIssue("symlink_rejected", "Selected target is a symbolic link", root.name))
         return []
     if root.is_file():
+        if root.name in EXCLUDED_METADATA_FILENAMES:
+            if excluded is not None:
+                excluded.append(root.name)
+            return []
         return [root] if should_scan(root) else []
     files: list[Path] = []
     entries_seen = 0
@@ -127,7 +137,13 @@ def iter_files(
                         continue
                     stack.append((path, child_depth))
                     continue
-                if not entry.is_file(follow_symlinks=False) or not should_scan(path):
+                if not entry.is_file(follow_symlinks=False):
+                    continue
+                if entry.name in EXCLUDED_METADATA_FILENAMES:
+                    if excluded is not None:
+                        excluded.append(rel)
+                    continue
+                if not should_scan(path):
                     continue
             except OSError as exc:
                 issue_list.append(ScanIssue(
