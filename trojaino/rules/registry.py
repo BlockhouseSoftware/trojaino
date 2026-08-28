@@ -11,9 +11,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Iterable
 
-
-RULE_PACK_ID = "trojaino-core"
-RULE_PACK_VERSION = "1.0.0"
+from trojaino.contract import RULE_PACK_ID, RULE_PACK_VERSION
 
 
 @dataclass(frozen=True)
@@ -70,6 +68,11 @@ def _definitions() -> tuple[RuleDefinition, ...]:
         RuleDefinition("PY_PERMISSIVE_CORS", "python"),
         RuleDefinition("PY_UNAUTH_DESTRUCTIVE_ROUTE", "python"),
         RuleDefinition("PY_USER_INPUT_TO_SENSITIVE_SINK", "python"),
+        RuleDefinition("PYPROJECT_TOML_PARSE_ERROR", "python_packaging"),
+        RuleDefinition("PYPROJECT_DIRECT_BUILD_REQUIREMENT", "python_packaging"),
+        RuleDefinition("PYPROJECT_DIRECT_RUNTIME_DEPENDENCY", "python_packaging"),
+        RuleDefinition("PYPROJECT_EXTRA_PACKAGE_INDEX", "python_packaging"),
+        RuleDefinition("PY_SETUP_PY_NETWORK_ACCESS", "python_packaging"),
     )
 
 
