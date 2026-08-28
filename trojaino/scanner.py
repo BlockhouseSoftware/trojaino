@@ -25,6 +25,7 @@ from trojaino.models import (
 from trojaino.rules import RULES
 from trojaino.rules.budget import BudgetedList, RuleBudget, RuleBudgetExceeded
 from trojaino.rules.mcp import collect_capabilities
+from trojaino.rules.registry import unregistered_rule_ids
 
 
 @dataclass(frozen=True)
@@ -409,6 +410,13 @@ def scan_path(
     findings = sort_findings([
         with_classified_context(_safe_finding(finding)) for finding in findings
     ])
+    unknown_rule_ids = unregistered_rule_ids(findings)
+    if unknown_rule_ids:
+        findings = [finding for finding in findings if finding.id not in unknown_rule_ids]
+        _add_issue_once(issues, ScanIssue(
+            "rule_contract_violation",
+            "A finding used an unregistered rule ID and was omitted from the machine report",
+        ))
     for finding in findings:
         if finding.id in {"PKG_JSON_PARSE_ERROR", "PKG_JSON_INVALID_TYPE"}:
             _add_issue_once(issues, ScanIssue(

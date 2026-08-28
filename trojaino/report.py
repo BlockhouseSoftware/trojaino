@@ -87,6 +87,7 @@ def render_text(result: ScanResult, max_findings: int | None = 5) -> str:
         lines.extend([
             f"{index}. [{finding.severity.upper()} / {finding.confidence} confidence / {finding.disposition}] {sanitize_human(finding.title)}",
             f"   {sanitize_human(loc)}",
+            f"   Rule: {sanitize_human(finding.id)}",
             f"   Context: {sanitize_human(finding.context)}",
             f"   Evidence: {sanitize_human(finding.evidence)}",
             f"   Why: {sanitize_human(finding.why_it_matters)}",
@@ -146,7 +147,7 @@ def render_html(result: ScanResult) -> str:
         loc = finding.file if finding.line is None else f"{finding.file}:{finding.line}"
         rows.append(f"""
         <article class="finding severity-{_html(finding.severity)} disposition-{_html(finding.disposition)}">
-          <div class="finding-kicker">{_html(finding.severity)} risk · {_html(finding.confidence)} confidence</div>
+          <div class="finding-kicker">{_html(finding.severity)} risk · {_html(finding.confidence)} confidence · <code>{_html(finding.id)}</code></div>
           <h2>{_html(finding.title)}</h2>
           <p class="meta">{_html(loc)}</p>
           <p class="labels"><span>{_html(finding.disposition.replace("_", " "))}</span><span>Context: {_html(finding.context.replace("_", " "))}</span></p>

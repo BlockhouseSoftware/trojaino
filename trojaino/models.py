@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from typing import Literal
+import unicodedata
 
 from trojaino import __version__
 
@@ -30,6 +32,25 @@ DISPOSITION_RANK = {
 }
 TEST_EXAMPLE_PARTS = {"test", "tests", "spec", "fixture", "fixtures", "example", "examples", "sample", "mock", "mocks"}
 AGENT_FILENAMES = {"agents.md", "claude.md", ".windsurfrules"}
+REPORT_SCHEMA_VERSION = "1.0.0"
+RULE_PACK_ID = "trojaino-core"
+RULE_PACK_VERSION = "1.0.0"
+
+
+def _normalized_fingerprint_text(value: object) -> str:
+    return " ".join(unicodedata.normalize("NFC", str(value)).split())
+
+
+def occurrence_fingerprint(finding: "Finding") -> str:
+    """Return a stable, non-secret identity for one finding occurrence."""
+    normalized_path = unicodedata.normalize("NFC", finding.file.replace("\\", "/"))
+    identity = "\x1f".join((
+        finding.id,
+        normalized_path,
+        "" if finding.line is None else str(finding.line),
+        _normalized_fingerprint_text(finding.evidence),
+    ))
+    return sha256(identity.encode("utf-8")).hexdigest()[:24]
 
 
 @dataclass(frozen=True)
@@ -48,7 +69,9 @@ class Finding:
     disposition: Disposition = "review"
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        payload = asdict(self)
+        payload["fingerprint"] = occurrence_fingerprint(self)
+        return payload
 
 
 @dataclass(frozen=True)
@@ -181,7 +204,10 @@ class ScanResult:
 
     def to_dict(self) -> dict:
         return {
+            "schema_version": REPORT_SCHEMA_VERSION,
             "scanner_version": __version__,
+            "rule_pack": {"id": RULE_PACK_ID, "version": RULE_PACK_VERSION},
+            "scan_profile": {"id": self.profile},
             "target": self.target,
             "profile": self.profile,
             "verdict": self.verdict,
