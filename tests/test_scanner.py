@@ -197,6 +197,66 @@ class ScannerTests(unittest.TestCase):
         ids = self.finding_ids(project)
         self.assertIn("PKG_JSON_PARSE_ERROR", ids)
 
+    def test_python_packaging_direct_sources_and_extra_index_are_review_signals(self):
+        project = self.make_project({
+            "pyproject.toml": """
+[build-system]
+requires = ["setuptools @ https://packages.example/setuptools.whl"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "example"
+dependencies = ["helper @ git+https://example.test/helper.git", "requests>=2"]
+
+[tool.pip]
+extra-index-url = "https://packages.example/simple"
+""",
+        })
+
+        findings = {finding.id: finding for finding in scan_path(project).findings}
+        self.assertEqual(scan_path(project).verdict, "NO CRITICAL RISKS FOUND")
+        self.assertEqual(findings["PYPROJECT_DIRECT_BUILD_REQUIREMENT"].context, "package_manifest")
+        self.assertEqual(findings["PYPROJECT_DIRECT_RUNTIME_DEPENDENCY"].confidence, "high")
+        self.assertIn("PYPROJECT_EXTRA_PACKAGE_INDEX", findings)
+
+    def test_python_packaging_malformed_toml_and_setup_network_access_are_reported(self):
+        project = self.make_project({
+            "pyproject.toml": "[project\nname = 'bad'\n",
+            "setup.py": "import urllib.request\nurllib.request.urlopen('https://example.test/build.py')\n",
+        })
+
+        findings = {finding.id: finding for finding in scan_path(project).findings}
+        self.assertIn("PYPROJECT_TOML_PARSE_ERROR", findings)
+        self.assertEqual(findings["PY_SETUP_PY_NETWORK_ACCESS"].disposition, "actionable")
+
+    def test_benign_python_packaging_and_deferred_network_helper_are_not_flagged(self):
+        project = self.make_project({
+            "pyproject.toml": """
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "example"
+dependencies = ["requests>=2"]
+""",
+            "setup.py": """
+import urllib.request
+
+def fetch_for_manual_debugging():
+    return urllib.request.urlopen("https://example.test/debug")
+""",
+        })
+
+        ids = self.finding_ids(project)
+        self.assertFalse({
+            "PYPROJECT_TOML_PARSE_ERROR",
+            "PYPROJECT_DIRECT_BUILD_REQUIREMENT",
+            "PYPROJECT_DIRECT_RUNTIME_DEPENDENCY",
+            "PYPROJECT_EXTRA_PACKAGE_INDEX",
+            "PY_SETUP_PY_NETWORK_ACCESS",
+        } & ids)
+
     def test_secret_rule_ids_are_covered_with_fake_values(self):
         fake_known_pattern = "sk-" + ("a" * 21)
         project = self.make_project({

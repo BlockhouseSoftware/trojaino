@@ -16,6 +16,11 @@ All notable changes to Trojaino are documented here.
 - Rule IDs are public, unique, and never reused. Retired rules remain documented as retired.
 - A material security-meaning change receives a new rule ID and rule-pack version.
 
+### Python packaging
+
+- Added bounded, non-executing checks for malformed `pyproject.toml`, direct build/runtime dependency sources, extra package indexes, and module-level network access in `setup.py`.
+- Advanced the `trojaino-core` rule-pack version to `1.1.0`; no verdict threshold changed.
+
 ### Verdicts
 
 - No verdict threshold changes in this release.
