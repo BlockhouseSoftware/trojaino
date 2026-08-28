@@ -10,13 +10,14 @@ import ssl
 import uuid
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any
+from typing import AbstractSet, Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from trojaino import __version__
 from trojaino.models import ScanResult
+from trojaino.rules.registry import RULE_IDS
 
 CONTRIBUTION_SCHEMA_VERSION = 1
 MAX_CONTRIBUTION_BYTES = 64 * 1024
@@ -25,23 +26,10 @@ REQUEST_TIMEOUT_SECONDS = 10
 # deletion process exist. Keeping this unset means the local scanner can show a
 # complete preview but cannot contact an arbitrary network destination.
 OFFICIAL_CONTRIBUTION_ENDPOINT: str | None = "https://trojaino.llamaheads.com/v1/scan-statistics"
-_REPORT_RULE_IDS = {
-    "AGENT_CREDENTIAL_PATH", "AGENT_HIDE_BEHAVIOR", "AGENT_HIDDEN_UNICODE", "AGENT_IGNORE_SAFETY",
-    "AGENT_SECRET_EXFIL", "AGENT_TRUST_REMOTE_DOCS", "CI_SECRET_REFERENCE", "CI_SECRET_TRANSMISSION",
-    "DOCKER_ADMIN_PORT_EXPOSED", "DOCKER_HOME_MOUNT", "DOCKER_PRIVILEGED_CONTAINER", "DOCKER_RUNS_AS_ROOT",
-    "DOCKER_SOCKET_MOUNT", "MCP_CREDENTIAL_ACCESS", "MCP_FILESYSTEM_TOOL", "MCP_OUTBOUND_ENDPOINT", "MCP_SHELL_TOOL",
-    "NODE_EVAL", "NODE_FILE_DELETE", "NODE_LOCAL_STORAGE_AUTH_TOKEN", "NODE_PERMISSIVE_CORS", "NODE_SHELL_EXEC",
-    "NODE_UNAUTH_DESTRUCTIVE_ROUTE", "PKG_JSON_INVALID_TYPE", "PKG_JSON_PARSE_ERROR", "PKG_LIFECYCLE_SCRIPT",
-    "PKG_OBFUSCATED_SCRIPT_BEHAVIOR", "PKG_REMOTE_LIFECYCLE_EXEC", "PKG_SCRIPT_TOUCHES_CREDENTIAL_PATHS",
-    "PY_DEBUG_MODE_ENABLED", "PY_EVAL_EXEC", "PY_OS_SYSTEM", "PY_PERMISSIVE_CORS", "PY_PICKLE_DESERIALIZATION",
-    "PY_SUBPROCESS_SHELL_TRUE", "PY_SYNTAX_ERROR", "PY_UNAUTH_DESTRUCTIVE_ROUTE", "PY_USER_INPUT_TO_SENSITIVE_SINK",
-    "PY_YAML_UNSAFE_LOAD", "SECRET_CLIENT_EXPOSED_KEY_NAME", "SECRET_ENV_FILE_COMMITTED",
-    "SECRET_KNOWN_TOKEN_PATTERN", "SECRET_POSSIBLE_HARDCODED_SECRET",
-}
 _ISSUE_CODES = {
     "elapsed_time_limit", "entry_count_limit", "file_count_limit", "file_size_limit", "file_unreadable",
     "finding_count_limit", "invalid_utf8", "manifest_uninspectable", "outside_root", "report_size_limit",
-    "rule_failure", "total_bytes_limit",
+    "rule_contract_violation", "rule_failure", "total_bytes_limit",
 }
 
 
@@ -77,13 +65,13 @@ def _file_count_band(files_scanned: int) -> str:
     return "10001+"
 
 
-def _checked_string(value: object, *, field: str, allowed: set[str]) -> str:
+def _checked_string(value: object, *, field: str, allowed: AbstractSet[str]) -> str:
     if not isinstance(value, str) or value not in allowed:
         raise ContributionError(f"report has an unsupported {field}")
     return value
 
 
-def _checked_identifier(value: object, *, field: str, allowed: set[str]) -> str:
+def _checked_identifier(value: object, *, field: str, allowed: AbstractSet[str]) -> str:
     """Accept only scanner-owned identifiers, never caller-controlled text."""
     if not isinstance(value, str) or value not in allowed:
         raise ContributionError(f"report has an unsupported {field}")
@@ -115,7 +103,7 @@ def _summary_from_report(report: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(finding, dict):
             raise ContributionError("report contains an invalid finding")
         finding_records.append({
-            "rule_id": _checked_identifier(finding.get("id"), field="finding rule id", allowed=_REPORT_RULE_IDS),
+            "rule_id": _checked_identifier(finding.get("id"), field="finding rule id", allowed=RULE_IDS),
             "severity": _checked_string(finding.get("severity"), field="finding severity", allowed={"critical", "high", "medium", "low"}),
             "confidence": _checked_string(finding.get("confidence"), field="finding confidence", allowed={"high", "medium", "low"}),
             "context": _checked_string(finding.get("context"), field="finding context", allowed={

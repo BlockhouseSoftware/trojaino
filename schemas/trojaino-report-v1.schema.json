@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blockhousesoftware.com/schemas/trojaino-report-v1.schema.json",
+  "title": "Trojaino machine report v1",
+  "type": "object",
+  "required": [
+    "schema_version", "scanner_version", "rule_pack", "scan_profile", "target", "profile", "verdict",
+    "files_scanned", "unreadable_files", "complete", "status", "issues", "skipped_files",
+    "excluded_ds_store_files", "findings", "capabilities", "preflight", "budget", "recommended_command", "scanned_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "scanner_version": {"type": "string"},
+    "rule_pack": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {"id": {"const": "trojaino-core"}, "version": {"type": "string"}},
+      "additionalProperties": true
+    },
+    "scan_profile": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {"id": {"type": "string"}},
+      "additionalProperties": true
+    },
+    "target": {"type": "string"},
+    "profile": {"type": "string"},
+    "verdict": {"enum": ["DO NOT RUN", "CAUTION", "NO CRITICAL RISKS FOUND"]},
+    "files_scanned": {"type": "integer", "minimum": 0},
+    "unreadable_files": {"type": "integer", "minimum": 0},
+    "complete": {"type": "boolean"},
+    "status": {"enum": ["complete", "incomplete"]},
+    "issues": {"type": "array", "items": {"$ref": "#/$defs/issue"}},
+    "skipped_files": {"type": "array", "items": {"$ref": "#/$defs/skippedFile"}},
+    "excluded_ds_store_files": {"type": "integer", "minimum": 0},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "capabilities": {"type": "array", "items": {"$ref": "#/$defs/capability"}},
+    "preflight": {"anyOf": [{"$ref": "#/$defs/preflight"}, {"type": "null"}]},
+    "budget": {"anyOf": [{"type": "object"}, {"type": "null"}]},
+    "recommended_command": {"type": ["string", "null"]},
+    "scanned_at": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["id", "severity", "confidence", "title", "file", "line", "evidence", "why_it_matters", "recommendation", "source", "context", "disposition", "fingerprint"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]+$"},
+        "severity": {"enum": ["critical", "high", "medium", "low"]},
+        "confidence": {"enum": ["high", "medium", "low"]},
+        "title": {"type": "string"}, "file": {"type": "string"}, "line": {"type": ["integer", "null"]},
+        "evidence": {"type": "string"}, "why_it_matters": {"type": "string"}, "recommendation": {"type": "string"},
+        "source": {"type": "string"}, "context": {"type": "string"}, "disposition": {"type": "string"},
+        "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{24}$"}
+      },
+      "additionalProperties": true
+    },
+    "issue": {"type": "object", "required": ["code", "message", "file"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "file": {"type": ["string", "null"]}}, "additionalProperties": true},
+    "skippedFile": {"type": "object", "required": ["file", "status", "detail"], "properties": {"file": {"type": "string"}, "status": {"type": "string"}, "detail": {"type": "string"}}, "additionalProperties": true},
+    "capability": {"type": "object", "required": ["id", "title", "file", "line", "rule", "evidence"], "properties": {"id": {"type": "string"}, "title": {"type": "string"}, "file": {"type": "string"}, "line": {"type": ["integer", "null"]}, "rule": {"type": "string"}, "evidence": {"type": "string"}}, "additionalProperties": true},
+    "preflight": {"type": "object", "required": ["eligible_files", "filesystem_entries", "total_bytes", "max_file_bytes", "max_depth", "symlinks", "unreadable_entries", "complete", "issues"], "properties": {"eligible_files": {"type": "integer"}, "filesystem_entries": {"type": "integer"}, "total_bytes": {"type": "integer"}, "max_file_bytes": {"type": "integer"}, "max_depth": {"type": "integer"}, "symlinks": {"type": "integer"}, "unreadable_entries": {"type": "integer"}, "complete": {"type": "boolean"}, "issues": {"type": "array", "items": {"$ref": "#/$defs/issue"}}}, "additionalProperties": true}
+  },
+  "additionalProperties": true
+}
