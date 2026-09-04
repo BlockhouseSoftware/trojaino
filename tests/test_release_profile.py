@@ -21,6 +21,7 @@ class ReleaseProfileTests(unittest.TestCase):
         project = self.make_project({
             "tests/fixtures/bad/.env": "OPENAI_API_KEY=sk-test-repository-fixture-value\n",
             "reference/scan-reports/example.json": '{"evidence": "credentials"}',
+            "benchmark/artifacts/finding-heavy.json": '{"evidence": "process.env.API_TOKEN"}',
             "trojaino/core.py": "def main():\n    return 0\n",
             "pyproject.toml": '[project]\nname = "example"\n',
         })
