@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "purpose": "Synthetic, public, reproducible calibration fixtures. These are not claims about third-party software.",
+  "cases": [
+    {"id":"bad-node-app","path":"tests/fixtures/bad-node-app","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"bad-node-project","path":"tests/fixtures/bad-node-project","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"clean-project","path":"tests/fixtures/clean-project","label":"benign","expected_verdict":"NO CRITICAL RISKS FOUND"},
+    {"id":"localstorage-auth","path":"tests/fixtures/localstorage-auth-node-app","label":"review","expected_verdict":"CAUTION"},
+    {"id":"permissive-cors","path":"tests/fixtures/permissive-cors-node-app","label":"review","expected_verdict":"CAUTION"},
+    {"id":"poisoned-agent-file","path":"tests/fixtures/poisoned-agent-file","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"risky-mcp-server","path":"tests/fixtures/risky-mcp-server","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"risky-python-app","path":"tests/fixtures/risky-python-app","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"safe-node-context","path":"tests/fixtures/safe-node-context","label":"benign","expected_verdict":"NO CRITICAL RISKS FOUND"},
+    {"id":"unsafe-docker-config","path":"tests/fixtures/unsafe-docker-config","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"context-aware-secrets","path":"tests/fixtures/context-aware-secrets","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"mcp-context","path":"tests/fixtures/mcp-context","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"sanitized-composite","path":"tests/fixtures/benchmark-sanitized","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"sanitized-bitcoin-test","path":"tests/fixtures/benchmark-sanitized/bitcoin-core","label":"benign","expected_verdict":"NO CRITICAL RISKS FOUND"},
+    {"id":"sanitized-agent-auditor","path":"tests/fixtures/benchmark-sanitized/claude-skill-auditor","label":"benign","expected_verdict":"NO CRITICAL RISKS FOUND"},
+    {"id":"sanitized-local-app","path":"tests/fixtures/benchmark-sanitized/grato-lighting-preview","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"committed-env","path":"tests/fixtures/context-aware-secrets/committed-env","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"test-token-context","path":"tests/fixtures/context-aware-secrets/tests","label":"unsafe","expected_verdict":"DO NOT RUN"},
+    {"id":"test-runner-context","path":"tests/fixtures/safe-node-context/scripts","label":"benign","expected_verdict":"NO CRITICAL RISKS FOUND"},
+    {"id":"controlled-command-context","path":"tests/fixtures/safe-node-context/src","label":"benign","expected_verdict":"NO CRITICAL RISKS FOUND"}
+  ]
+}
