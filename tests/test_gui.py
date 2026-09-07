@@ -13,26 +13,13 @@ class GuiSupportTests(unittest.TestCase):
     def make_project(self) -> Path:
         return Path(tempfile.mkdtemp(prefix="trojaino-gui-test-"))
 
-    def test_default_output_dir_is_adjacent_to_selected_target(self):
-        project = self.make_project()
-        source = project / "src" / "app.py"
-        source.parent.mkdir()
-        source.write_text("print('ok')", encoding="utf-8")
+    def test_default_output_dir_is_a_stable_documents_folder(self):
+        home = self.make_project() / "Sig"
 
-        self.assertEqual(default_output_dir(project), project / "TrojainoReports")
-        self.assertEqual(default_output_dir(source), project / "src" / "TrojainoReports")
-
-    def test_default_output_dir_stays_outside_a_git_repository(self):
-        parent = self.make_project()
-        repository = parent / "client-project"
-        repository.mkdir()
-        (repository / ".git").mkdir()
-        source = repository / "src" / "app.py"
-        source.parent.mkdir()
-        source.write_text("print('ok')", encoding="utf-8")
-
-        self.assertEqual(default_output_dir(repository), parent / "TrojainoReports")
-        self.assertEqual(default_output_dir(source), parent / "TrojainoReports")
+        self.assertEqual(
+            default_output_dir(home=home),
+            home / "Documents" / "TrojainoReports",
+        )
 
     def test_report_paths_are_target_named_timestamped_and_collision_safe(self):
         project = self.make_project() / "client project!"
