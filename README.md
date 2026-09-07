@@ -1,4 +1,4 @@
-# Trojaino v0.1.5
+# Trojaino v0.1.6
 
 **Trojaino: Local Trust Scanner**
 
@@ -115,7 +115,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 
 ## Limitations
 
-Trojaino v0.1.5 is an alpha deterministic scanner:
+Trojaino v0.1.6 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.

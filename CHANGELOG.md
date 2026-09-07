@@ -2,7 +2,7 @@
 
 All notable changes to Trojaino are documented here.
 
-## 0.1.5 - Unreleased
+## 0.1.6 - 2026-09-07
 
 ### Machine contract
 
@@ -24,6 +24,15 @@ All notable changes to Trojaino are documented here.
 ### Verdicts
 
 - No verdict threshold changes in this release.
+
+### Calibration and usability
+
+- Added a reproducible, synthetic 20-target calibration benchmark with versioned summaries and sanitized example reports.
+- The Windows GUI now saves reports to a stable `Documents/TrojainoReports` folder instead of changing the default with each scan target.
+
+### Distribution
+
+- Added the tag-only PyPI Trusted Publishing workflow, which builds, validates, and smoke-tests the wheel and source distribution before a separately configured PyPI publish approval.
 
 ## 0.1.4.1
 
