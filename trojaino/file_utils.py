@@ -20,7 +20,7 @@ SKIP_DIRS = {
     ".git", "node_modules", "dist", "build", ".next", ".venv", "venv", "__pycache__",
     ".pytest_cache", ".mypy_cache", "coverage", ".turbo",
 }
-RELEASE_EXCLUDED_ROOTS = {"tests", "reference", "docs", "examples", "example"}
+RELEASE_EXCLUDED_ROOTS = {"tests", "reference", "docs", "examples", "example", "benchmark"}
 SCAN_PROFILES = {"default", "release"}
 # Finder metadata is a known binary artifact, not project source. Match only
 # the canonical filename so other extensionless files remain eligible.
