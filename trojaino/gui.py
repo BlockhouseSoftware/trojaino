@@ -23,14 +23,10 @@ from trojaino.scanner import BUDGET_PRESETS, annotate_result, scan_path
 DEFAULT_REPORT_DIRNAME = "TrojainoReports"
 
 
-def default_output_dir(target: Path) -> Path:
-    """Keep reports beside the artifact, outside a containing Git repository."""
-    selected = Path(target).expanduser().absolute()
-    artifact_dir = selected if selected.is_dir() else selected.parent
-    for candidate in (artifact_dir, *artifact_dir.parents):
-        if (candidate / ".git").exists():
-            return candidate.parent / DEFAULT_REPORT_DIRNAME
-    return artifact_dir / DEFAULT_REPORT_DIRNAME
+def default_output_dir(*, home: Path | None = None) -> Path:
+    """Return the stable per-user report folder, independent of the scan target."""
+    user_home = Path.home() if home is None else Path(home)
+    return user_home / "Documents" / DEFAULT_REPORT_DIRNAME
 
 
 def _safe_target_name(target: Path) -> str:
@@ -129,7 +125,7 @@ class TrojainoGui:
         root.rowconfigure(0, weight=1)
 
         self.target_var = tk.StringVar()
-        self.output_var = tk.StringVar()
+        self.output_var = tk.StringVar(value=str(default_output_dir()))
         self.profile_var = tk.StringVar(value="default")
         self.budget_var = tk.StringVar(value="standard")
         self.html_var = tk.BooleanVar(value=True)
@@ -183,7 +179,7 @@ class TrojainoGui:
         output_frame.columnconfigure(1, weight=1)
         ttk.Checkbutton(output_frame, text="Save HTML report", variable=self.html_var, command=self.refresh_controls).grid(row=0, column=0, sticky="w")
         ttk.Checkbutton(output_frame, text="Save JSON report", variable=self.json_var, command=self.refresh_controls).grid(row=0, column=1, sticky="w")
-        ttk.Label(output_frame, text="Suggested report folder:").grid(row=1, column=0, sticky="w", pady=(12, 0))
+        ttk.Label(output_frame, text="Report folder:").grid(row=1, column=0, sticky="w", pady=(12, 0))
         self.output_entry = ttk.Entry(output_frame, textvariable=self.output_var)
         self.output_entry.grid(row=1, column=1, sticky="ew", padx=8, pady=(12, 0))
         self.output_button = ttk.Button(output_frame, text="Choose…", command=self.choose_output)
@@ -216,10 +212,15 @@ class TrojainoGui:
 
     def set_target(self, target: Path) -> None:
         self.target_var.set(str(target))
-        self.output_var.set(str(default_output_dir(target)))
 
     def choose_output(self) -> None:
-        selected = self.filedialog.askdirectory(title="Choose report folder", mustexist=True)
+        output = Path(self.output_var.get()).expanduser()
+        initial_dir = output if output.is_dir() else output.parent
+        selected = self.filedialog.askdirectory(
+            title="Choose report folder",
+            initialdir=str(initial_dir),
+            mustexist=True,
+        )
         if selected:
             self.output_var.set(selected)
 
