@@ -52,7 +52,9 @@ if (Test-Path -LiteralPath $Python) {
 
 **What you should see:** `Python 3.14.7` or a newer `Python 3.14` maintenance version. If so, skip to Step 5.
 
-If Python was not found and you already use Python elsewhere, ask Jose before installing another copy. This guide uses one fixed folder so you do not have to edit file paths.
+If you see Python 3.13, 3.15, a test version, or anything else, stop and ask Jose. This guide uses one fixed Python folder so you do not have to edit file paths.
+
+If Python was not found and you already use Python elsewhere, ask Jose before installing another copy.
 
 If you do not have Python, continue to Step 4 with Jose’s approval.
 
@@ -212,7 +214,7 @@ claude --plugin-dir $TrojainoSetup.Plugin
 
 3. Repeat Step 8 with Jose to check that Trojaino loaded again.
 4. Type `/exit` again. The first test is now finished.
-5. Send Jose: your Windows, Python, and Claude versions; whether the scan worked; whether Trojaino blocked the test command; whether the checks loaded again; and any error step number. A screenshot of just the error is fine. Hide passwords, sign-in codes, private files, and unrelated chats.
+5. Send Jose: your Windows, PowerShell, Python, and Claude versions; whether the scan worked; the saved report and receipt locations; whether Trojaino blocked the test command; whether the checks loaded again; and any error step number. A screenshot of just the error is fine. Hide passwords, sign-in codes, private files, and unrelated chats.
 
 **Do not try Linear, Hookify, VoiceGrab, or another new app yet.** Jose will review the result and agree on the next test with you.
 
