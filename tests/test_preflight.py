@@ -326,43 +326,17 @@ class GateTests(unittest.TestCase):
         receipt = self.api().gate(str(self.source), self.state)
         args = [sys.executable, "-I", "-S", str(cli), "launch", receipt["report_path"], "--entry", "server.js"]
         env = dict(os.environ, TROJAINO_NODE=str(Path(node).resolve()), NODE_OPTIONS="--require /not/a/real/module")
-        result = subprocess.run(args, env=env, capture_output=True, text=True)
-        if result.returncode != 0:
-            # Failure-only diagnostic replay: launch_plan probes trusted runtime
-            # code but never executes the candidate. This is NOT evidence of the
-            # original exception, whose details production deliberately hides.
-            import time
-            from unittest.mock import patch
-            api = self.api()
-            real_run = subprocess.run
-            observations = []
-
-            def observe_probe(argv, **kwargs):
-                if '--permission' not in argv:
-                    return real_run(argv, **kwargs)
-                observation = {'argv': argv, 'cwd': kwargs.get('cwd'),
-                               'timeout': kwargs.get('timeout'),
-                               'env_keys': sorted(kwargs.get('env', {}))}
-                observations.append(observation)
-                start = time.monotonic()
-                try:
-                    completed = real_run(argv, **kwargs)
-                    observation['returncode'] = completed.returncode
-                    return completed
-                except (OSError, subprocess.SubprocessError) as error:
-                    observation['exception'] = type(error).__name__
-                    observation['returncode'] = getattr(error, 'returncode', None)
-                    observation['errno'] = getattr(error, 'errno', None)
-                    raise
-                finally:
-                    observation['elapsed_seconds'] = time.monotonic() - start
-
-            with patch.dict(os.environ, env, clear=True), patch.object(api.subprocess, 'run', observe_probe):
-                replay, _ = api.launch_plan(receipt['report_path'], 'server.js')
-            self.fail(json.dumps({'original_stderr': result.stderr,
-                                  'diagnostic_replay_not_original': replay['decision'],
-                                  'probe_observations': observations}))
-        self.assertEqual(result.returncode, 0, result.stderr)
+        observer = Path(__file__).with_name("node_probe_observer.py")
+        observation = self.root / "original-node-probe.json"
+        # Same shipped CLI and launch path, observed on its FIRST invocation.
+        # No replay: the production denial and original exception stay paired.
+        observed_args = [*args[:3], str(observer), str(observation), *args[4:]]
+        result = subprocess.run(observed_args, env=env, capture_output=True, text=True)
+        detail = {'original_stderr': result.stderr,
+                  'original_probe': json.loads(observation.read_text()) if observation.is_file() else None}
+        self.assertEqual(result.returncode, 0, json.dumps(detail))
+        self.assertIsNotNone(detail['original_probe'], "original probe observation missing")
+        self.assertEqual(detail['original_probe']['returncode'], 0)
         self.assertEqual(json.loads(result.stdout), {"ok": True, "injected": None})
         env.pop("TROJAINO_NODE")
         result = subprocess.run(args, env=env, capture_output=True, text=True)
