@@ -16,7 +16,9 @@ It never says software is "safe" or "certified secure."
 
 ## Experimental Claude Code integration
 
-The [Claude Code preflight pilot](plugins/trojaino/README.md) adds a model-invocable scan skill, synchronous execution guard, and receipt-checking source launcher. It runs as an explicitly loaded **inspection session**, not a global antivirus or universal install interceptor. The pilot has local macOS coverage and an experimental [native Windows 11 implementation](docs/windows-preflight.md). Win32 acceptance and authenticated Windows Claude validation remain required before Windows rollout. The existing scanner and its machine-report contract are unchanged.
+The [Claude Code preflight pilot](plugins/trojaino/README.md) adds a model-invocable scan skill, synchronous execution guard, and receipt-checking source launcher. It runs as an explicitly loaded **inspection session**, not a global antivirus or universal install interceptor. The pilot has local macOS coverage and an experimental [native Windows 11 implementation](docs/windows-preflight.md). Authenticated Windows 11 Claude desktop validation remains required before rollout.
+
+For a supervised first test, use [Sig’s step-by-step guide](docs/SIG_QUICK_START.md). It includes direct GitHub downloads and plain-English setup instructions. These experimental plugin files are separate from the standalone Windows installer below. The existing scanner and its machine-report contract are unchanged.
 
 ## Repository scope
 
