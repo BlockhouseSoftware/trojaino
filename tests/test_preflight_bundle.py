@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
-import tempfile
+from preflight_test_support import TemporaryDirectory
 import unittest
 import zipfile
 
@@ -15,7 +15,7 @@ class BundleTests(unittest.TestCase):
     def test_source_bundle_runs_without_checkout_or_installed_package(self):
         builder = ROOT / 'scripts/build_preflight_bundle.py'
         self.assertTrue(builder.is_file(), 'portable source builder missing')
-        with tempfile.TemporaryDirectory() as tmp:
+        with TemporaryDirectory() as tmp:
             output = Path(tmp) / 'bundle.zip'
             result = subprocess.run([sys.executable, str(builder), str(output)],
                                     capture_output=True, text=True, timeout=15)
@@ -48,5 +48,5 @@ class BundleTests(unittest.TestCase):
             result = subprocess.run([sys.executable, '-I', '-S', str(cli), 'scan', str(source),
                                      '--state', str(Path(tmp) / 'state')], cwd=source,
                                     capture_output=True, text=True, timeout=30)
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.returncode, 0, (result.args, result.stdout, result.stderr))
             self.assertEqual(json.loads(result.stdout)['decision'], 'permit')

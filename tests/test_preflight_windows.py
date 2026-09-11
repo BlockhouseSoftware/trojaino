@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import tempfile
+from preflight_test_support import TemporaryDirectory
+import time
 import unittest
 from trojaino import preflight as api
 
@@ -14,13 +15,20 @@ CLI = Path(__file__).resolve().parents[1] / 'plugins/trojaino/scripts/preflight.
 @unittest.skipUnless(os.name == 'nt', 'requires actual native Windows')
 class WindowsTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.enterContext(TemporaryDirectory()))
         self.source = self.root / "source with space"
         self.source.mkdir()
         (self.source / 'server.py').write_text('print("hello")\n')
         self.state = self.root / 'state'
+        # Surface Win32 path errors directly instead of only gate's safe denial.
+        from trojaino.preflight_windows import locked_path
+        with locked_path(self.source):
+            pass
+
+    def assert_clean_gate(self):
+        # A denial fixture must first prove it reaches the real scan boundary.
+        receipt = api.gate(str(self.source), str(self.state))
+        self.assertEqual(receipt['decision'], 'permit', (str(self.root), receipt))
 
     def test_real_scan_receipt_and_python_launch(self):
         receipt = api.gate(str(self.source), str(self.state))
@@ -35,6 +43,7 @@ class WindowsTests(unittest.TestCase):
         self.assertEqual(api.verify(receipt['report_path'])['decision'], 'deny')
 
     def test_ads_on_file_and_directory_denied(self):
+        self.assert_clean_gate()
         for target in [self.source / 'server.py', self.source]:
             with self.subTest(target=target):
                 stream = str(target) + ':hidden'
@@ -46,6 +55,7 @@ class WindowsTests(unittest.TestCase):
                     os.unlink(stream)
 
     def test_junction_source_ancestor_and_state_denied(self):
+        self.assert_clean_gate()
         link = self.root / 'junction'
         result = subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(link), str(self.source)],
                                 capture_output=True, timeout=5)
@@ -61,6 +71,7 @@ class WindowsTests(unittest.TestCase):
             os.rmdir(link)
 
     def test_hardlink_denied(self):
+        self.assert_clean_gate()
         os.link(self.source / 'server.py', self.source / 'alias.py')
         self.assertEqual(api.gate(str(self.source), str(self.state))['decision'], 'deny')
 
@@ -103,30 +114,46 @@ class WindowsTests(unittest.TestCase):
     def test_worker_exit_kills_descendant(self):
         from trojaino.preflight_windows import K, bind, W, close
         root = str(CLI.parents[3])
+        ready = self.root / 'child-pid'
         code = ('import sys,subprocess,time; sys.path.insert(0,sys.argv[1]); '
                 'from trojaino.preflight_windows import contain_process; job=contain_process(); '
                 'child=subprocess.Popen([sys.executable,"-I","-S","-c","import time; time.sleep(60)"]); '
-                'print(child.pid,flush=True); time.sleep(60)')
-        worker = subprocess.Popen([sys.executable, '-I', '-S', '-c', code, root],
+                'from pathlib import Path; p=Path(sys.argv[2]); '
+                'p.with_suffix(".tmp").write_text(str(child.pid)); '
+                'p.with_suffix(".tmp").replace(p); time.sleep(60)')
+        worker = subprocess.Popen([sys.executable, '-I', '-S', '-c', code, root, str(ready)],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        handle = None
+        open_process = bind(K, 'OpenProcess', W.HANDLE, W.DWORD, W.BOOL, W.DWORD)
+        wait = bind(K, 'WaitForSingleObject', W.DWORD, W.HANDLE, W.DWORD)
+        terminate = bind(K, 'TerminateProcess', W.BOOL, W.HANDLE, W.UINT)
         try:
-            with self.assertRaises(subprocess.TimeoutExpired) as timed:
-                worker.communicate(timeout=3)
-            self.assertTrue(timed.exception.output)
-            child_pid = int(timed.exception.output.strip())
-            open_process = bind(K, 'OpenProcess', W.HANDLE, W.DWORD, W.BOOL, W.DWORD)
-            wait = bind(K, 'WaitForSingleObject', W.DWORD, W.HANDLE, W.DWORD)
-            handle = open_process(0x100000, False, child_pid)
+            # Windows communicate() reader threads wait for EOF, so a timeout
+            # has no reliable partial stdout while either process holds pipes.
+            deadline = time.monotonic() + 10
+            while not ready.exists() and worker.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.02)
+            if not ready.exists():
+                if worker.poll() is None:
+                    worker.kill()
+                output, error = worker.communicate(timeout=5)
+                self.fail(f'containment readiness failed: rc={worker.returncode}, stdout={output!r}, stderr={error!r}')
+            child_pid = int(ready.read_text())
+            handle = open_process(0x100001, False, child_pid)  # synchronize + cleanup termination
             self.assertTrue(handle)
-            try:
-                worker.kill()
-                worker.communicate(timeout=5)
-                self.assertEqual(wait(handle, 5000), 0, 'orphaned child remains alive')
-            finally:
-                close(handle)
+            self.assertIsNone(worker.poll(), 'worker exited before containment probe')
+            self.assertEqual(wait(handle, 0), 258, 'child was not alive before worker kill')
+            worker.kill()
+            self.assertEqual(wait(handle, 5000), 0, 'orphaned child remains alive')
+            worker.communicate(timeout=5)
         finally:
             if worker.poll() is None:
                 worker.kill()
+            if handle:
+                if wait(handle, 0) == 258:
+                    terminate(handle, 1)
+                    self.assertEqual(wait(handle, 5000), 0, 'test child cleanup failed')
+                close(handle)
             worker.communicate(timeout=5)
 
     def test_native_node_siblings_and_ambient_import_denial(self):
@@ -164,5 +191,5 @@ class WindowsTests(unittest.TestCase):
         self.assertNotIn('permissionDecision', api.hook(event)['hookSpecificOutput'])
         result = subprocess.run([shell, '-NoProfile', '-NonInteractive', '-Command', command],
                                 capture_output=True, text=True, timeout=30)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 0, (command, result.stdout, result.stderr))
         self.assertEqual(json.loads(result.stdout)['decision'], 'permit')

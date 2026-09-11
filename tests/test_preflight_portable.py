@@ -3,7 +3,7 @@ import io
 import tarfile
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from preflight_test_support import TemporaryDirectory
 from trojaino import preflight as api
 
 
@@ -70,6 +70,7 @@ class PortableTests(unittest.TestCase):
 
     def test_real_powershell_transport_round_trips_literal_paths(self):
         import os
+        import sys
         import shutil
         import subprocess
         import json
@@ -80,11 +81,24 @@ class PortableTests(unittest.TestCase):
             source = Path(tmp) / "O'Brien $(literal) source"
             source.mkdir()
             (source / 'server.py').write_text('print(1)')
+            # Independently prove native argv transport and PowerShell's mapping
+            # of a native exit 2 to shell exit 1; neither depends on the gate.
+            probe = Path(tmp) / 'argv-probe.py'
+            probe.write_text('import json,sys; print(json.dumps(sys.argv[2:])); sys.exit(int(sys.argv[1]))')
+            literals = [str(source), 'C:\\literal path\\', 'double"quote', '$env:PATH; $(literal)']
+            for native_status, shell_status in [(0, 0), (2, 1)]:
+                argv = [sys.executable, '-I', '-S', str(probe), str(native_status), *literals]
+                transport = api.format_command(argv, 'PowerShell')
+                probe_result = subprocess.run([shell, '-NoProfile', '-NonInteractive', '-Command', transport],
+                                              capture_output=True, text=True, timeout=15)
+                self.assertEqual(probe_result.returncode, shell_status,
+                                 (transport, probe_result.stdout, probe_result.stderr))
+                self.assertEqual(json.loads(probe_result.stdout), literals)
             command = api.format_command(api.command_prefix('PowerShell') +
                                          ['scan', str(source), '--state', str(Path(tmp) / 'state')], 'PowerShell')
             result = subprocess.run([shell, '-NoProfile', '-NonInteractive', '-Command', command],
                                     capture_output=True, text=True, timeout=30)
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.returncode, 0, (command, result.stdout, result.stderr))
             self.assertEqual(json.loads(result.stdout)['decision'], 'permit')
 
     def test_archive_rejects_implicit_parent_case_aliases(self):
