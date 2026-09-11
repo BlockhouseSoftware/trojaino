@@ -102,14 +102,24 @@ class WindowsTests(unittest.TestCase):
         self.assertIsNotNone(shell)
         with private_job(str(self.state)) as job:
             literal = "'" + str(job).replace("'", "''") + "'"
-            result = subprocess.run([shell, '-NoProfile', '-NonInteractive', '-Command',
-                                     '(Get-Acl -LiteralPath ' + literal + ').Sddl'],
+            # Get-Acl.Sddl can abbreviate the numeric RID-500 SID as LA.
+            # Ask .NET for explicit AND inherited rules as SecurityIdentifiers;
+            # do not accept an alias or a localized account display name.
+            command = (
+                "$ErrorActionPreference='Stop'; $acl=Get-Acl -LiteralPath " + literal + "; "
+                "$rules=@($acl.GetAccessRules($true,$true,"
+                "[System.Security.Principal.SecurityIdentifier]) | ForEach-Object { "
+                "@{sid=$_.IdentityReference.Value; type=[int]$_.AccessControlType; "
+                "rights=[int]$_.FileSystemRights; inherited=$_.IsInherited; "
+                "inheritance=[int]$_.InheritanceFlags; propagation=[int]$_.PropagationFlags} }); "
+                "@{protected=$acl.AreAccessRulesProtected; rules=$rules; sddl=$acl.Sddl} "
+                "| ConvertTo-Json -Depth 4 -Compress"
+            )
+            result = subprocess.run([shell, '-NoProfile', '-NonInteractive', '-Command', command],
                                     capture_output=True, text=True, timeout=5)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn(current_user_sid(), result.stdout)
-            self.assertIn('D:P', result.stdout)
-            for broad in [';;;WD)', ';;;BU)', ';;;AU)', ';;;OW)']:
-                self.assertNotIn(broad, result.stdout)
+            from preflight_test_support import assert_private_dacl
+            assert_private_dacl(self, json.loads(result.stdout), current_user_sid())
 
     def test_worker_exit_kills_descendant(self):
         from trojaino.preflight_windows import K, bind, W, close
