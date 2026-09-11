@@ -14,6 +14,10 @@ It is intentionally not a generic "ask an LLM to review this repo" wrapper. v0.1
 
 It never says software is "safe" or "certified secure."
 
+## Experimental Claude Code integration
+
+The [Claude Code preflight pilot](plugins/trojaino/README.md) adds a model-invocable scan skill, synchronous execution guard, and receipt-checking source launcher. It runs as an explicitly loaded **inspection session**, not a global antivirus or universal install interceptor. This POSIX-only pilot has been tested locally on macOS; authenticated Claude workflow validation and user-machine rollout remain separate requirements. The existing scanner and its machine-report contract are unchanged.
+
 ## Repository scope
 
 This repository contains only the product source, public documentation, tests, and synthetic fixtures needed to verify detections. Company strategy, private requirements, decks, raw scan reports, screenshots, and generated evidence live outside this repository.

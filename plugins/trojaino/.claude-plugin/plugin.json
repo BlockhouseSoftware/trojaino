@@ -1,0 +1,7 @@
+{
+  "name": "trojaino",
+  "version": "0.1.0",
+  "description": "Controlled inspection-session preflight pilot for local and commit-pinned GitHub source. Not a universal execution firewall.",
+  "author": {"name": "Blockhouse Software"},
+  "license": "AGPL-3.0-only"
+}
