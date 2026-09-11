@@ -8,6 +8,10 @@ on:
     paths:
       - "trojaino/**"
       - "plugins/trojaino/**"
+      - "scripts/build_preflight_bundle.py"
+      - "scripts/prepare_preflight_plugin.py"
+      - "docs/windows-preflight.md"
+      - "README.md"
       - "tests/**"
       - "requirements/test.txt"
       - "pyproject.toml"
