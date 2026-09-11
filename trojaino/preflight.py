@@ -26,6 +26,39 @@ from types import SimpleNamespace
 SCAN_TIMEOUT = 10.0
 
 
+def trusted_environment():
+    if os.name == "nt":
+        from trojaino.preflight_windows import system_directory
+        system = system_directory()
+        return {"SystemRoot": str(Path(system).parent), "PATH": system,
+                "LANG": "C.UTF-8"}
+    return {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+
+
+def isolated_operation(name, args, timeout=20, stdin=subprocess.DEVNULL):
+    """A killable trusted process, not an uninterruptible Windows timer thread."""
+    trusted = str(Path(__file__).resolve().parent.parent)
+    code = ("import sys; sys.path.insert(0,sys.argv[1]); "
+            "from trojaino.preflight_process import main; "
+            "sys.argv=sys.argv[1:]; main()")
+    environment = trusted_environment()
+    if "TROJAINO_NODE" in os.environ:
+        environment["TROJAINO_NODE"] = os.environ["TROJAINO_NODE"]
+    with tempfile.TemporaryFile() as output:
+        try:
+            subprocess.run([sys.executable, "-I", "-S", "-c", code, trusted,
+                            json.dumps([name, args])], cwd=trusted, stdin=stdin,
+                           stdout=output, stderr=subprocess.DEVNULL,
+                           env=environment, timeout=timeout, check=True)
+            output.seek(0)
+            data = output.read(5_000_001)
+            if len(data) > 5_000_000:
+                raise ValueError("worker_output_limit")
+            return json.loads(data)
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            raise Denied("operation_error_or_timeout") from exc
+
+
 def scan_path(target, profile="default"):
     """Isolated trusted worker: target cwd/PYTHONPATH/site hooks never import."""
     trusted = str(Path(__file__).resolve().parent.parent)
@@ -39,7 +72,7 @@ def scan_path(target, profile="default"):
         subprocess.run([sys.executable, "-I", "-S", "-c", code, trusted, str(target)],
                        cwd=trusted, stdin=subprocess.DEVNULL, stdout=output,
                        stderr=subprocess.DEVNULL, timeout=SCAN_TIMEOUT, check=True,
-                       env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"})
+                       env=trusted_environment())
         output.seek(0)
         data = output.read(5_000_001)
     if len(data) > 5_000_000:
@@ -80,6 +113,9 @@ MAX_DEPTH = 50
 
 def snapshot(root):
     """Bounded openat traversal. Never follow a link or open a device/FIFO."""
+    if os.name == "nt":
+        from trojaino.preflight_windows import snapshot as native_snapshot
+        return native_snapshot(root)
     root = Path(root)
     if not root.is_absolute() or ".." in root.parts:
         raise Denied("unsafe_source")
@@ -178,6 +214,7 @@ def stage_archive(data, staged):
             raise Denied("staging_limit")
         files = {}
         seen = set()
+        spellings = {}
         root = None
         total = entries = 0
         with tarfile.open(fileobj=io.BytesIO(raw), mode="r:") as archive:
@@ -186,10 +223,17 @@ def stage_archive(data, staged):
                 parts = member.name.rstrip("/").split("/")
                 if (entries > MAX_ENTRIES or len(parts) > MAX_DEPTH + 1):
                     raise Denied("staging_limit")
-                if (any(p in {"", ".", ".."} for p in parts) or "\\" in member.name
+                from trojaino.preflight_paths import valid_component
+                if (any(not valid_component(p) for p in parts) or "\\" in member.name
                         or any(ord(c) < 32 for c in member.name)
                         or not (member.isdir() or member.isfile()) or member.issparse()):
                     raise Denied("unsafe_archive")
+                for depth in range(1, len(parts) + 1):
+                    spelling = "/".join(parts[:depth])
+                    normalized = unicodedata.normalize("NFC", spelling).casefold()
+                    if normalized in spellings and spellings[normalized] != spelling:
+                        raise Denied("unsafe_archive")
+                    spellings[normalized] = spelling
                 key = unicodedata.normalize("NFC", member.name.rstrip("/")).casefold()
                 if key in seen or (root is not None and root != parts[0]):
                     raise Denied("unsafe_archive")
@@ -207,6 +251,10 @@ def stage_archive(data, staged):
                 if stream is None:
                     raise Denied("unsafe_archive")
                 files["/".join(parts[1:])] = stream.read(MAX_FILE_BYTES + 1)
+        if os.name == "nt":
+            from trojaino.preflight_windows import write_tree
+            write_tree(staged, files)
+            return
         staged.mkdir(mode=0o700)
         for name, content in files.items():
             dest = staged / name
@@ -219,7 +267,11 @@ def stage_archive(data, staged):
 
 
 def stage_local(source, staged):
-    files = snapshot(Path(source))
+    files = snapshot(source)
+    if os.name == "nt":
+        from trojaino.preflight_windows import write_tree
+        write_tree(staged, files)
+        return
     staged.mkdir(mode=0o700)
     for name, data in files.items():
         dest = staged / name
@@ -239,12 +291,16 @@ def tree_digest(root):
 def verify(receipt_path):
     try:
         path = Path(receipt_path)
-        if path.is_symlink() or path.stat().st_size > 5_000_000:
-            raise Denied("invalid_receipt")
-        receipt = json.loads(path.read_text())
+        if os.name == "nt":
+            from trojaino.preflight_windows import read_locked
+            receipt = json.loads(read_locked(receipt_path, 5_000_000))
+        else:
+            if path.is_symlink() or path.stat().st_size > 5_000_000:
+                raise Denied("invalid_receipt")
+            receipt = json.loads(path.read_text())
         if (receipt["decision"] != "permit" or receipt["profile"] != "default"
                 or receipt["scanner_identity"] != scanner_identity()
-                or receipt["digest"] != tree_digest(Path(receipt["staged_path"]))):
+                or receipt["digest"] != tree_digest(receipt["staged_path"])):
             raise Denied("receipt_mismatch")
         fresh = gate(receipt["staged_path"], path.parent.parent)
         if fresh.get("digest") != receipt["digest"]:
@@ -254,30 +310,67 @@ def verify(receipt_path):
         return {"decision": "deny", "reason": "invalid_or_changed_receipt"}
 
 
+def command_prefix(tool):
+    entry = Path(__file__).resolve().parent.parent / "plugins/trojaino/scripts/preflight.py"
+    values = [sys.executable, "-I", "-S", str(entry)]
+    if os.name == "nt" and tool == "Bash":
+        values = [v.replace("\\", "/") for v in values]
+    return values
+
+
+def format_command(argv, tool):
+    if tool == "PowerShell":
+        # Reject the entire typographic quote family, including PowerShell's
+        # smart delimiters. ASCII apostrophe doubling alone is not sufficient.
+        if any(any('\u2018' <= c <= '\u201f' for c in arg) for arg in argv):
+            raise Denied("ambiguous_command")
+        return "& " + " ".join("'" + arg.replace("'", "''") + "'" for arg in argv)
+    if tool == "Bash":
+        return shlex.join(argv)
+    raise Denied("unsupported_tool")
+
+
+def parse_command(command, tool):
+    if tool == "PowerShell":
+        if not re.fullmatch(r"& '(?:[^']|'')*'(?: '(?:[^']|'')*')*", command):
+            raise Denied("ambiguous_command")
+        argv = [token[1:-1].replace("''", "'")
+                for token in re.findall(r"'(?:[^']|'')*'", command[2:])]
+    else:
+        argv = shlex.split(command)
+    if command != format_command(argv, tool):
+        raise Denied("ambiguous_command")
+    return argv
+
+
 def hook(event):
     try:
         if event.get("hook_event_name") == "SessionStart":
-            entry = Path(__file__).resolve().parent.parent / "plugins/trojaino/scripts/preflight.py"
-            command = shlex.join([sys.executable, "-I", "-S", str(entry)])
+            command = format_command(command_prefix("PowerShell" if os.name == "nt" else "Bash"),
+                                     "PowerShell" if os.name == "nt" else "Bash")
+            grammar = ("PowerShell: use & followed by EVERY argument single-quoted; double embedded "
+                       "apostrophes. Quote scan, launch and flags too. Bash alternative prefix: "
+                       + format_command(command_prefix("Bash"), "Bash") + ". "
+                       if os.name == "nt" else "Bash: use canonical shlex.join argument quoting. ")
             return {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": (
                 "Trojaino inspection-session pilot is loaded. When asked to try or install a new MCP, "
                 "plugin, or app, invoke the trojaino:scan skill and inspect supported source before execution. "
-                "Trusted command prefix: " + command + ". Append scan SOURCE for a report-only call. "
+                "Trusted command prefix: " + command + ". " + grammar + "Append scan SOURCE for a report-only call. "
                 "Read and report the result before any separate launch RECEIPT --entry RELATIVE_ENTRY call. "
                 "Only absolute source directories and exact full-commit GitHub tree URLs are supported. "
                 "Do not install dependencies or activate native candidate plugins/MCPs in this session. "
                 "Ordinary execution and writes are blocked in inspection mode; normal Claude permissions "
                 "still apply to supported commands. This is not antivirus or an OS sandbox."
             )}}
-        if event.get("hook_event_name") != "PreToolUse" or event.get("tool_name") != "Bash":
+        if event.get("hook_event_name") != "PreToolUse" or event.get("tool_name") not in {"Bash", "PowerShell"}:
             raise Denied("unsupported_tool")
         command = event["tool_input"]["command"]
         if not isinstance(command, str) or len(command) > 16000 or any(ord(c) < 32 for c in command):
             raise Denied("ambiguous_command")
-        argv = shlex.split(command)
-        entry = Path(__file__).resolve().parent.parent / "plugins/trojaino/scripts/preflight.py"
-        prefix = [sys.executable, "-I", "-S", str(entry)]
-        if command != shlex.join(argv) or argv[:4] != prefix:
+        tool = event["tool_name"]
+        argv = parse_command(command, tool)
+        prefix = command_prefix(tool)
+        if argv[:4] != prefix:
             raise Denied("ambiguous_command")
         if (len(argv) in {6, 8} and argv[4] == "scan"
                 and (len(argv) == 6 or argv[6] == "--state" and Path(argv[7]).is_absolute())):
@@ -314,8 +407,16 @@ def launch_plan(receipt_path, entry):
         )
         argv = [sys.executable, "-I", "-S", "-c", bootstrap, str(staged), str(staged / entry)]
     else:
-        runtime = Path(os.environ.get("TROJAINO_NODE", ""))
-        if (not runtime.is_absolute() or runtime.name != "node" or not runtime.is_file()
+        configured_runtime = os.environ.get("TROJAINO_NODE", "")
+        if os.name == "nt":
+            try:
+                from trojaino.preflight_windows import locked_path
+                with locked_path(configured_runtime, directory=False):
+                    pass
+            except (OSError, ValueError):
+                return {"decision": "deny", "reason": "trusted_node_runtime_required"}, []
+        runtime = Path(configured_runtime)
+        if (not runtime.is_absolute() or runtime.name.lower() != ("node.exe" if os.name == "nt" else "node") or not runtime.is_file()
                 or not os.access(runtime, os.X_OK) or runtime.is_relative_to(staged)):
             return {"decision": "deny", "reason": "trusted_node_runtime_required"}, []
         # Node treats '*' in a grant as a wildcard, not a literal pathname.
@@ -330,7 +431,7 @@ def launch_plan(receipt_path, entry):
         try:
             subprocess.run([str(runtime.resolve()), "--no-addons", "--permission",
                             "--input-type=commonjs", "--eval", probe],
-                           cwd="/", env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"},
+                           cwd=str(runtime.parent) if os.name == "nt" else "/", env=trusted_environment(),
                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL, timeout=3, check=True)
         except (OSError, subprocess.SubprocessError):
@@ -344,8 +445,11 @@ def launch_plan(receipt_path, entry):
 
 def launch(receipt_path, entry):
     try:
-        with operation_timeout():
-            result, argv = launch_plan(receipt_path, entry)
+        if os.name == "nt":
+            result, argv = isolated_operation("launch_plan", [str(receipt_path), entry])
+        else:
+            with operation_timeout():
+                result, argv = launch_plan(receipt_path, entry)
     except Exception:
         result, argv = {"decision": "deny", "reason": "launch_error_or_timeout"}, []
     if result["decision"] != "permit":
@@ -353,23 +457,52 @@ def launch(receipt_path, entry):
         return 2
     staged = Path(result["staged_path"])
     print(json.dumps(result, ensure_ascii=True), file=sys.stderr, flush=True)
+    if os.name == "nt":
+        from trojaino.preflight_windows import contain_process
+        job = contain_process()  # lifetime is this launcher, including timeout exits
+        try:
+            return subprocess.run(argv, cwd=staged, env=trusted_environment(), timeout=300).returncode
+        except (OSError, subprocess.SubprocessError):
+            return 2
     os.chdir(staged)
-    os.execve(argv[0], argv,
-              {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"})
+    os.execve(argv[0], argv, trusted_environment())
+
+
+def hook_input():
+    data = sys.stdin.buffer.read(65537)
+    if len(data) > 65536:
+        raise Denied("invalid_input")
+    event = json.loads(data)
+    if not isinstance(event, dict):
+        raise Denied("invalid_input")
+    return hook(event)
+
+
+def capabilities():
+    return {"platform": sys.platform, "python": sys.version.split()[0],
+            "filesystem_backend": "win32-ntfs" if os.name == "nt" else "posix-openat",
+            "watchdog": "job-contained-process" if os.name == "nt" else "posix-signal",
+            "hook_transport": "direct-argv; run scripts/prepare_preflight_plugin.py for literal interpreter and args",
+            "command_prefixes": {tool: format_command(command_prefix(tool), tool)
+                                 for tool in ("Bash", "PowerShell")},
+            "authenticated_claude_verified": False,
+            "filesystem_probe": "not_run; run native acceptance suite",
+            "node_permission": "probed_on_each_launch", "scanner_timeout_seconds": SCAN_TIMEOUT,
+            "operation_timeout_seconds": 20, "windows_launch_timeout_seconds": 300}
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv == ["capabilities"]:
+        print(json.dumps(capabilities(), ensure_ascii=True))
+        return 0
     if argv == ["hook"]:
         try:
-            with operation_timeout():
-                data = sys.stdin.buffer.read(65537)
-                if len(data) > 65536:
-                    raise Denied("invalid_input")
-                event = json.loads(data)
-                if not isinstance(event, dict):
-                    raise Denied("invalid_input")
-                result = hook(event)
+            if os.name == "nt":
+                result = isolated_operation("hook_input", [], stdin=sys.stdin)
+            else:
+                with operation_timeout():
+                    result = hook_input()
         except Exception:
             result = hook({})
         print(json.dumps(result, ensure_ascii=True))
@@ -395,6 +528,8 @@ def operation_timeout(seconds=20):
     """POSIX main-thread watchdog, shorter than the host's 30-second hook."""
     def expired(signum, frame):
         raise Denied("operation_timeout")
+    if os.name == "nt":
+        raise Denied("native_operation_requires_worker")
     previous_handler = signal.signal(signal.SIGALRM, expired)
     previous_timer = signal.getitimer(signal.ITIMER_REAL)
     started = time.monotonic()
@@ -410,6 +545,8 @@ def operation_timeout(seconds=20):
 
 def gate(source, state):
     try:
+        if os.name == "nt":
+            return isolated_operation("_gate", [str(source), str(state)])
         with operation_timeout():
             return _gate(source, state)
     except Exception:
@@ -417,9 +554,17 @@ def gate(source, state):
 
 
 def _gate(source, state):
+    if os.name == "nt":
+        from trojaino.preflight_windows import private_job
+        with private_job(state) as job:
+            return _gate_job(source, job)
     state = Path(state).absolute()
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     job = Path(tempfile.mkdtemp(prefix="scan-", dir=state))
+    return _gate_job(source, job)
+
+
+def _gate_job(source, job):
     staged = job / "source"
     try:
         if source.startswith("https://"):

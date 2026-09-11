@@ -16,7 +16,7 @@ It never says software is "safe" or "certified secure."
 
 ## Experimental Claude Code integration
 
-The [Claude Code preflight pilot](plugins/trojaino/README.md) adds a model-invocable scan skill, synchronous execution guard, and receipt-checking source launcher. It runs as an explicitly loaded **inspection session**, not a global antivirus or universal install interceptor. This POSIX-only pilot has been tested locally on macOS; authenticated Claude workflow validation and user-machine rollout remain separate requirements. The existing scanner and its machine-report contract are unchanged.
+The [Claude Code preflight pilot](plugins/trojaino/README.md) adds a model-invocable scan skill, synchronous execution guard, and receipt-checking source launcher. It runs as an explicitly loaded **inspection session**, not a global antivirus or universal install interceptor. The pilot has local macOS coverage and an experimental [native Windows 11 implementation](docs/windows-preflight.md). Win32 acceptance and authenticated Windows Claude validation remain required before Windows rollout. The existing scanner and its machine-report contract are unchanged.
 
 ## Repository scope
 

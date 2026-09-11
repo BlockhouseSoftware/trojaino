@@ -9,7 +9,7 @@ The intended sequence is **stage → scan → report to Claude → separately re
 ## Requirements and tested scope
 
 - Trusted full Trojaino source checkout containing this plugin, Python **3.11+**, and Claude Code with plugin/hook support.
-- POSIX implementation: tested on **macOS**, not yet exercised on Linux. This integration does **not support Windows**; the existing scanner remains separate and unchanged.
+- POSIX backend tested on **macOS**, not yet exercised on Linux. The experimental **native Windows 11** backend uses Win32 handles, NTFS checks, protected DACLs and Job Objects; [Windows setup and verification](../../docs/windows-preflight.md). Its native acceptance tests have not run on this macOS development host. The scanner contract remains unchanged.
 - Local absolute source directories, or exact public GitHub URLs of the form `https://github.com/OWNER/REPO/tree/FULL_40_LOWERCASE_HEX_SHA`.
 - Launchable entries: `.py`, `.js`, `.cjs`, `.mjs`. Python runs with isolated imports, scanned local modules and the standard library; no site-packages or extra script arguments.
 - Optional Node launching requires an explicitly trusted absolute `TROJAINO_NODE` path and an enforcing stable `--permission` capability. Tested with **Node 26.8.1**; unsupported runtimes fail closed. Use a currently patched runtime, not merely the oldest version with that flag.
@@ -19,22 +19,24 @@ The core is still Trojaino's heuristic static scanner. It cannot establish compl
 
 ## Load without changing global Claude settings
 
-Keep the plugin **inside its original full trusted checkout**. This pilot intentionally does not support copying the plugin alone, marketplace caching, or installing it from PyPI. There is no official Trojaino PyPI package.
+Keep the plugin **inside its original full trusted checkout** or the equivalent reviewed source-only bundle layout. The portable builder is `scripts/build_preflight_bundle.py`; see the Windows guide. This pilot intentionally does not support copying the plugin alone, marketplace caching, or installing it from PyPI. There is no official Trojaino PyPI package.
 
 First identify your trusted absolute interpreter and checkout paths. Substitute real paths below; the placeholders are not runnable values:
 
 ```sh
-export TROJAINO_PYTHON=/absolute/path/to/python3.11
+/absolute/path/to/python3.11 -I -S /absolute/path/to/trojaino/scripts/prepare_preflight_plugin.py /absolute/private/new-trojaino
 # Optional, for restricted Node launches:
 export TROJAINO_NODE=/absolute/path/to/node
 
-claude plugin validate --strict /absolute/path/to/trojaino/plugins/trojaino
-claude --plugin-dir /absolute/path/to/trojaino/plugins/trojaino
+claude plugin validate --strict /absolute/private/new-trojaino/plugins/trojaino
+claude --plugin-dir /absolute/private/new-trojaino/plugins/trojaino
 ```
 
 Launch Claude in an existing **trusted workspace**, never inside an unreviewed candidate checkout. At startup the plugin supplies Claude with the trusted helper/interpreter command prefix. In Claude, inspect `/hooks` to confirm `SessionStart` and `PreToolUse` registration and `/help` to find `trojaino:scan`. If startup context is absent or a hook error appears, stop and correct setup; do not assume protection is active.
 
-This mode intentionally blocks ordinary Bash execution and writes, not just recognizable `npm install` strings. Use it for new-software intake, **not as an invisible global add-on to all coding sessions**. Leave the session and restart Claude without `--plugin-dir` for normal development. No global configuration is modified by loading this way.
+The raw source manifest is an **unconfigured template**, not directly loadable. Preparation creates a new private complete source layout and writes the running trusted Python's literal absolute `sys.executable` into both hooks, with literal argument arrays. Claude exec form does not expand `${env:TROJAINO_PYTHON}`. No shell bootstrap or global settings edits are used. Choose a new absolute destination under a trusted user-owned parent (no symlink ancestors); existing destinations are refused. Keep the full prepared layout at that exact path and reprepare after a move or interpreter change. Partial preparation output must not be loaded. The legacy `hook.sh` remains only for POSIX compatibility tests, not registration. Missing-runtime host errors can fall through: stop if startup confirmation is absent. Actual authenticated host integration still requires independent testing.
+
+This mode intentionally blocks ordinary Bash/PowerShell execution and writes, not just recognizable `npm install` strings. Use it for new-software intake, **not as an invisible global add-on to all coding sessions**. Leave the session and restart Claude without `--plugin-dir` for normal development. No global configuration is modified by loading this way.
 
 ## Use
 
@@ -71,17 +73,17 @@ These are the underlying commands, with real absolute paths substituted:
 
 The scan command writes JSON to stdout; exit 0 means the source gate permits proceeding within normal permissions, exit 2 means deny. The helper uses its trusted checkout rather than importing from the candidate working directory or `PYTHONPATH`.
 
-The launcher verifies the receipt and scanner identity, creates and scans a fresh snapshot, checks the digest, emits its scan result to **stderr**, then replaces itself with exact runtime argv. **Stdout and stdin are reserved for the child/MCP protocol.** A denied launch exits 2 with empty stdout. A permitted child can still fail with its own runtime exit code and stderr, including Node `ERR_ACCESS_DENIED` for an external dependency. A scan verdict is not a claim that runtime startup succeeded.
+The launcher verifies the receipt and scanner identity, creates and scans a fresh snapshot, checks the digest, emits its scan result to **stderr**, then starts exact runtime argv (POSIX process replacement; Windows job-contained subprocess with a 300-second lifetime ceiling). **Stdout and stdin are reserved for the child/MCP protocol.** A denied launch exits 2 with empty stdout. A permitted child can still fail with its own runtime exit code and stderr, including Node `ERR_ACCESS_DENIED` for an external dependency. A scan verdict is not a claim that runtime startup succeeded.
 
 For a subsequently approved local MCP configuration, the command can be the trusted Python executable and the args can be the fixed helper `launch` invocation with an existing receipt. Configure that separately only after review; this plugin does not automatically edit native MCP configuration or grant credentials. Do not register a candidate's original `npx`/`uvx` startup command under the assumption that a first-tool-call hook will protect earlier startup.
 
-Commands inside the inspection session must match the documented canonical argv spelling (`shlex.join`), with no environment prefixes, variable expansion, shell chains, redirections, or arbitrary interpreter flags. This strict grammar is deliberate. Use the startup-provided command prefix rather than inventing a shell wrapper.
+Commands inside the inspection session must match their tool grammar: Bash uses `shlex.join`; PowerShell uses `&` followed by every argument single-quoted, doubling embedded apostrophes. See the Windows guide for exact examples. Both grammars require canonical spelling, with no environment prefixes, variable expansion, shell chains, redirections, or arbitrary interpreter flags. This strict grammar is deliberate. Use the startup-provided command prefix rather than inventing a shell wrapper.
 
 ## Coverage and security boundaries
 
 - Independently inventories staged bytes and rejects links, special files, invalid text, empty/unsupported coverage and unexplained scanner omissions. Ignored directories such as `dist`, `build`, `node_modules`, `.venv`, and `.git` are not silently approved. Ordinary cloned repos containing `.git`, binary assets, compiled output or dependencies can therefore be denied. The policy is conservative; it is not a finding of malware.
 - Public GitHub acquisition uses HTTPS to a fixed host, full commit IDs, no proxy inheritance or redirects, bounded download/decompression, and validation before writing archive members. Traversal, links, duplicate/case-colliding names and resource-limit violations are rejected. No target install/build/Git hooks run.
-- Default ceilings include 5,000 files, 20,000 entries, 1 MB per file and 20 MB total staged file bytes. Scanner worker timeout is 10 seconds with an internal 8-second scan budget; the helper has a 20-second POSIX watchdog, below the configured 30-second host hook timeout. Large or binary-rich projects may be unsupported by this pilot.
+- Default ceilings include 5,000 files, 20,000 entries, 1 MB per file and 20 MB total staged file bytes. Scanner worker timeout is 10 seconds with an internal 8-second scan budget; the helper has a 20-second POSIX signal watchdog or native Windows killable worker,  below the configured 30-second host hook timeout. Large or binary-rich projects may be unsupported by this pilot.
 - Receipts bind content and scanner/rule implementation identity; every launch independently rescans. Forging a passing verdict in a receipt does not bypass the fresh scan. Receipts do **not** cryptographically prove that a human or model read/understood a report.
 - The report-first ordering is a two-call workflow. `PreToolUse.additionalContext` accompanies a tool result, so it is **not** evidence that Claude saw a scan before that same call executed. Direct standalone use of the launcher cannot prove prior report delivery to an agent.
 - **Hooks are not fail-closed infrastructure:** a host timeout, missing hook file or host failure to start it can fall through normal Claude permissions. Controlled errors return explicit denial, but independent launcher validation remains necessary. Plugin disabling/reloading and same-user edits can bypass the integration.
@@ -99,7 +101,7 @@ python -m unittest discover -s tests -v
 claude plugin validate --strict plugins/trojaino
 ```
 
-Tests cover non-execution markers, real scanner results, dangerous lifecycle scripts, receipts and mutation, malformed input, scanner timeouts, archive attacks, report storage, hook decisions, startup context, Python stdio/local imports, and restricted Node imports. POSIX-specific tests are skipped on Windows; Node tests need a compatible installed runtime.
+Tests cover non-execution markers, real scanner results, dangerous lifecycle scripts, receipts and mutation, malformed input, scanner timeouts, archive attacks, report storage, hook decisions, startup context, Python stdio/local imports, and restricted Node imports. POSIX fault-injection tests remain POSIX-only. New native Win32 tests are explicitly skipped off Windows; portable tests run on both. Node tests need a compatible installed runtime. A PowerShell transport run on macOS does not count as Win32 execution.
 
 Local helper/stdio tests and plugin structural validation are **not an authenticated Claude integration test**. Before offering this as an enabled workflow on a user's machine, test a real authenticated session: automatic skill selection, prior report delivery, attempted install denial, clean separate launch, normal permission behavior and restart/reload behavior. Verify the user's OS and runtime versions. Do not label the pilot production-ready based on manifest validation alone.
 

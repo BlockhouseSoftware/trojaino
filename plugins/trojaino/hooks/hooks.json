@@ -5,7 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh\"",
+            "command": "TROJAINO_UNCONFIGURED_RUN_PREPARE_HELPER",
+            "args": ["-I", "-S", "${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py", "hook"],
             "timeout": 30
           }
         ]
@@ -17,7 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh\"",
+            "command": "TROJAINO_UNCONFIGURED_RUN_PREPARE_HELPER",
+            "args": ["-I", "-S", "${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py", "hook"],
             "timeout": 30
           }
         ]

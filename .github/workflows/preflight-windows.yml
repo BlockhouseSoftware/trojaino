@@ -1,0 +1,72 @@
+name: Native Windows preflight
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["feat/windows-native-preflight"]
+  pull_request:
+    paths:
+      - "trojaino/**"
+      - "plugins/trojaino/**"
+      - "tests/**"
+      - "requirements/test.txt"
+      - "pyproject.toml"
+      - ".github/workflows/preflight-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-preflight:
+    name: Native Windows / Python ${{ matrix.python-version }}
+    # Hosted Windows Server is native Windows API evidence, not a Windows 11
+    # desktop/Claude integration qualification. That remains a separate test.
+    runs-on: windows-2025
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.14"]
+    env:
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install . -r requirements/test.txt
+          if ($LASTEXITCODE -ne 0) { throw "Dependency setup failed" }
+      - name: Record actual runner and runtime versions
+        run: |
+          $evidence = Join-Path $env:RUNNER_TEMP 'preflight-evidence'
+          New-Item -ItemType Directory -Force $evidence | Out-Null
+          python -c "import json,platform,sys; assert sys.platform == 'win32'; print(json.dumps({'platform': platform.platform(), 'python': sys.version, 'executable': sys.executable}, indent=2))" | Set-Content (Join-Path $evidence 'runtime.json')
+          if ($LASTEXITCODE -ne 0) { throw "Runner is not native Windows" }
+          node --version | Set-Content (Join-Path $evidence 'node-version.txt')
+          if ($LASTEXITCODE -ne 0) { throw "Node runtime unavailable" }
+          $PSVersionTable.PSVersion.ToString() | Set-Content (Join-Path $evidence 'powershell-version.txt')
+      - name: Run native Windows test suite
+        run: |
+          $env:TROJAINO_PYTHON = (Get-Command python).Source
+          $env:TROJAINO_NODE = (Get-Command node).Source
+          $log = Join-Path $env:RUNNER_TEMP 'preflight-evidence/unittest.txt'
+          python -m unittest discover -s tests -v 2>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "Windows preflight tests failed" }
+      - name: Preserve verification logs, including failures and skips
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: preflight-windows-python-${{ matrix.python-version }}
+          path: ${{ runner.temp }}/preflight-evidence
+          if-no-files-found: warn
+          retention-days: 7
