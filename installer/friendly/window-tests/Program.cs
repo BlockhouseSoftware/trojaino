@@ -62,6 +62,16 @@ internal static class WindowTests
         if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         return 0;
     }
+    static string[] Snapshot(string root)
+    {
+        return Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).OrderBy(p => p, StringComparer.Ordinal).Select(p => {
+            string identity = Bootstrap.Identity(p);
+            if (Directory.Exists(p)) return p + "|directory|" + identity;
+            using (var input = File.OpenRead(p))
+            using (var hash = System.Security.Cryptography.SHA256.Create())
+                return p + "|file|" + identity + "|" + BitConverter.ToString(hash.ComputeHash(input));
+        }).ToArray();
+    }
     static void Journey()
     {
         Assert(SynchronizationContext.Current is WindowsFormsSynchronizationContext && Application.MessageLoop, "journey requires persistent native UI loop");
@@ -146,6 +156,39 @@ internal static class WindowTests
                 Assert(Control<TextBox>(stale, "details").ReadOnly && Control<TextBox>(stale, "details").Text.Length > 0, "failure details unavailable");
                 stale.Close(); File.Delete(unknown);
             }
+            string recoveryDetails;
+            string[] survivors;
+            using (var partial = Open(plan))
+            {
+                Idle(partial);
+                Control<CheckBox>(partial, "consent").Checked = true;
+                Control<Button>(partial, "install").PerformClick(); Idle(partial);
+                var pair = DefaultSetupDiscovery.TestFind(plan); Assert(pair != null, "partial-removal fixture install failed");
+                string runtimeFile = Path.Combine(pair.Runtime.Component.Root, "python.exe");
+                byte[] runtimeBytes = File.ReadAllBytes(runtimeFile);
+                using (var held = new FileStream(runtimeFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    PairState.Verify(pair); // The lock permits verification, not deletion.
+                    Control<CheckBox>(partial, "removalConsent").Checked = true;
+                    Control<Button>(partial, "remove").PerformClick(); Idle(partial);
+                    Assert(!Directory.Exists(pair.Plugin.Component.Root) && !Directory.Exists(pair.Plugin.State.Root), "lock did not reproduce failure AFTER plugin retirement");
+                    Assert(File.ReadAllBytes(runtimeFile).SequenceEqual(runtimeBytes), "locked approved runtime bytes changed");
+                    Bootstrap.Verify(pair.Runtime.State);
+                    recoveryDetails = Control<TextBox>(partial, "details").Text;
+                    Assert(Control<Label>(partial, "status").Text.Contains("could not") && recoveryDetails.Contains("System.IO.IOException"), "actual partial removal error missing");
+                    Assert(!Control<Button>(partial, "install").Enabled && !Control<Button>(partial, "remove").Enabled, "partial removal authorized a new operation");
+                }
+                survivors = Snapshot(root);
+                partial.Close();
+            }
+            using (var recovery = Open(DefaultSetupPlan.TestCreate(root, local, null, Guid.NewGuid().ToString("N"))))
+            {
+                Idle(recovery);
+                Assert(Control<Label>(recovery, "status").Text.Contains("could not") && !Control<Button>(recovery, "install").Enabled && !Control<Button>(recovery, "remove").Enabled, "reopen adopted partial removal");
+                Assert(Snapshot(root).SequenceEqual(survivors), "reopen changed partial-removal survivor inventory, identity or bytes");
+                recovery.Close();
+            }
+            Assert(recoveryDetails.Contains("Keep all Claude Code sessions closed") && recoveryDetails.Contains("partway") && recoveryDetails.Contains("Do not delete or move"), "partial removal lacks specific closed-session and retained-output recovery guidance");
             journeyFinished = true;
             Console.WriteLine("PASS native actual WinForms controls: unchecked/revoked consent zero writes, real approved default setup, busy close retained, authenticated reopen; explicit consented UI removal, stale unknown-state refusal, all four owned trees removed, shared parents/settings/unrelated skills retained; protection never claimed; NOT Windows11/visual/keyboard/Claude qualification");
         }
