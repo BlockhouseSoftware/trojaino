@@ -338,5 +338,19 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' parent tests failed: ' + ($parentResult -join "`n")) }
             $parentResults += $parentResult
           }
-          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; qualification='internal transaction, actual approved helper and DPAPI persistence; default-profile plan and transient shared parents; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          # Composition starts with missing shared parents and runs the real approved
+          # helper/controller. Only default-plan fixture input is compiled into tests.
+          $defaultExe = Join-Path $work 'DefaultTests.exe'
+          $defaultSources = $controllerSources + @('DefaultSetupPlan.cs', 'SharedParents.cs', 'DefaultSetup.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) })
+          $defaultArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS', ('/out:' + $defaultExe), ('/reference:' + $securityRef), ('/reference:' + $serializerRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\default-tests\Program.cs'))
+          $defaultRsp = Join-Path $work 'default.rsp'
+          $defaultArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $defaultRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $defaultRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native default composition compilation failed: ' + ($compiled -join "`n")) }
+          $defaultResult = & $defaultExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native default composition tests failed: ' + ($defaultResult -join "`n")) }
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; qualification='default plan, transient shared parents and actual approved helper/controller/DPAPI composition; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
