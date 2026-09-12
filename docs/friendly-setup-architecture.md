@@ -223,6 +223,25 @@ native execution, payload-signing/distribution or Sig's independent-install goal
 Existing package metadata still says declared; future build gates must run the
 auditor against their exact source inputs before compiling trust adapters.
 
+## Transactional preparation output decision (iteration 5; before code)
+
+To let the native controller own final-plugin writes/receipts rather than ask
+Python to partially publish a tree, add an explicit `--plan` mode to the already
+reviewed preparation helper. It renders the SAME disabled personal-plugin bytes,
+bound to the supplied final location and this executing approved interpreter,
+into a deterministic in-memory ZIP on stdout. It never creates the final plugin,
+enables it, executes candidate code, changes settings or selects another Python.
+Only personal-plugin mode is eligible; existing destinations still refuse.
+
+This is an authenticated transformation design, not an archive trust shortcut.
+The future native caller must verify its compiled source/runtime staging before
+executing this exact helper, use the literal approved Python with -I -S, capture
+bounded output without a shell and own the new-tree transaction. A user-supplied
+ZIP/manifest/hash or stdout from an arbitrary process must NEVER authorize writes.
+The archive itself is not a downloadable installer or an activation artifact.
+Controller integration, output validation/budgets, cancellation, persistent
+lifecycle and native execution remain separate unimplemented gates.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

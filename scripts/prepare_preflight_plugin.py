@@ -6,6 +6,7 @@ before writing through pinned directory descriptors or Windows handles.
 """
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
@@ -49,7 +50,7 @@ def coverage_section(text):
     return text[begin:finish]
 
 
-def prepare(destination, personal_plugin_name=None):
+def _render(destination, personal_plugin_name=None):
     if sys.version_info < (3, 11) or not Path(sys.executable).is_absolute():
         raise ValueError('trusted absolute Python 3.11+ required')
     # Explicit reviewed setup source only; the marketplace entry never does this.
@@ -122,16 +123,41 @@ Real Claude hook dispatch and native Windows acceptance remain unqualified.
     hashes = {name: hashlib.sha256(data).hexdigest() for name, data in payload.items()
               if name != 'MANIFEST.sha256.json'}
     payload['MANIFEST.sha256.json'] = (json.dumps(hashes, indent=2, sort_keys=True) + '\n').encode()
+    result = {'plugin_dir': str(plugin), 'python': trusted_python,
+              'manifest_sha256': hashes['hooks/hooks.json' if personal_plugin_name is not None else 'plugins/trojaino/hooks/hooks.json'],
+              'note': 'Keep this layout at this path; reprepare after moving or changing Python.'}
+    return payload, result
+
+
+def prepare(destination, personal_plugin_name=None):
+    payload, result = _render(destination, personal_plugin_name)
     write_tree = runpy.run_path(str(ROOT / 'scripts/write_prepared_tree.py'))['write_tree']
     write_tree(destination, payload)
-    return {'plugin_dir': str(plugin), 'python': trusted_python,
-            'manifest_sha256': hashes['hooks/hooks.json' if personal_plugin_name is not None else 'plugins/trojaino/hooks/hooks.json'],
-            'note': 'Keep this layout at this path; reprepare after moving or changing Python.'}
+    return result
+
+
+def plan(destination, personal_plugin_name=None):
+    """Render bytes only. Authority requires the verified source/runtime caller."""
+    if personal_plugin_name is None:
+        raise ValueError('personal plugin identity required for planning')
+    payload, _ = _render(destination, personal_plugin_name)
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, data in sorted(payload.items()):
+            info = zipfile.ZipInfo(name, (2020, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, data)
+    return output.getvalue()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('destination')
     parser.add_argument('--personal-plugin-name', help='Create a disabled plugin directly at the new final destination; use a new trojaino-local- identity for each version. Does not enable it or modify settings.')
+    parser.add_argument('--plan', action='store_true', help='Render a disabled personal plugin as a ZIP to stdout without creating its final directory. For the reviewed native controller only; not an installer or activation.')
     args = parser.parse_args()
-    print(json.dumps(prepare(args.destination, args.personal_plugin_name)))
+    if args.plan:
+        sys.stdout.buffer.write(plan(args.destination, args.personal_plugin_name))
+    else:
+        print(json.dumps(prepare(args.destination, args.personal_plugin_name)))
