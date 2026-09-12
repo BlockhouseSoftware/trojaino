@@ -48,11 +48,15 @@ in `continuous10-transaction-red.txt` and
 `continuous10-transaction-portable-corrected.txt`. These are NOT native transaction
 GREEN. Early independent review `continuous10-transaction-early-review.json`
 permits isolated testing but found a discarded newly-created recovery-root receipt.
-The new native regression substitutes that root between creation and guard
-acquisition. Until actual RED, correction and GREEN are observed, this known
-ownership-handoff defect remains open. Temporal journal/target failure tests are
-also newly added and unexecuted on Windows. No native or complete UX claim follows
-from test source, compilation, or a prospective checkpoint push.
+The native regression at `afea30138547af4b8e6cb0f1f1f710506739d213` actually reached
+`ASSERT: recovery root substitution was adopted before account mutation` after
+the ten boundary-exception cases. The correction now retains the original
+creation receipt and compares it to the acquired root guard before creating a
+journal. Native correction GREEN is still pending; full transaction success and
+later UI assertions have not executed. These boundary exceptions are not physical
+I/O failures: the current partial-write fixture rewrites the same first byte, so
+genuinely changed partial-content recovery remains unqualified. No native or
+complete UX claim follows from test source or compilation.
 
 ## Transaction design selected for native testing
 

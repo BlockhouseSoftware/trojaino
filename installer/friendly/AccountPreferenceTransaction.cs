@@ -236,9 +236,10 @@ namespace Trojaino.Setup
                 if (!original.SequenceEqual(intended))
                 {
                     Require(!pending, "An earlier account change needs recovery review before another change; originals retained");
-                    Bootstrap.CreateEmpty(root); // Private exclusive root; NEVER adopt an existing directory.
+                    var createdRoot = Bootstrap.CreateEmpty(root); // Preserve original creation authority.
                     Observe("recovery-created");
                     guards.Ancestors(root);
+                    Require(guards.Identities[root] == createdRoot.Identities[root], "Created recovery root changed before journal acquisition; retained unchanged");
                     journalFile = Stream(journalPath, 1); // CREATE_NEW; sole immutable original.
                     journal = new Journal { Target = target, TargetId = targetId, ParentId = guards.Identities[parent], Root = root, RootId = guards.Identities[root], FileId = Identity(journalFile.SafeFileHandle, journalPath, false), Identity = selectedIdentity,
                         PairBinding = pair.Plugin.Component.Identities[pair.Plugin.Component.Root] + "/" + pair.Plugin.State.Identities[pair.Plugin.State.Root], Enabled = enabled, Original = original, Intended = intended };

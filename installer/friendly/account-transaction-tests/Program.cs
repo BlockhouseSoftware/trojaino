@@ -92,6 +92,7 @@ internal static class AccountTransactionTests
             Assert(Bootstrap.Identity(movedRoot) == createdId && Bootstrap.Identity(recoveryRoot) == replacementId
                 && Directory.GetFileSystemEntries(movedRoot).Length == 0 && Directory.GetFileSystemEntries(recoveryRoot).Length == 0, "root refusal changed either original or replacement");
             Directory.Delete(recoveryRoot, false); Directory.Delete(movedRoot, false); // Empty fixture-created objects only.
+            Console.WriteLine("PASS native ten journal/target boundary exceptions retain original evidence; recovery-root substitution refuses before journal/target writes and retains both directory identities; not physical IO or power-loss proof");
             string[] before = Snapshot(root);
             bool wrongIdentity = false;
             try { Invoke(type, "TestApply", plan, "trojaino-local-" + new string('f', 32) + "@skills-dir", true); }
