@@ -374,6 +374,31 @@ launches its own reviewed test EXE to Load/Remove in a fresh process; exact-SHA
 native result is required before claiming execution. Even that is WindowsServer
 component evidence, not Windows11 ordinary-account/first-download/GUI qualification.
 
+## Persistent pair lifecycle (iteration 11)
+
+PairState composes two independently authenticated component/state records: the
+bound runtime and disabled final plugin. Four exact literal nonoverlapping roots
+are required. Save verifies both component receipts before writing, saves each
+state exclusively, then verifies all four trees before success. On failure it
+removes only successfully saved state containers, not components; unknown content
+is retained and original plus every failed cleanup is preserved. Failed inner
+Store owns its own partial-state rollback. Load requires explicit expected roots
+and authenticates both records; no search, disk-tree adoption or plaintext fallback.
+
+Remove verifies ALL FOUR before any deletion, then removes plugin+state before
+runtime+state. This is not atomic, resumable, crash-safe or a whole installer.
+A mid-delete I/O failure stops removal and can leave a partial tree; friendly
+recovery and setup controller/consent/activation/UI remain unfinished. Caller role
+labels are not independently authenticated pair membership: the trusted controller
+must select the exact intended roots. Same-user/admin exclusions remain unchanged.
+
+Portable inert test-symbol fixtures exercise nonempty pair reload/removal, aliases,
+prewrite verification, partial-save rollback, all-four unknown inventory predelete
+refusal and conserved cleanup errors. Production-symbol harness refuses on Mac;
+real Framework DPAPI and fresh-process pair Load/Remove require exact-SHA native CI.
+Prior365523a native single-component StateStore passed, not this new pair slice.
+No candidate code executes; no Windows11/first-download/GUI qualification claimed.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

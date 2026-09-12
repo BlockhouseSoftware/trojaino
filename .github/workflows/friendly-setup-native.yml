@@ -231,3 +231,24 @@ jobs:
           }
           $stateEvidence = [ordered]@{sha=$env:GITHUB_SHA; state=$stateResults; qualification='single-component state with fresh-process DPAPI reload/removal; no whole installer or GUI'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native state results::' + $stateEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Pair persistence uses the same reviewed state primitives; no activation.
+          $pairSources = $stateSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\PairState.cs'))
+          $pairResults = @()
+          foreach ($kind in @('schema', 'production')) {
+            $pairExe = Join-Path $work ($kind + '-PairTests.exe')
+            $testPath = if ($kind -eq 'schema') { 'installer\friendly\pair-tests\Program.cs' } else { 'installer\friendly\pair-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'schema') { '/define:NETFRAMEWORK;RECEIPT_TESTS;STATE_STORE_TESTS' } else { '/define:NETFRAMEWORK' }
+            $pairArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', $symbols, ('/out:' + $pairExe), ('/reference:' + $securityRef)) + $refArgs + $pairSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $pairRsp = Join-Path $work ($kind + '-pair.rsp')
+            $pairArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $pairRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $pairRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' pair compilation failed: ' + ($compiled -join "`n")) }
+            $pairResult = & $pairExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' pair tests failed: ' + ($pairResult -join "`n")) }
+            $pairResults += $pairResult
+          }
+          $pairEvidence = [ordered]@{sha=$env:GITHUB_SHA; pair=$pairResults; qualification='two-component state with fresh-process DPAPI reload/removal; no whole installer or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native pair results::' + $pairEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
