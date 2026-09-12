@@ -1,0 +1,84 @@
+name: Friendly setup native staging
+
+on:
+  push:
+    branches: ["feat/marketplace-distribution"]
+    paths:
+      - "installer/friendly/**"
+      - "scripts/audit_setup_source.py"
+      - "scripts/build_setup_resources.py"
+      - "scripts/build_windows_setup_payload.py"
+      - ".github/workflows/friendly-setup-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  framework-staging:
+    # Standard hosted runner in a public repo; no paid/larger runner or artifacts.
+    # Server API evidence only, NOT Windows11 GUI/SmartScreen qualification.
+    runs-on: windows-2025
+    timeout-minutes: 12
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Compile and exercise pinned staging on native Framework
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = Join-Path $env:RUNNER_TOOL_CACHE 'Python/3.14.7/x64/python.exe'
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+          $references = Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies/Microsoft/Framework/.NETFramework/v4.8'
+          foreach ($required in @($python, $compiler, $references)) {
+            if (-not (Test-Path -LiteralPath $required)) { throw "Required installed build tool missing: $required" }
+          }
+          $work = Join-Path $env:RUNNER_TEMP ('friendly-staging-' + [Guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $work | Out-Null
+          Write-Output "Exact test SHA: $env:GITHUB_SHA"
+          Write-Output "Native OS: $([Environment]::OSVersion.VersionString); PowerShell host CLR: $([Environment]::Version); target references: $references"
+          & $python --version
+          if ($LASTEXITCODE -ne 0) { throw 'Cached developer Python unavailable' }
+          $runtime = Join-Path $work 'runtime.zip'
+          Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.14.7/python-3.14.7-embed-amd64.zip' -OutFile $runtime -TimeoutSec 60
+          $runtimePin = 'd297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15'
+          if ((Get-FileHash -LiteralPath $runtime -Algorithm SHA256).Hash.ToLowerInvariant() -cne $runtimePin) { throw 'Official runtime digest mismatch; never execute it' }
+          $source = Join-Path $work 'source.zip'
+          & $python -I -S scripts/build_preflight_bundle.py $source
+          if ($LASTEXITCODE -ne 0) { throw 'Source build failed' }
+          $sourcePin = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
+          # Git is a hosted developer tool, never the end-user runtime authority.
+          $git = (Get-Command git -CommandType Application).Source
+          & $python -I -S scripts/audit_setup_source.py --source $source --source-sha256 $sourcePin --repo $env:GITHUB_WORKSPACE --source-commit $env:GITHUB_SHA --git $git --layout source-layout-v2
+          if ($LASTEXITCODE -ne 0) { throw 'Source does not match exact Git commit' }
+          $payload = Join-Path $work 'payload.zip'
+          & $python -I -S scripts/build_windows_setup_payload.py --runtime $runtime --source $source --source-sha256 $sourcePin --source-commit $env:GITHUB_SHA --output $payload
+          if ($LASTEXITCODE -ne 0) { throw 'Payload build failed' }
+          $payloadPin = (Get-FileHash -LiteralPath $payload -Algorithm SHA256).Hash.ToLowerInvariant()
+          $generated = Join-Path $work 'ApprovedPayload.g.cs'
+          & $python -I -S scripts/build_setup_resources.py --payload $payload --payload-sha256 $payloadPin --source-sha256 $sourcePin --source-commit $env:GITHUB_SHA --output $generated
+          if ($LASTEXITCODE -ne 0) { throw 'Compiled pin generation failed' }
+          $refArgs = @()
+          foreach ($name in @('mscorlib.dll', 'System.dll', 'System.Core.dll', 'System.IO.Compression.dll')) {
+            $file = Join-Path $references $name
+            if (-not (Test-Path -LiteralPath $file)) { throw "Missing approved Framework reference: $name" }
+            $refArgs += '/reference:' + $file
+          }
+          $runtimeInfo = @(Get-ChildItem -LiteralPath $references -Recurse -File -Filter 'System.Runtime.InteropServices.RuntimeInformation.dll')
+          if ($runtimeInfo.Count -ne 1) { throw 'Framework RuntimeInformation reference missing or ambiguous' }
+          $refArgs += '/reference:' + $runtimeInfo[0].FullName
+          $common = @('/nologo', '/noconfig', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/resource:' + $payload + ',Trojaino.Setup.Payload')) + $refArgs + @('installer/friendly/Bootstrap.cs', 'installer/friendly/WindowsPreflight.cs', 'installer/friendly/StagedPayload.cs', $generated)
+          $resourceExe = Join-Path $work 'ResourceTests.exe'
+          & $compiler @common ('/out:' + $resourceExe) 'installer/friendly/resource-tests/Program.cs'
+          if ($LASTEXITCODE -ne 0) { throw 'Native Framework production-symbol compilation failed' }
+          & $resourceExe
+          if ($LASTEXITCODE -ne 0) { throw 'Native real-resource lifecycle tests failed' }
+          $faultExe = Join-Path $work 'TransactionTests.exe'
+          & $compiler @common '/define:BOOTSTRAP_TESTS' ('/out:' + $faultExe) 'installer/friendly/transaction-tests/Program.cs'
+          if ($LASTEXITCODE -ne 0) { throw 'Native Framework fault harness compilation failed' }
+          & $faultExe
+          if ($LASTEXITCODE -ne 0) { throw 'Native transaction fault tests failed' }
+          Write-Output "PASS native Framework staging SHA=$env:GITHUB_SHA payload=$payloadPin; bundled runtime NOT EXECUTED; no GUI qualification"
