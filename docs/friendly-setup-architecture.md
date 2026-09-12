@@ -307,6 +307,38 @@ independently generated approved-helper output; exact-SHA CI remains pending for
 this new code. Prior658318c native Server2025 Render/process/scratch passed, not
 Windows11/GUI/authenticated Claude. No ready installer is claimed.
 
+## Authenticated ownership snapshot (iteration 9)
+
+`ReceiptCodec` is a bounded snapshot component, NOT state-file persistence or a
+persistent uninstaller. It serializes only a verified owned Bootstrap receipt,
+including exact root/object paths, native identities, file sizes and hashes.
+Production Seal/Open use OS Framework ProtectedData byte[] APIs with CurrentUser
+and fixed application/version entropy; no packages or plaintext fallback. Other
+build targets refuse. CurrentUser does not authenticate the originating app or
+exclude hostile same-user/admin activity (outside the approved threat boundary).
+
+Official API contracts checked before implementation2026-09-12:
+- https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.protecteddata.protect?view=netframework-4.8
+- https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.protecteddata.unprotect?view=netframework-4.8
+- https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.dataprotectionscope?view=netframework-4.8
+
+Protected bytes are limited to2MiB before Unprotect; only after authentication is
+the explicit versioned binary schema parsed (1MiB,4096 entries,4096-byte UTF8
+strings, bounded regular member paths/size/hash/type/hierarchy, canonical order).
+Expected literal root and separate future state-file path are bound in the record.
+Open verifies complete actual object identities/inventory/bytes before returning
+an ownership receipt. Moved/changed/replaced/unknown trees refuse; no disk-tree
+or user-manifest adoption. Codec performs no writes or deletion. Test-only raw
+codec methods compile solely with RECEIPT_TESTS, never production symbols.
+
+Portable tests prove schema/lifecycle/refusal and unsupported-platform behavior,
+NOT DPAPI. Separate native production-symbol harness tests actual OS DPAPI and
+no plaintext test entry points; native qualification remains pending for this
+slice until exact-SHA CI is read. This is not Windows11/first-download/GUI proof.
+Exclusive private state-file creation, safe receipt-file removal, persistence
+failure/crash semantics, whole controller and friendly lifecycle remain unfinished.
+DPAPI output alone must not be called durable ownership-safe uninstall.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

@@ -187,3 +187,26 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native preparation test failed: ' + ($preparationResult -join "`n")) }
           $preparationEvidence = [ordered]@{sha=$env:GITHUB_SHA; payload=$payloadPin; preparation=$preparationResult; qualification='approved runtime executed; no candidate execution; no GUI or Claude activation'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native preparation results::' + $preparationEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Ownership codec: separate schema-only test-symbol and real production DPAPI builds.
+          $securityRef = Join-Path $references 'System.Security.dll'
+          if (-not (Test-Path -LiteralPath $securityRef -PathType Leaf)) { throw 'Framework DPAPI reference missing' }
+          $receiptSources = @('installer\friendly\Bootstrap.cs', 'installer\friendly\WindowsPreflight.cs', 'installer\friendly\ReceiptCodec.cs') | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
+          $receiptResults = @()
+          foreach ($kind in @('schema', 'production')) {
+            $receiptExe = Join-Path $work ($kind + '-ReceiptTests.exe')
+            $testPath = if ($kind -eq 'schema') { 'installer\friendly\receipt-tests\Program.cs' } else { 'installer\friendly\receipt-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'schema') { '/define:NETFRAMEWORK;RECEIPT_TESTS' } else { '/define:NETFRAMEWORK' }
+            $receiptArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', $symbols, ('/out:' + $receiptExe), ('/reference:' + $securityRef)) + $refArgs + $receiptSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $receiptRsp = Join-Path $work ($kind + '-receipt.rsp')
+            $receiptArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $receiptRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $receiptRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' receipt compilation failed: ' + ($compiled -join "`n")) }
+            $receiptResult = & $receiptExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' receipt tests failed: ' + ($receiptResult -join "`n")) }
+            $receiptResults += $receiptResult
+          }
+          $receiptEvidence = [ordered]@{sha=$env:GITHUB_SHA; receipt=$receiptResults; qualification='Framework DPAPI component only; no state-file persistence or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native receipt results::' + $receiptEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
