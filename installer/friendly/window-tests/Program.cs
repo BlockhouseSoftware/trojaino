@@ -189,6 +189,38 @@ internal static class WindowTests
                 recovery.Close();
             }
             Assert(recoveryDetails.Contains("Keep all Claude Code sessions closed") && recoveryDetails.Contains("partway") && recoveryDetails.Contains("Do not delete or move"), "partial removal lacks specific closed-session and retained-output recovery guidance");
+            using (var finish = Open(DefaultSetupPlan.TestCreate(root, local, null, Guid.NewGuid().ToString("N"))))
+            {
+                Idle(finish);
+                Assert(finish.Controls.Find("finishRemoval", true).Length == 1 && finish.Controls.Find("finishRemovalConsent", true).Length == 1, "authenticated interrupted-removal recovery controls are missing");
+                var action = Control<Button>(finish, "finishRemoval");
+                var agreement = Control<CheckBox>(finish, "finishRemovalConsent");
+                Assert(!agreement.Checked && !action.Enabled && agreement.Enabled, "finish-removal choice did not require fresh consent");
+                Assert(agreement.Text.Contains("all Claude Code sessions") && agreement.Text.Contains("remaining"), "finish-removal consent lacks closed-session and remaining-file scope");
+                action.PerformClick(); Assert(Snapshot(root).SequenceEqual(survivors), "unconsented finish removal changed survivors");
+                agreement.Checked = true; Assert(action.Enabled, "finish-removal consent ignored");
+                agreement.Checked = false; action.PerformClick();
+                Assert(!action.Enabled && Snapshot(root).SequenceEqual(survivors), "revoked finish-removal consent ignored");
+                agreement.Checked = true;
+                string extra = Path.Combine(plan.Roots[0], "unknown-before-finish"); File.WriteAllBytes(extra, new byte[] {7, 0, 255});
+                string[] unknownSnapshot = Snapshot(root);
+                action.PerformClick(); Idle(finish);
+                Assert(Control<Label>(finish, "status").Text.Contains("could not") && !action.Enabled && !agreement.Checked, "stale interrupted-removal recovery trusted unknown content");
+                Assert(Snapshot(root).SequenceEqual(unknownSnapshot), "failed finish removal changed unknown or owned survivor bytes/identities");
+                File.Delete(extra); // Only the test-created unknown file, never production recovery.
+                Control<Button>(finish, "refresh").PerformClick(); Idle(finish);
+                Assert(agreement.Enabled && !agreement.Checked && !action.Enabled, "recheck failed to restore fresh recovery choice");
+                agreement.Checked = true; action.PerformClick();
+                Assert(!action.Enabled && !agreement.Enabled, "busy finish removal permits duplicate action");
+                finish.Close(); Assert(!finish.IsDisposed, "busy finish removal abandoned worker");
+                Idle(finish);
+                Assert(Control<Label>(finish, "status").Text.Contains("Removed") && !action.Enabled && !agreement.Checked, "finish removal did not report verified absence");
+                Assert(new[] {plan.Roots[0], plan.Roots[3], plan.Roots[4], plan.Roots[5]}.All(p => !Directory.Exists(p)), "finish removal left owned trees");
+                Assert(DefaultSetupDiscovery.TestFind(plan) == null, "finished removal remains discoverable");
+                Assert(File.ReadAllText(Path.Combine(root, ".claude", "settings.json")) == "{\"testOnly\":true}" && File.ReadAllBytes(Path.Combine(root, ".claude", "skills", "unrelated.txt")).SequenceEqual(new byte[] {1, 2, 3}), "finish removal changed unrelated settings/skills");
+                finish.Close();
+            }
+            Console.WriteLine("PASS native consented finish-removal UI: original partial runtime survivors authenticated; unchecked/revoked consent and stale unknown content preserve all bytes/identities; fresh recheck, busy-close guard, removal and unrelated-file preservation; NOT arbitrary leftover adoption/crash recovery");
             Console.WriteLine("PASS native locked-runtime partial removal: plugin retired before IOException, runtime bytes/state retained, actions refused, reopened survivor inventory/identity/hashes unchanged, explicit closed-session/partway guidance; NOT automatic recovery");
             journeyFinished = true;
             Console.WriteLine("PASS native actual WinForms controls: unchecked/revoked consent zero writes, real approved default setup, busy close retained, authenticated reopen; explicit consented UI removal, stale unknown-state refusal, all four owned trees removed, shared parents/settings/unrelated skills retained; protection never claimed; NOT Windows11/visual/keyboard/Claude qualification");
