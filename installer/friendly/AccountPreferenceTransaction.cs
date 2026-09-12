@@ -259,7 +259,13 @@ namespace Trojaino.Setup
                     file.Position = 0;
 #if ACCOUNT_TRANSACTION_TESTS
                     TargetWrites++;
-                    if (Fault != null && intended.Length > 0) { file.WriteByte(intended[0]); file.Flush(); Observe("target-partial"); file.Position = 0; }
+                    if (Fault != null && intended.Length > 0)
+                    {
+                        int prefix = 0;
+                        while (prefix < Math.Min(original.Length, intended.Length) && original[prefix] == intended[prefix]) prefix++;
+                        if (prefix < intended.Length) prefix++;
+                        file.Write(intended, 0, prefix); file.Flush(); Observe("target-partial"); file.Position = 0;
+                    }
 #endif
                     file.Write(intended, 0, intended.Length);
                     Observe("before-target-eof"); file.SetLength(intended.Length);

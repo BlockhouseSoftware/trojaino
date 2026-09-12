@@ -52,11 +52,18 @@ The native regression at `afea30138547af4b8e6cb0f1f1f710506739d213` actually rea
 `ASSERT: recovery root substitution was adopted before account mutation` after
 the ten boundary-exception cases. The correction now retains the original
 creation receipt and compares it to the acquired root guard before creating a
-journal. Native correction GREEN is still pending; full transaction success and
-later UI assertions have not executed. These boundary exceptions are not physical
-I/O failures: the current partial-write fixture rewrites the same first byte, so
-genuinely changed partial-content recovery remains unqualified. No native or
-complete UX claim follows from test source or compilation.
+journal. Native correction at `f3a7f7a232851bcdbb63dac2465cb88337ca3102`
+passed the root-retention assertions and all ten boundary cases. The same native
+run passed the complete existing false-to-true transaction, exact saved original,
+unchanged target identity, stale consent, no-op and second-mutation refusal, and
+original recovery after uninstall. The job still fails at the separate missing
+account-enable UI controls. These boundary exceptions are not physical I/O failures.
+A separate native test at `0c89759bc162cc569cfaf62b3fb6222812d725d1` then failed
+`ASSERT: partial fault did not preserve a genuinely changed incomplete target`.
+Only after that RED, the test-symbol injection was corrected to write through the
+first differing byte, retaining the original suffix. Its native GREEN is pending;
+production whole-write semantics are unchanged. No complete recovery or UX claim
+follows from test source or compilation.
 
 ## Transaction design selected for native testing
 
