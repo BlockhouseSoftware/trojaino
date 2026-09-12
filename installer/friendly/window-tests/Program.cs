@@ -73,6 +73,10 @@ internal static class WindowTests
                 Assert(reopened.Controls.Find("remove", true).Length == 1 && reopened.Controls.Find("removalConsent", true).Length == 1, "consented removal controls are missing");
                 var remove = Control<Button>(reopened, "remove");
                 var removalConsent = Control<CheckBox>(reopened, "removalConsent");
+                int uiThread = Thread.CurrentThread.ManagedThreadId;
+                var events = new System.Collections.Concurrent.ConcurrentQueue<string>();
+                removalConsent.EnabledChanged += delegate { events.Enqueue("consent=" + removalConsent.Enabled + " thread=" + Thread.CurrentThread.ManagedThreadId); };
+                Control<Button>(reopened, "refresh").EnabledChanged += delegate { events.Enqueue("refresh=" + Control<Button>(reopened, "refresh").Enabled + " thread=" + Thread.CurrentThread.ManagedThreadId); };
                 Assert(!removalConsent.Checked && !remove.Enabled, "removal consent defaults unsafe");
                 Assert(removalConsent.Text.Contains("all Claude Code sessions") && removalConsent.Text.Contains("remove") && removalConsent.Text.Contains("runtime"), "removal consent lacks closed-session/destructive scope explanation");
                 string setting = Path.Combine(root, ".claude", "settings.json");
@@ -97,7 +101,7 @@ internal static class WindowTests
                 Bootstrap.Verify(pair.Runtime.Component); Bootstrap.Verify(pair.Runtime.State); Bootstrap.Verify(pair.Plugin.Component);
                 File.Delete(extra); PairState.Verify(pair);
                 Control<Button>(reopened, "refresh").PerformClick(); Idle(reopened);
-                Assert(!removalConsent.Checked && !remove.Enabled && removalConsent.Enabled, "recheck silently restored removal consent: checked=" + removalConsent.Checked + "; remove=" + remove.Enabled + "; consent=" + removalConsent.Enabled + "; status=" + Control<Label>(reopened, "status").Text + "; details=" + Control<TextBox>(reopened, "details").Text);
+                Assert(!removalConsent.Checked && !remove.Enabled && removalConsent.Enabled, "recheck silently restored removal consent: checked=" + removalConsent.Checked + "; remove=" + remove.Enabled + "; consent=" + removalConsent.Enabled + "; status=" + Control<Label>(reopened, "status").Text + "; uiThread=" + uiThread + "; context=" + (SynchronizationContext.Current == null ? "null" : SynchronizationContext.Current.GetType().FullName) + "; events=" + String.Join(",", events.ToArray()) + "; details=" + Control<TextBox>(reopened, "details").Text);
                 removalConsent.Checked = true; remove.PerformClick(); Idle(reopened);
                 Assert(Control<Label>(reopened, "status").Text.Contains("Removed") && !remove.Enabled && !removalConsent.Checked, "actual UI removal did not complete honestly");
                 Assert(new[] {pair.Runtime.Component.Root, pair.Runtime.State.Root, pair.Plugin.Component.Root, pair.Plugin.State.Root}.All(p => !Directory.Exists(p)), "UI removal left owned pair trees");
