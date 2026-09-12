@@ -41,9 +41,26 @@ class Program
         {
             string runtime = Path.Combine(temp, "runtime"), plugin = Path.Combine(temp, "plugin"), rs = Path.Combine(temp, "runtime-state"), ps = Path.Combine(temp, "plugin-state");
             var r = Component(runtime); var p = Component(plugin);
+            string[] roots = new[] { runtime, plugin, rs, ps };
+            Call("Locations", new object[] { roots });
+            for (int i = 0; i < roots.Length; i++)
+                for (int j = 0; j < roots.Length; j++)
+                    if (i != j)
+                        foreach (bool nested in new[] { false, true })
+                        {
+                            var aliases = (string[])roots.Clone();
+                            aliases[i] = roots[j] + (nested ? Path.DirectorySeparatorChar + "child" : "");
+                            Refuse(() => Call("Locations", new object[] { aliases }));
+                        }
             int writes = 0;
             StateStore.Fault = (phase, target) => { if (phase == "before") writes++; };
-            try { Refuse(() => Call("Save", r, p, rs, rs)); }
+            try {
+                Refuse(() => Call("Save", r, p, rs, rs));
+                Refuse(() => Call("Save", r, p, Path.Combine(plugin, "child"), ps));
+                Refuse(() => Call("Save", r, p, rs, Path.Combine(runtime, "child")));
+                Refuse(() => Call("Save", r, p, temp, ps));
+                Refuse(() => Call("Save", r, p, rs, temp));
+            }
             finally { StateStore.Fault = null; }
             Check(writes == 0 && !Directory.Exists(rs), "Overlapping pair wrote state before refusal");
             string pluginFile = Path.Combine(plugin, "nested", "owned.bin");

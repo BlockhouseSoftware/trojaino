@@ -15,6 +15,12 @@ class Program
         catch (Exception e) { if (e is IOException || e is InvalidDataException || e is PlatformNotSupportedException || e is System.Security.Cryptography.CryptographicException || e is System.ComponentModel.Win32Exception) return; throw; }
         throw new Exception("Unsafe pair operation accepted");
     }
+    static void PlatformRefuse(Action action)
+    {
+        try { action(); }
+        catch (PlatformNotSupportedException) { return; }
+        throw new Exception("Expected specific native-platform refusal");
+    }
     static Bootstrap.Receipt Component(string root)
     {
         byte[] bytes = new byte[] { 1, 2, 3, 4 }, archive;
@@ -46,8 +52,8 @@ class Program
             var r = Component(runtime); var p = Component(plugin);
             if (Environment.OSVersion.Platform != PlatformID.Win32NT)
             {
-                Refuse(() => PairState.Save(r, p, rs, ps));
-                Refuse(() => PairState.Load(runtime, plugin, rs, ps));
+                PlatformRefuse(() => PairState.Save(r, p, rs, ps));
+                PlatformRefuse(() => PairState.Load(runtime, plugin, rs, ps));
                 Bootstrap.Verify(r); Bootstrap.Verify(p);
                 Check(!Directory.Exists(rs) && !Directory.Exists(ps), "Unsupported production wrote state");
                 Console.WriteLine("PASS production Pair Save/Load refuse off native Windows Framework; SKIP real DPAPI"); return;
