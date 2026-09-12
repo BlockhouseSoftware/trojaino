@@ -88,13 +88,15 @@ jobs:
           $refArgs += '/reference:' + $runtimeInfo[0].FullName
           $common = @('/nologo', '/noconfig', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/resource:' + $payload + ',Trojaino.Setup.Payload')) + $refArgs + @('installer/friendly/Bootstrap.cs', 'installer/friendly/WindowsPreflight.cs', 'installer/friendly/StagedPayload.cs', $generated)
           $resourceExe = Join-Path $work 'ResourceTests.exe'
-          & $compiler @common ('/out:' + $resourceExe) 'installer/friendly/resource-tests/Program.cs'
-          if ($LASTEXITCODE -ne 0) { throw 'Native Framework production-symbol compilation failed' }
-          & $resourceExe
-          if ($LASTEXITCODE -ne 0) { throw 'Native real-resource lifecycle tests failed' }
+          $compiled = & $compiler @common ('/out:' + $resourceExe) 'installer/friendly/resource-tests/Program.cs' 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native Framework production-symbol compilation failed: ' + ($compiled -join "`n")) }
+          $resourceResult = & $resourceExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native real-resource lifecycle tests failed: ' + ($resourceResult -join "`n")) }
+          Write-Output $resourceResult
           $faultExe = Join-Path $work 'TransactionTests.exe'
-          & $compiler @common '/define:BOOTSTRAP_TESTS' ('/out:' + $faultExe) 'installer/friendly/transaction-tests/Program.cs'
-          if ($LASTEXITCODE -ne 0) { throw 'Native Framework fault harness compilation failed' }
-          & $faultExe
-          if ($LASTEXITCODE -ne 0) { throw 'Native transaction fault tests failed' }
+          $compiled = & $compiler @common '/define:BOOTSTRAP_TESTS' ('/out:' + $faultExe) 'installer/friendly/transaction-tests/Program.cs' 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native Framework fault harness compilation failed: ' + ($compiled -join "`n")) }
+          $faultResult = & $faultExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native transaction fault tests failed: ' + ($faultResult -join "`n")) }
+          Write-Output $faultResult
           Write-Output "PASS native Framework staging SHA=$env:GITHUB_SHA payload=$payloadPin; bundled runtime NOT EXECUTED; no GUI qualification"
