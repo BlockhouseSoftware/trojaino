@@ -99,6 +99,20 @@ internal static class WindowTests
                 Assert(!Control<Button>(form, "install").Enabled, "installed copy permits duplicate install");
                 var pair = DefaultSetupDiscovery.TestFind(plan); Assert(pair != null, "UI did not call actual default setup"); PairState.Verify(pair);
                 Assert(System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(Path.Combine(pair.Plugin.Component.Root, ".claude-plugin", "plugin.json")), "\\\"defaultEnabled\\\"\\s*:\\s*false"), "prepared plugin not disabled");
+                Assert(form.Controls.Find("enableConsent", true).Length == 1 && form.Controls.Find("enable", true).Length == 1, "separate account-enable consent controls are missing");
+                var enableConsent = Control<CheckBox>(form, "enableConsent");
+                var enable = Control<Button>(form, "enable");
+                Assert(!enableConsent.Checked && !enable.Enabled, "account enable consent defaults unsafe");
+                string[] beforeEnable = Snapshot(root);
+                enable.PerformClick();
+                Assert(Snapshot(root).SequenceEqual(beforeEnable), "unconsented account-enable wrote files");
+                Assert(enableConsent.Text.Contains("account") && enableConsent.Text.Contains("settings"), "account-enable consent lacks explicit account-settings scope");
+                enableConsent.Checked = true;
+                Assert(enable.Enabled && Snapshot(root).SequenceEqual(beforeEnable), "checking enable consent wrote files or did not enable deliberate action");
+                enableConsent.Checked = false; enable.PerformClick();
+                Assert(!enable.Enabled && Snapshot(root).SequenceEqual(beforeEnable), "revoked account-enable consent wrote files");
+                // This is a RED seed for a complete consented settings transaction;
+                // controls alone do not qualify activation or protection.
                 string extra = Path.Combine(pair.Plugin.State.Root, "unknown"); File.WriteAllBytes(extra, new byte[] {0, 255});
                 Control<Button>(form, "refresh").PerformClick(); Idle(form);
                 Assert(Control<Label>(form, "status").Text.Contains("could not") && !Control<Button>(form, "install").Enabled && File.ReadAllBytes(extra).SequenceEqual(new byte[] {0, 255}), "refresh trusted changed state or changed bytes");
