@@ -59,7 +59,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Source build failed' }
           $sourcePin = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
           # Git is a hosted developer tool, never the end-user runtime authority.
-          $git = (Get-Command git -CommandType Application).Source
+          $git = Join-Path $env:ProgramFiles 'Git/cmd/git.exe'
+          if (-not (Test-Path -LiteralPath $git -PathType Leaf)) { throw 'Required installed developer Git missing' }
           $auditOutput = & $python -I -S scripts/audit_setup_source.py --source $source --source-sha256 $sourcePin --repo $env:GITHUB_WORKSPACE --source-commit $env:GITHUB_SHA --git $git --layout source-layout-v2 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Source does not match exact Git commit: ' + ($auditOutput -join "`n")) }
           Write-Output $auditOutput
