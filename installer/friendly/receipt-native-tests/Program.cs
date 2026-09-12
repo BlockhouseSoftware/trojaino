@@ -41,6 +41,10 @@ internal static class NativeReceiptTests
     }
     static int Main()
     {
+        Type codec = typeof(Bootstrap).Assembly.GetType("Trojaino.Setup.ReceiptCodec");
+        Assert(codec != null, "missing receipt codec");
+        Assert(codec.GetMethod("TestEncode", BindingFlags.NonPublic | BindingFlags.Static) == null
+            && codec.GetMethod("TestDecode", BindingFlags.NonPublic | BindingFlags.Static) == null, "no plaintext injection in production on any platform");
         if (Environment.OSVersion.Platform != PlatformID.Win32NT)
         {
             try { Call("Seal", null, null); throw new Exception("non-Windows Seal did not refuse"); }
@@ -54,8 +58,6 @@ internal static class NativeReceiptTests
         Directory.CreateDirectory(parent);
         try
         {
-            Type type=typeof(Bootstrap).Assembly.GetType("Trojaino.Setup.ReceiptCodec");
-            Assert(type.GetMethod("TestDecode",BindingFlags.NonPublic|BindingFlags.Static)==null,"no plaintext injection in production");
             string root=Path.Combine(parent,"owned"), state=Path.Combine(parent,"state.bin");
             var receipt=Fixture(root);
             byte[] sealedBytes=(byte[])Call("Seal",receipt,state);

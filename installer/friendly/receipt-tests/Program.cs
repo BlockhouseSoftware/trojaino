@@ -74,6 +74,40 @@ internal static class ReceiptTests
         mutation(r => r.Lengths[file] = 32L*1024*1024+1, "large file length");
         mutation(r => { r.Hashes.Add(root, new string('0',64)); r.Lengths.Add(root,0); }, "file root");
         mutation(r => { string p=Path.Combine(root,"CON.txt"); r.Identities.Add(p,"1:2:3:4"); }, "reserved member");
+        mutation(r => {
+            string p = Path.GetDirectoryName(file); r.Hashes.Add(p,new string('0',64)); r.Lengths.Add(p,0);
+        }, "file as parent");
+        mutation(r => {
+            for(int i=0;i<5;i++) { string p=Path.Combine(root,"budget"+i); r.Identities.Add(p,"1:2:3:4"); r.Hashes.Add(p,new string('0',64)); r.Lengths.Add(p,32L*1024*1024); }
+        }, "aggregate length cap");
+        mutation(r => r.Identities.Add(Path.Combine(root,new string('a',121)),"1:2:3:4"), "component length cap");
+        mutation(r => {
+            string p=root;
+            for(int i=0;i<13;i++) { p=Path.Combine(p,"a"); r.Identities.Add(p,"1:2:3:4"); }
+        }, "component depth cap with valid ancestors");
+        int countOffset, firstEntry, firstKind, firstEnd;
+        using(var memory=new MemoryStream(encoded,false))
+        using(var reader=new BinaryReader(memory))
+        {
+            reader.ReadInt32();
+            int length=reader.ReadInt32(); reader.ReadBytes(length);
+            length=reader.ReadInt32(); reader.ReadBytes(length);
+            countOffset=(int)memory.Position; reader.ReadInt32(); firstEntry=(int)memory.Position;
+            length=reader.ReadInt32(); reader.ReadBytes(length);
+            length=reader.ReadInt32(); reader.ReadBytes(length);
+            firstKind=(int)memory.Position;
+            Assert(reader.ReadByte()==0,"first entry is root directory"); firstEnd=(int)memory.Position;
+        }
+        foreach(int count in new[]{0,4097})
+        {
+            byte[] changed=(byte[])encoded.Clone(); Array.Copy(BitConverter.GetBytes(count),0,changed,countOffset,4);
+            Refuse(()=>Call("TestDecode",changed,root,state),"entry count "+count);
+        }
+        byte[] wrongKind=(byte[])encoded.Clone(); wrongKind[firstKind]=2;
+        Refuse(()=>Call("TestDecode",wrongKind,root,state),"invalid directory kind tag");
+        byte[] duplicate=encoded.Take(firstEnd).Concat(encoded.Skip(firstEntry).Take(firstEnd-firstEntry)).Concat(encoded.Skip(firstEnd)).ToArray();
+        Array.Copy(BitConverter.GetBytes(receipt.Identities.Count+1),0,duplicate,countOffset,4);
+        Refuse(()=>Call("TestDecode",duplicate,root,state),"adjacent duplicate root entry");
         Refuse(() => Call("TestDecode", encoded, root + "-moved", state), "moved root binding");
         Refuse(() => Call("TestDecode", encoded, root, state + "-moved"), "moved state binding");
         Refuse(() => Call("TestDecode", encoded.Concat(new byte[] {0}).ToArray(), root, state), "trailing bytes");
