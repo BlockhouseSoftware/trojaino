@@ -385,5 +385,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native window test compilation failed: ' + ($compiled -join "`n")) }
           $windowResult = & $windowExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native window tests failed: ' + ($windowResult -join "`n")) }
+          $windowProductionExe = Join-Path $work 'WindowProductionTests.exe'
+          $windowProductionArgs = $common + @('/define:NETFRAMEWORK', ('/out:' + $windowProductionExe), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $defaultSources + @($windowSource, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\window-production-tests\Program.cs'))
+          $windowProductionRsp = Join-Path $work 'window-production.rsp'
+          $windowProductionArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $windowProductionRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $windowProductionRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native production window compilation failed: ' + ($compiled -join "`n")) }
+          $windowProductionResult = & $windowProductionExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native production window tests failed: ' + ($windowProductionResult -join "`n")) }
+          $windowResult += $windowProductionResult
           $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; window=$windowResult; qualification='native window event tests and approved helper/controller/DPAPI composition; no visual/keyboard/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))

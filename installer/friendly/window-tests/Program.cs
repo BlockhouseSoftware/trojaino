@@ -57,7 +57,12 @@ internal static class WindowTests
                 Assert(Control<Label>(form, "status").Text.Contains("activation has not been checked"), "file installation misreported protection or failed");
                 Assert(!Control<Button>(form, "install").Enabled, "installed copy permits duplicate install");
                 var pair = DefaultSetupDiscovery.TestFind(plan); Assert(pair != null, "UI did not call actual default setup"); PairState.Verify(pair);
-                Assert(File.ReadAllText(Path.Combine(pair.Plugin.Component.Root, ".claude-plugin", "plugin.json")).Contains("false"), "prepared plugin not disabled");
+                Assert(System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(Path.Combine(pair.Plugin.Component.Root, ".claude-plugin", "plugin.json")), "\\\"defaultEnabled\\\"\\s*:\\s*false"), "prepared plugin not disabled");
+                string extra = Path.Combine(pair.Plugin.State.Root, "unknown"); File.WriteAllBytes(extra, new byte[] {0, 255});
+                Control<Button>(form, "refresh").PerformClick(); Idle(form);
+                Assert(Control<Label>(form, "status").Text.Contains("could not") && !Control<Button>(form, "install").Enabled && File.ReadAllBytes(extra).SequenceEqual(new byte[] {0, 255}), "refresh trusted changed state or changed bytes");
+                File.Delete(extra); Control<Button>(form, "refresh").PerformClick(); Idle(form);
+                Assert(Control<Label>(form, "status").Text.Contains("activation has not been checked"), "refresh did not recover after fixture restored");
                 form.Close();
             }
             using (var reopened = Open(DefaultSetupPlan.TestCreate(root, local, null, Guid.NewGuid().ToString("N"))))
