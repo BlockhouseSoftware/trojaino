@@ -70,9 +70,35 @@ internal static class WindowTests
             {
                 Idle(reopened);
                 Assert(Control<Label>(reopened, "status").Text.Contains("activation has not been checked") && !Control<Button>(reopened, "install").Enabled, "reopened UI failed authenticated rediscovery");
+                Assert(reopened.Controls.Find("remove", true).Length == 1 && reopened.Controls.Find("removalConsent", true).Length == 1, "consented removal controls are missing");
+                var remove = Control<Button>(reopened, "remove");
+                var removalConsent = Control<CheckBox>(reopened, "removalConsent");
+                Assert(!removalConsent.Checked && !remove.Enabled, "removal consent defaults unsafe");
+                remove.PerformClick(); PairState.Verify(DefaultSetupDiscovery.TestFind(plan));
+                removalConsent.Checked = true; Assert(remove.Enabled, "explicit removal consent ignored");
+                removalConsent.Checked = false; Assert(!remove.Enabled, "revoked removal consent ignored");
+                remove.PerformClick(); PairState.Verify(DefaultSetupDiscovery.TestFind(plan));
+                var pair = DefaultSetupDiscovery.TestFind(plan);
+                removalConsent.Checked = true;
+                string extra = Path.Combine(pair.Plugin.State.Root, "unknown-after-consent");
+                File.WriteAllBytes(extra, new byte[] {0, 255, 17});
+                remove.PerformClick();
+                Assert(!remove.Enabled && !removalConsent.Enabled, "removal busy controls unsafe");
+                reopened.Close(); Assert(!reopened.IsDisposed, "busy removal close abandoned operation");
+                Idle(reopened);
+                Assert(Control<Label>(reopened, "status").Text.Contains("could not") && !remove.Enabled && !removalConsent.Checked, "stale removal was trusted or consent retained after failure");
+                Assert(File.ReadAllBytes(extra).SequenceEqual(new byte[] {0, 255, 17}), "unknown removal-state bytes altered");
+                Bootstrap.Verify(pair.Runtime.Component); Bootstrap.Verify(pair.Runtime.State); Bootstrap.Verify(pair.Plugin.Component);
+                File.Delete(extra); PairState.Verify(pair);
+                Control<Button>(reopened, "refresh").PerformClick(); Idle(reopened);
+                Assert(!removalConsent.Checked && !remove.Enabled && removalConsent.Enabled, "recheck silently restored removal consent");
+                removalConsent.Checked = true; remove.PerformClick(); Idle(reopened);
+                Assert(Control<Label>(reopened, "status").Text.Contains("Removed") && !remove.Enabled && !removalConsent.Checked, "actual UI removal did not complete honestly");
+                Assert(new[] {pair.Runtime.Component.Root, pair.Runtime.State.Root, pair.Plugin.Component.Root, pair.Plugin.State.Root}.All(p => !Directory.Exists(p)), "UI removal left owned pair trees");
+                Assert(DefaultSetupDiscovery.TestFind(plan) == null, "removed pair still discovered");
+                Assert(Directory.Exists(Path.Combine(root, ".claude", "skills")), "removal deleted shared parents");
                 reopened.Close();
             }
-            PairState.Remove(DefaultSetupDiscovery.TestFind(plan));
             using (var stale = Open(plan))
             {
                 Idle(stale);
