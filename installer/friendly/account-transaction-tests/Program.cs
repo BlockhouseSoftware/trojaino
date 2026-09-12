@@ -123,6 +123,16 @@ internal static class AccountTransactionTests
             Assert(pending && Snapshot(root).SequenceEqual(noOp), "unresolved journal permitted a second mutation");
             PairState.Remove(pair);
             Assert(((byte[])Invoke(type, "TestOriginal", plan)).SequenceEqual(original), "uninstall lost original settings recovery evidence");
+            var readStatus = type.GetMethod("TestReadRecoveryStatus", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert(readStatus != null, "authenticated read-only account recovery status is missing");
+            string[] beforeStatus = Snapshot(root);
+            object recoveryStatus = Invoke(type, "TestReadRecoveryStatus", plan);
+            Assert(recoveryStatus != null, "persisted account recovery was reported absent after uninstall");
+            Func<string, object> value = name => recoveryStatus.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(recoveryStatus, null);
+            Assert((string)value("State") == "Intended" && (string)value("TargetPath") == path
+                && (string)value("RecordedIdentity") == identity && (string)value("OriginalSha256") == Bootstrap.Hash(original)
+                && (string)value("CurrentSha256") == Bootstrap.Hash(expected), "recovery snapshot lost authenticated history or current version");
+            Assert(Snapshot(root).SequenceEqual(beforeStatus), "read-only recovery status changed account or journal data");
             passed = true;
             Console.WriteLine("PASS native existing false-to-true journaled lexical edit, unchanged settings ID, authenticated exact original, stale consent refusal, zero-write no-op and second-mutation refusal; original survives uninstall");
         }
