@@ -280,3 +280,24 @@ jobs:
           }
           $pairEvidence = [ordered]@{sha=$env:GITHUB_SHA; pair=$pairResults; qualification='two-component state with fresh-process DPAPI reload/removal; no whole installer or GUI'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native pair results::' + $pairEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Whole internal transaction: separate inert-fault and real approved-helper builds.
+          $controllerSources = $sources + @($generated) + @('ReceiptCodec.cs', 'StateStore.cs', 'PairState.cs', 'SetupLocations.cs', 'SetupController.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) })
+          $controllerResults = @()
+          foreach ($kind in @('faults', 'production')) {
+            $controllerExe = Join-Path $work ($kind + '-ControllerTests.exe')
+            $testPath = if ($kind -eq 'faults') { 'installer\friendly\controller-tests\Program.cs' } else { 'installer\friendly\controller-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'faults') { '/define:NETFRAMEWORK;RECEIPT_TESTS;STATE_STORE_TESTS;SETUP_CONTROLLER_TESTS' } else { '/define:NETFRAMEWORK' }
+            $controllerArgs = $common + @($symbols, ('/out:' + $controllerExe), ('/reference:' + $securityRef), ('/reference:' + $serializerRef)) + $controllerSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $controllerRsp = Join-Path $work ($kind + '-controller.rsp')
+            $controllerArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $controllerRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $controllerRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' controller compilation failed: ' + ($compiled -join "`n")) }
+            $controllerResult = & $controllerExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' controller tests failed: ' + ($controllerResult -join "`n")) }
+            $controllerResults += $controllerResult
+          }
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; qualification='internal transaction, actual approved helper and DPAPI persistence; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
