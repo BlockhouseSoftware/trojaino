@@ -64,6 +64,15 @@ internal static class AccountTransactionTests
                     Assert((int)writes.GetValue(null) == 0 && File.ReadAllBytes(path).SequenceEqual(original), "journal preparation failure transiently wrote user settings: " + phase);
                 else
                     Assert((int)writes.GetValue(null) > 0 && failure.Message.Contains("may be incomplete") && ((byte[])Invoke(type, "TestOriginal", plan)).SequenceEqual(original), "postwrite failure lost protected originals or truthful error: " + phase);
+                if (phase == "target-partial")
+                {
+                    byte[] partial = File.ReadAllBytes(path);
+                    int firstDifference = Enumerable.Range(0, Math.Min(original.Length, expected.Length)).First(i => original[i] != expected[i]);
+                    byte[] expectedPartial = (byte[])original.Clone();
+                    Array.Copy(expected, expectedPartial, firstDifference + 1);
+                    Assert(!partial.SequenceEqual(original) && !partial.SequenceEqual(expected)
+                        && partial.SequenceEqual(expectedPartial), "partial fault did not preserve a genuinely changed incomplete target");
+                }
                 Assert(Bootstrap.Identity(path) == nativeId, "failure replaced account file"); PairState.Verify(pair);
                 // Synchronous test transaction has returned; no helper is launched by
                 // Apply. These are isolated test-owned bytes, not a production restore.
