@@ -30,6 +30,14 @@ jobs:
       - name: Compile and exercise pinned staging on native Framework
         run: |
           $ErrorActionPreference = 'Stop'
+          # Public check annotations expose bounded diagnostics without accessing
+          # authenticated logs. Never dump environment variables or credentials.
+          trap {
+            $message = $_.Exception.Message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            if ($message.Length -gt 2000) { $message = $message.Substring(0, 2000) }
+            Write-Output "::error title=Native staging failure::$message"
+            exit 1
+          }
           $python = Join-Path $env:RUNNER_TOOL_CACHE 'Python/3.14.7/x64/python.exe'
           $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
           $references = Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies/Microsoft/Framework/.NETFramework/v4.8'
