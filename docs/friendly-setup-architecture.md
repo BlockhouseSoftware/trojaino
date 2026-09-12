@@ -184,6 +184,25 @@ path or a native Windows runner with its OS-provided references.
 - https://learn.microsoft.com/en-us/dotnet/framework/migration-guide/reference-assemblies
 - https://www.nuget.org/packages/Microsoft.NETFramework.ReferenceAssemblies.net48/1.0.3
 
+## Two-stage staging transaction checkpoint (iteration 4)
+
+`StagedPayload.cs` now joins the compiled approved runtime and source stages.
+It requires distinct literal sibling destinations, returns only after verifying
+both complete trees, and rolls back completed stages if the later operation
+fails. Each cleanup independently proves ownership/integrity; unknown content
+is retained and both the original failure and cleanup refusal are reported.
+Pair Remove verifies BOTH trees before the first deletion, then uses the existing
+nonrecursive removal. This is predelete validation, not atomic filesystem deletion:
+a later I/O failure may leave partially removed files. No crash recovery exists;
+in-memory receipts are lost on process exit. Do not infer persistent uninstall.
+
+Actual Mac resource tests exercise the complete pinned payload, source refusal,
+prior-byte preservation, overlap refusal and pair lifecycle. Separate test-only
+fault injection exercises final-pair integrity, full/partial writes in either
+stage, and each unknown-tree rollback refusal. No archive content is executed.
+This is still only staging; final personal-plugin preparation, persistent lifecycle,
+GUI and native Windows qualification remain unfinished.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

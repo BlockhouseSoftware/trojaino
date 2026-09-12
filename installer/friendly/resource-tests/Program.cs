@@ -31,6 +31,58 @@ internal static class ResourceTests
             }
         }
     }
+    static object Transaction(string method, params object[] args)
+    {
+        var type = Assembly.GetExecutingAssembly().GetType("Trojaino.Setup.StagedPayload");
+        Assert(type != null, "missing authenticated pair staging transaction");
+        var member = type.GetMethod(method, BindingFlags.Static | BindingFlags.NonPublic);
+        Assert(member != null, "missing transaction method: " + method);
+        try { return member.Invoke(null, args); }
+        catch (TargetInvocationException e) { throw e.InnerException; }
+    }
+    static void SourceRefusalRollsBackRuntime(string parent)
+    {
+        string runtime = Path.Combine(parent, "pair-runtime"), source = Path.Combine(parent, "pair-source");
+        Directory.CreateDirectory(source);
+        File.WriteAllText(Path.Combine(source, "keep.txt"), "prior user bytes");
+        bool denied = false;
+        try { Transaction("Install", runtime, source); }
+        catch (System.ComponentModel.Win32Exception) { denied = true; }
+        Assert(denied, "second-stage existing source refusal reported");
+        Assert(!Directory.Exists(runtime), "first-stage owned runtime rolled back");
+        Assert(Directory.GetFileSystemEntries(source).Length == 1 && File.ReadAllText(Path.Combine(source, "keep.txt")) == "prior user bytes", "existing source entirely preserved");
+        File.Delete(Path.Combine(source, "keep.txt")); Directory.Delete(source);
+        Console.WriteLine("PASS pair transaction: existing source refused, runtime rollback, prior bytes preserved");
+    }
+    static void PairLifecycle(string parent)
+    {
+        string runtime = Path.Combine(parent, "pair-runtime"), source = Path.Combine(parent, "pair-source");
+        var pair = Transaction("Install", runtime, source);
+        Compare("runtime.zip", runtime); Compare("source.zip", source);
+        Transaction("Verify", pair);
+        string intruder = Path.Combine(runtime, "unknown.txt");
+        File.WriteAllText(intruder, "retain everything");
+        bool denied = false;
+        try { Transaction("Remove", pair); } catch (InvalidDataException) { denied = true; }
+        Assert(denied, "changed runtime refused");
+        Compare("source.zip", source); // Must not remove the otherwise valid source first.
+        Assert(File.ReadAllText(intruder) == "retain everything", "unknown content preserved");
+        File.Delete(intruder);
+        Transaction("Verify", pair); Transaction("Remove", pair);
+        Assert(!Directory.Exists(runtime) && !Directory.Exists(source), "both unchanged owned trees removed");
+        Console.WriteLine("PASS pair lifecycle: full predelete validation across both trees, Verify/Remove");
+    }
+    static void PairDestinationsMustBeDistinctSiblings(string parent)
+    {
+        string runtime = Path.Combine(parent, "pair-runtime");
+        foreach (string source in new[] { Path.Combine(runtime, "source"), runtime, runtime.ToUpperInvariant(), Path.Combine(parent, "absent-parent", "source") })
+        {
+            bool denied = false;
+            try { Transaction("Install", runtime, source); } catch (InvalidDataException) { denied = true; }
+            Assert(denied && !Directory.Exists(runtime), "overlapping/non-sibling destinations refused before writing: " + source);
+        }
+        Console.WriteLine("PASS pair destinations: nested, identical, case alias and non-sibling refused before writes");
+    }
     static int Main(string[] args)
     {
         string parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-resource-test-" + Guid.NewGuid().ToString("N"));
@@ -48,6 +100,9 @@ internal static class ResourceTests
                 return 0;
             }
             Assert(args.Length == 0, "unexpected developer arguments");
+            SourceRefusalRollsBackRuntime(parent);
+            PairLifecycle(parent);
+            PairDestinationsMustBeDistinctSiblings(parent);
             var r = ApprovedPayload.StageRuntime(runtime);
             var s = ApprovedPayload.StageSource(source);
             Compare("runtime.zip", runtime); Compare("source.zip", source);

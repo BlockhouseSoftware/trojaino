@@ -68,6 +68,17 @@ unchanged pins with a deliberately changed resource, then require digest refusal
 before writes. Restoring a good resource requires a fresh build; do not run the
 last tampered test binary as if it were the positive case.
 
-This is still a .NET10 developer TEST assembly, not a Windows end-user executable.
+This remains a .NET10 developer TEST assembly, not a Windows end-user executable.
+
+`StagedPayload.cs` provides in-memory two-stage staging/Verify/Remove using ONLY
+that compiled adapter. Distinct sibling destinations prevent overlapping receipts.
+A later failure rolls back completed owned stages; unverified trees are retained
+with original and cleanup errors. Pair Remove verifies both trees before deletion.
+It is not atomic deletion, a crash-safe transaction, final-plugin setup, or a
+persistent uninstaller. Process exit loses receipts; never reconstruct ownership
+from an untrusted file. `transaction-tests/Transaction.Tests.csproj` embeds the
+real approved payload with BOOTSTRAP_TESTS solely for injected write/integrity
+failure coverage. Resource tests remain separately compiled without callbacks.
+
 Windows11 ordinary-account, download/SmartScreen and actual GUI/lifecycle tests
 remain required. No manual security-bypass instructions qualify the installer.
