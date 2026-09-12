@@ -11,11 +11,7 @@
     <Compile Include="../Bootstrap.cs" Link="Bootstrap.cs" />
     <Compile Include="../WindowsPreflight.cs" Link="WindowsPreflight.cs" />
     <Compile Include="../StagedPayload.cs" Link="StagedPayload.cs" />
-    <Compile Include="../TrustedPreparation.cs" Link="TrustedPreparation.cs" />
     <Compile Include="$(GeneratedPayload)" Link="ApprovedPayload.g.cs" />
     <EmbeddedResource Include="$(PayloadArchive)" LogicalName="Trojaino.Setup.Payload" />
   </ItemGroup>
-  <Target Name="RequireApprovedInputs" BeforeTargets="CoreCompile">
-    <Error Condition="'$(GeneratedPayload)' == '' or '$(PayloadArchive)' == ''" Text="Explicit developer-approved generated source and payload archive are required." />
-  </Target>
 </Project>

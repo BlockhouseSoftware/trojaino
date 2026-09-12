@@ -22,6 +22,18 @@ namespace Trojaino.Setup
             Bootstrap.Verify(receipt.runtime);
             Bootstrap.Verify(receipt.source);
         }
+        // Controller must establish helper input release before any deletion.
+        // Capture before retiring source; never reconstruct a receipt from disk.
+        internal static Bootstrap.Receipt CaptureRuntime(StagedPayload receipt)
+        {
+            Verify(receipt);
+            return receipt.runtime;
+        }
+        internal static void RemoveSource(StagedPayload receipt)
+        {
+            Verify(receipt);
+            Bootstrap.Remove(receipt.source);
+        }
         internal static void Remove(StagedPayload receipt)
         {
             Verify(receipt); // BOTH trees checked before the first deletion.

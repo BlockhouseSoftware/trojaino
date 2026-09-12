@@ -115,6 +115,11 @@ internal static class ResourceTests
         Directory.CreateDirectory(parent);
         try
         {
+            var preparation = typeof(TrustedPreparation);
+            foreach (string entry in new[] { "TestRun", "TestRunFault", "TestPublish" })
+                Assert(preparation.GetMethod(entry, BindingFlags.Static | BindingFlags.NonPublic) == null, "Test-only preparation entry leaked: " + entry);
+            Assert(preparation.GetNestedType("DisposeFaultProcess", BindingFlags.NonPublic) == null, "Test-only disposal fixture leaked");
+            Console.WriteLine("PASS production-symbol preparation has no raw runner, publisher or lifetime fault injection");
             string runtime = Path.Combine(parent, "runtime"), source = Path.Combine(parent, "source");
             if (args.Length == 1 && args[0] == "--expect-tamper")
             {

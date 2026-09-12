@@ -140,71 +140,123 @@ namespace Trojaino.Setup
                 return output.ToArray();
             }
         }
+        internal sealed class ProcessFailureException : AggregateException
+        {
+            internal bool InputsReleased { get; private set; }
+            internal ProcessFailureException(bool inputsReleased, IEnumerable<Exception> failures)
+                : base("Approved helper failed; no publication authorized", failures)
+            { InputsReleased = inputsReleased; }
+        }
+#if PREPARATION_TESTS
+        sealed class DisposeFaultProcess : Process
+        {
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing) throw new IOException("injected dispose");
+            }
+        }
+#endif
         static byte[] RunProcess(ProcessStartInfo start, int timeout, int outputLimit, int errorLimit, CancellationToken cancellation
 #if PREPARATION_TESTS
-            , Action<int> started
+            , Action<int> started, string fault = null
 #endif
         )
         {
-            cancellation.ThrowIfCancellationRequested();
-            using (var process = new Process { StartInfo = start })
-            {
-                if (!process.Start()) throw new IOException("Approved helper did not start");
-                Task<byte[]> output = null, error = null;
-                try
-                {
-                    var clock = Stopwatch.StartNew();
-                    output = Task.Run(() => ReadOutput(process.StandardOutput.BaseStream, outputLimit));
-                    error = Task.Run(() => ReadOutput(process.StandardError.BaseStream, errorLimit));
-                    process.StandardInput.Close();
 #if PREPARATION_TESTS
-                    if (started != null) started(process.Id);
+            var process = fault == "dispose" ? new DisposeFaultProcess() : new Process();
+#else
+            var process = new Process();
 #endif
-                    while (true)
-                    {
-                        cancellation.ThrowIfCancellationRequested();
-                        if (output.IsFaulted) throw output.Exception;
-                        if (error.IsFaulted) throw error.Exception;
-                        if (clock.ElapsedMilliseconds >= timeout) throw new TimeoutException("Approved helper timed out");
-                        if (process.WaitForExit(25) && output.IsCompleted && error.IsCompleted) break;
-                    }
-                    cancellation.ThrowIfCancellationRequested();
-                    // Accessing Result also observes faults that raced with IsCompleted.
-                    byte[] bytes = output.Result, diagnostic = error.Result;
-                    if (process.ExitCode != 0) throw new IOException("Approved helper failed with exit code " + process.ExitCode);
-                    if (diagnostic.Length != 0) throw new IOException("Unexpected helper stderr");
-                    return bytes;
-                }
-                catch (Exception failure)
+            var failures = new List<Exception>();
+            Task<byte[]> output = null, error = null;
+            byte[] bytes = null;
+            bool launchAttempted = false, stopped = true, readersStopped = true;
+            try
+            {
+                cancellation.ThrowIfCancellationRequested();
+                process.StartInfo = start;
+                launchAttempted = true;
+                stopped = false;
+#if PREPARATION_TESTS
+                bool launched = fault == "start-false" ? false : process.Start();
+#else
+                bool launched = process.Start();
+#endif
+                if (!launched) throw new IOException("Approved helper did not start");
+                var clock = Stopwatch.StartNew();
+                output = Task.Run(() => ReadOutput(process.StandardOutput.BaseStream, outputLimit));
+                readersStopped = false;
+                error = Task.Run(() => ReadOutput(process.StandardError.BaseStream, errorLimit));
+                process.StandardInput.Close();
+#if PREPARATION_TESTS
+                if (started != null) started(process.Id);
+#endif
+                while (true)
                 {
-                    var failures = new List<Exception> { failure };
-                    bool stopped = false;
-                    try
-                    {
-                        if (!process.HasExited) process.Kill();
-                        stopped = process.WaitForExit(5000);
-                    }
+                    cancellation.ThrowIfCancellationRequested();
+                    if (output.IsFaulted) throw output.Exception;
+                    if (error.IsFaulted) throw error.Exception;
+                    if (clock.ElapsedMilliseconds >= timeout) throw new TimeoutException("Approved helper timed out");
+                    if (process.WaitForExit(25) && output.IsCompleted && error.IsCompleted) break;
+                }
+                stopped = true;
+                readersStopped = true;
+                cancellation.ThrowIfCancellationRequested();
+                // Result also observes faults that raced with IsCompleted.
+                bytes = output.Result;
+                byte[] diagnostic = error.Result;
+                if (process.ExitCode != 0) throw new IOException("Approved helper failed with exit code " + process.ExitCode);
+                if (diagnostic.Length != 0) throw new IOException("Unexpected helper stderr");
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+                if (launchAttempted && !stopped)
+                {
+                    try { if (!process.HasExited) process.Kill(); }
                     catch (Exception cleanup) { failures.Add(cleanup); }
-                    if (!stopped)
-                        throw new AggregateException("Helper stop unconfirmed; retain all staged trees, never publish", failures);
-                    // The trusted helper has no children. Await EOF readers after confirmed exit.
+                    // Kill failure may race with normal exit; independently confirm it.
+                    try { stopped = process.WaitForExit(5000); }
+                    catch (Exception cleanup) { failures.Add(cleanup); }
+                }
+#if PREPARATION_TESTS
+                // Simulate uncertainty AFTER the real self-child stop attempt.
+                if (fault == "stop-unconfirmed")
+                { stopped = false; failures.Add(new IOException("injected stop-unconfirmed")); }
+#endif
+                if (stopped)
+                {
                     var streams = new List<Task>();
                     if (output != null) streams.Add(output);
                     if (error != null) streams.Add(error);
-                    try
+                    try { readersStopped = Task.WaitAll(streams.ToArray(), 5000); }
+                    catch (AggregateException cleanup)
                     {
-                        if (!Task.WaitAll(streams.ToArray(), 5000))
-                            failures.Add(new IOException("Helper stream shutdown unconfirmed; retain staged trees"));
+                        failures.Add(cleanup);
+                        readersStopped = streams.All(task => task.IsCompleted);
                     }
-                    catch (AggregateException) { /* Read failures are observed; original error retained. */ }
-                    if (failures.Count > 1) throw new AggregateException("Preparation failed with cleanup errors; never publish", failures);
-                    throw;
+#if PREPARATION_TESTS
+                    if (fault == "readers-unconfirmed")
+                    { readersStopped = false; failures.Add(new IOException("injected readers-unconfirmed")); }
+#endif
+                    if (!readersStopped)
+                        failures.Add(new IOException("Helper stream shutdown unconfirmed; retain staged trees"));
                 }
             }
+            finally
+            {
+                try { process.Dispose(); }
+                catch (Exception cleanup) { failures.Add(cleanup); }
+            }
+            if (failures.Count != 0) throw new ProcessFailureException(stopped && readersStopped, failures);
+            return bytes;
         }
 #if PREPARATION_TESTS
         internal static byte[] TestRun(ProcessStartInfo start, int timeout, int outputLimit, int errorLimit, CancellationToken cancellation, Action<int> started)
         { return RunProcess(start, timeout, outputLimit, errorLimit, cancellation, started); }
+        internal static byte[] TestRunFault(ProcessStartInfo start, string fault, Action<int> started, int timeout)
+        { return RunProcess(start, timeout, 4096, 4096, CancellationToken.None, started, fault); }
 #endif
     }
 }

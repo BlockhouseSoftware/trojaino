@@ -399,6 +399,41 @@ real Framework DPAPI and fresh-process pair Load/Remove require exact-SHA native
 Prior365523a native single-component StateStore passed, not this new pair slice.
 No candidate code executes; no Windows11/first-download/GUI qualification claimed.
 
+## Typed preparation lifetime failures (iteration 12)
+
+TrustedPreparation now reports bounded process failures as a sealed
+ProcessFailureException with InputsReleased. True means launch was not attempted
+or the approved child exited and all created reader tasks completed; it does NOT
+prove tree ownership, authorize publication, cover descendants or provide crash
+recovery. Generic exceptions outside this boundary confer no cleanup authority.
+An attempted Start with no observable process conservatively retains input trees.
+Kill failure does not skip independent bounded exit confirmation. All ordinary
+operation, reader/stop and explicitly guarded Dispose errors are preserved; using
+must not mask the original failure. False requires retaining runtime/source/scratch.
+Any controller cleanup still must verify exact ownership/integrity separately.
+
+Official Microsoft Kill/WaitForExit/Close API docs rechecked before code. Kill is
+asynchronous and Dispose/Close is not termination proof. Test-only self-child stop,
+reader-uncertainty and disposal-fault adapters are absent from production-symbol
+builds. Injected uncertainty happens after stopping the actual fixture; this is
+failure-path simulation, not a physical Windows process-kill failure reproduction.
+Portable tests do not qualify Framework, Windows11 or a complete installer. This
+slice supplies a prerequisite for controller rollback, not the controller or GUI.
+
+## Bound runtime ownership handoff (iteration 12)
+
+StagedPayload.CaptureRuntime verifies both staged trees and returns its original
+runtime ownership receipt. RemoveSource verifies both again and removes only the
+reviewed source. Caller must capture first and establish helper input release
+before source retirement; these internal filesystem operations do not track a
+process or infer stop authority. Unknown content in either tree refuses before
+source deletion. After source retirement, a new capture from the incomplete pair
+refuses; the earlier original runtime receipt remains usable for later verified
+persistence/removal. No runtime relocation, disk-tree adoption, new archive trust,
+whole controller or crash recovery is introduced. Portable tests compare EVERY
+runtime byte after retirement and prove original receipt Verify/Remove; native
+Framework exact-SHA evidence remains a separate gate.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

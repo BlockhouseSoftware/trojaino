@@ -105,6 +105,20 @@ jobs:
           $resourceResult = & $resourceExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native real-resource lifecycle tests failed: ' + ($resourceResult -join "`n")) }
           Write-Output $resourceResult
+          # Runtime lifetime handoff is source retirement only; no runtime execution.
+          $handoffExe = Join-Path $work 'HandoffTests.exe'
+          $handoffArgs = $common + @(('/out:' + $handoffExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\handoff-tests\Program.cs'))
+          $handoffRsp = Join-Path $work 'handoff.rsp'
+          $handoffArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $handoffRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $handoffRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native handoff compilation failed: ' + ($compiled -join "`n")) }
+          $handoffResult = & $handoffExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native handoff tests failed: ' + ($handoffResult -join "`n")) }
+          $handoffEvidence = [ordered]@{sha=$env:GITHUB_SHA; handoff=$handoffResult; qualification='source retirement only; runtime not executed; no controller or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native handoff results::' + $handoffEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
           $faultExe = Join-Path $work 'TransactionTests.exe'
           $faultArgs = $common + @('/define:BOOTSTRAP_TESTS', ('/out:' + $faultExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\transaction-tests\Program.cs'))
           $faultRsp = Join-Path $work 'fault.rsp'
