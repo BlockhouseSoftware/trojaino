@@ -83,6 +83,32 @@ internal static class ResourceTests
         }
         Console.WriteLine("PASS pair destinations: nested, identical, case alias and non-sibling refused before writes");
     }
+    static void NestedMemberReceipt(string parent)
+    {
+        // Small native regression: ZIP separators are not filesystem separators.
+        string destination = Path.Combine(parent, "nested-receipt");
+        byte[] archive;
+        using (var memory = new MemoryStream())
+        {
+            using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, true))
+            {
+                var entry = zip.CreateEntry("first/second/file.txt");
+                entry.ExternalAttributes = 0x1800000;
+                using (var output = entry.Open()) output.WriteByte(42);
+            }
+            archive = memory.ToArray();
+        }
+        var pins = new System.Collections.Generic.Dictionary<string, string> {
+            { "first/second/file.txt", Bootstrap.Hash(new byte[] {42}) }
+        };
+        var receipt = Bootstrap.Install(archive, Bootstrap.Hash(archive), pins, destination);
+        string expected = Path.Combine(destination, "first", "second", "file.txt");
+        Assert(receipt.Hashes.ContainsKey(expected), "receipt must use native component spelling");
+        Assert(File.ReadAllBytes(expected).SequenceEqual(new byte[] {42}), "nested fixture bytes preserved");
+        Bootstrap.Verify(receipt); Bootstrap.Remove(receipt);
+        Assert(!Directory.Exists(destination), "nested receipt can Verify and Remove");
+        Console.WriteLine("PASS nested ZIP member: native receipt spelling, exact bytes, Verify/Remove");
+    }
     static int Main(string[] args)
     {
         string parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-resource-test-" + Guid.NewGuid().ToString("N"));
@@ -100,6 +126,7 @@ internal static class ResourceTests
                 return 0;
             }
             Assert(args.Length == 0, "unexpected developer arguments");
+            NestedMemberReceipt(parent);
             SourceRefusalRollsBackRuntime(parent);
             PairLifecycle(parent);
             PairDestinationsMustBeDistinctSiblings(parent);
