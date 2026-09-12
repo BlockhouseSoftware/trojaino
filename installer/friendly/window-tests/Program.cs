@@ -97,7 +97,7 @@ internal static class WindowTests
                 Bootstrap.Verify(pair.Runtime.Component); Bootstrap.Verify(pair.Runtime.State); Bootstrap.Verify(pair.Plugin.Component);
                 File.Delete(extra); PairState.Verify(pair);
                 Control<Button>(reopened, "refresh").PerformClick(); Idle(reopened);
-                Assert(!removalConsent.Checked && !remove.Enabled && removalConsent.Enabled, "recheck silently restored removal consent");
+                Assert(!removalConsent.Checked && !remove.Enabled && removalConsent.Enabled, "recheck silently restored removal consent: checked=" + removalConsent.Checked + "; remove=" + remove.Enabled + "; consent=" + removalConsent.Enabled + "; status=" + Control<Label>(reopened, "status").Text + "; details=" + Control<TextBox>(reopened, "details").Text);
                 removalConsent.Checked = true; remove.PerformClick(); Idle(reopened);
                 Assert(Control<Label>(reopened, "status").Text.Contains("Removed") && !remove.Enabled && !removalConsent.Checked, "actual UI removal did not complete honestly");
                 Assert(new[] {pair.Runtime.Component.Root, pair.Runtime.State.Root, pair.Plugin.Component.Root, pair.Plugin.State.Root}.All(p => !Directory.Exists(p)), "UI removal left owned pair trees");
