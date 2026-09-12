@@ -123,6 +123,67 @@ Win32 ACLs, reparse handling or locks. No extraction runs Python. Final-location
 plugin preparation and enablement are separate later operations, not hidden
 side effects of authenticating/staging a runtime.
 
+## Windows eligibility decision (iteration 3; now implemented, unqualified)
+
+This decision was recorded before code. The checks are now implemented and
+portable-tested, but native Windows execution remains unqualified.
+
+Before the first directory creation, require a literal drive-qualified Windows
+path, existing non-reparse ancestors and a local fixed NTFS volume. Reject UNC,
+device, drive-relative, slash-normalized, dot-component, ADS, trailing-dot/space,
+reserved-device and over-budget paths. Bound the final member paths too, without
+requiring long-path registry changes. Preserve valid Unicode/spaces in user names.
+Check the existing parent with GetLongPathNameW rather than assuming a tilde test
+is sufficient to exclude short-name aliases. Never silently normalize/rebind.
+
+Use IsWow64Process2's native-machine output for x64 eligibility, NOT
+GetNativeSystemInfo: Microsoft documents that the latter can report emulated x64
+on ARM64. Missing API/probe failures refuse setup, not fallback to PATH or ARM
+emulation. Portable tests can exercise the decision logic but cannot validate
+Win32 calls or NTFS behavior; actual Windows execution remains a release gate.
+Sources checked before code, 2026-09-12:
+- https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+- https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getlongpathnamew
+- https://learn.microsoft.com/en-us/windows/win32/api/wow64apiset/nf-wow64apiset-iswow64process2
+- https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getnativesysteminfo
+- https://learn.microsoft.com/en-us/dotnet/api/system.io.driveinfo.drivetype
+
+- https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew
+- https://learn.microsoft.com/en-us/windows/win32/sysinfo/image-file-machine-constants
+
+## Compiled resource adapter checkpoint (iteration 3)
+
+`scripts/build_setup_resources.py` implements the previously chosen compiled trust
+anchor: developer-supplied literal outer/source pins and a fixed official runtime
+pin, full validation/recomputation, exact outer inventory, no trust in payload.json.
+The source commit remains explicitly declared, not proven by a hash or manifest.
+Release preparation must independently bind source bytes to the reviewed commit.
+
+Generated C# uses one explicitly named embedded resource. Its complete digest is
+checked before opening ZIP structure; complete compiled inner archive/member pins
+are then passed to the native stager. StageRuntime/StageSource have no hash or
+runtime-path override. They do NOT run Python, prepare a plugin, activate hooks or
+persist an uninstall receipt. This is not the finished transaction across both
+stages; the future controller must own rollback of the earlier stage if the later
+stage/preparation fails. No successful-setup claim is made by this adapter.
+
+The real existing engineering payload was embedded, built and exercised on Mac:
+all37 runtime files and48 source files compared byte-for-byte, both receipts
+verified and removed; no content executed. A separately corrupted resource built
+against unchanged compiled pins was rejected before any destination write.
+This is a .NET10 test assembly without fault-injection symbols, NOT Framework4.8
+or native Windows evidence. Existing trial bytes were preserved unchanged.
+
+Attempted Framework4.8 tooling path: Microsoft's official reference-only NuGet
+package1.0.3 downloaded and SHA512 checked against its publisher catalog, with
+inventory inspected before use. Extracting its named reference DLLs into private
+build evidence was approval-blocked by the shell security layer. No bypass,
+package install, package-target execution, global config or Windows qualification.
+Framework target compilation remains blocked pending an approved extraction/build
+path or a native Windows runner with its OS-provided references.
+- https://learn.microsoft.com/en-us/dotnet/framework/migration-guide/reference-assemblies
+- https://www.nuget.org/packages/Microsoft.NETFramework.ReferenceAssemblies.net48/1.0.3
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

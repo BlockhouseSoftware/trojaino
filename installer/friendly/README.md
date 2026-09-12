@@ -13,20 +13,26 @@ tree and reports both failure and cleanup refusal. It never activates hooks,
 executes Python/candidate code, edits settings, changes PATH, downloads software,
 or recursively deletes a tree. Existing destination errors do not trigger cleanup.
 
-Trust inputs must be supplied by the reviewed calling assembly's compiled build
-resources, not a user input or manifest supplied alongside an untrusted ZIP.
-The build resource generator and signed/friendly distribution path are unfinished.
-The library API is not a security boundary against malicious callers in the same
-process. Receipts are intentionally not serializable and are not a persistent
-uninstaller; do not reconstruct one from an untrusted on-disk manifest.
+The generated calling-assembly adapter now supplies pins from developer-reviewed
+inputs via `scripts/build_setup_resources.py`. It independently authenticates the
+outer payload, fixed official runtime and separately approved source archive,
+ignores the embedded manifest as a trust source, and compiles complete member
+hashes. At run time it verifies its embedded resource digest before ZIP parsing
+or writes. No end-user hash-input UI exists. A signed/friendly distribution path
+is still unfinished. The library API is not a security boundary against malicious
+callers in the same process. Receipts are intentionally not serializable and are
+not a persistent uninstaller; do not reconstruct one from an untrusted manifest.
 
 The target GUI architecture uses Windows 11's OS-provided .NET Framework 4.8.
 The current core has only been compiled/executed with .NET 10 on macOS. Native
 Framework compilation, Win32 ACL/NTFS identity tests, and Windows 11 usability
-remain gates. Native code currently requires NTFS for receipt identity. Path
-spelling/volume eligibility must be fully preflighted before the eventual GUI
-accepts a destination; this component is not a general caller-selected extractor.
-Only an approved caller-chosen final path is within the tested staging contract.
+remain gates. `WindowsPreflight.cs` is now wired before the first directory
+creation: native AMD64 via IsWow64Process2, Fixed+NTFS, literal Windows spelling,
+reserved devices, full member-path budgets, non-reparse ancestors, long-name and
+final-handle parent equality. It refuses missing/failed probes without fallback.
+Portable predicate tests are not proof of these native APIs or NTFS behavior.
+The future GUI must select the approved known-folder destination; this component
+is not a general caller-selected extractor. The user chooses Install, not a path.
 macOS identity code uses Darwin's stat64 ABI, not Linux. The approved threat
 boundary excludes hostile same-user/admin/compromised-OS races; safeguards remain.
 
@@ -51,3 +57,17 @@ file byte. It NEVER executes that runtime. This is not an installer hash overrid
 production build may define it. Tests exercise partial writes and cleanup refusal.
 No new test dependencies, NuGet packages, or Python packages are installed.
 See `docs/friendly-setup-architecture.md` for vendor/provenance decisions.
+
+`resource-tests/Resources.Tests.csproj` separately compiles the actual generated
+adapter plus embedded approved payload, without `BOOTSTRAP_TESTS`. It accepts
+explicit developer MSBuild properties `GeneratedPayload` and `PayloadArchive`.
+The harness stages runtime and source, independently compares every extracted
+byte with the authenticated resource, verifies both receipts and removes them.
+`--expect-tamper` is only a negative-test assertion, not an installer mode: compile
+unchanged pins with a deliberately changed resource, then require digest refusal
+before writes. Restoring a good resource requires a fresh build; do not run the
+last tampered test binary as if it were the positive case.
+
+This is still a .NET10 developer TEST assembly, not a Windows end-user executable.
+Windows11 ordinary-account, download/SmartScreen and actual GUI/lifecycle tests
+remain required. No manual security-bypass instructions qualify the installer.

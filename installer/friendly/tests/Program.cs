@@ -234,9 +234,103 @@ internal static class Tests
         }
         finally { Trojaino.Setup.Bootstrap.AfterWrite = null; Directory.Delete(parent, true); }
     }
+    static void WindowsLiteralDestinations()
+    {
+        var type = Assembly.GetExecutingAssembly().GetType("Trojaino.Setup.WindowsPreflight");
+        Assert(type != null, "Windows pre-write path eligibility behavior is missing");
+        var method = type.GetMethod("ValidateSpelling", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert(method != null, "Windows literal path validator is missing");
+        Action<string, string[]> validate = (path, members) => {
+            try { method.Invoke(null, new object[] {path, members}); }
+            catch (TargetInvocationException e) { throw e.InnerException; }
+        };
+        foreach (string path in new[] { @"C:\Users\Sig\Trojaino", @"D:\Users\Sig Hansen\Trojaino", @"C:\Users\Sigrid Øst\Trojaino" })
+            validate(path, new[] {"python.exe", "Lib/license.txt"});
+        var rejected = new[] { "", @"C:\", @"C:relative", @"\rooted", @"\\server\share\new", @"\\?\C:\new", @"\\.\C:\new",
+            "C:/Users/Sig/new", @"C:\Users\..\new", @"C:\Users\.\new", @"C:\Users\\new", @"C:\Users\new\",
+            @"C:\Users\new.", @"C:\Users\new ", @"C:\Users\a:stream", @"C:\Users\CON.txt", @"C:\Users\LPT1.log",
+            @"C:\Users\COM¹.log", @"C:\Users\CONIN$", @"C:\Users\CONOUT$", @"C:\Users\CON .txt", @"C:\Users\a?b", @"C:\Users\a*b", "C:\\Users\\bad\nname", "C:\\Users\\bad\0name",
+            "C:\\" + new string('a', 246) };
+        foreach (string path in rejected)
+        {
+            bool denied = false;
+            try { validate(path, new[] {"a.txt"}); } catch (InvalidDataException) { denied = true; }
+            Assert(denied, "nonliteral Windows path refused: " + path);
+        }
+        foreach (char control in new[] {'\n', '\0', '\t'})
+        {
+            string path = @"C:\Users\bad" + control + "name";
+            Assert(path.Split('\\').Length == 3, "control fixture has exactly two separators");
+            bool denied = false;
+            try { validate(path, new[] {"a.txt"}); } catch (InvalidDataException) { denied = true; }
+            Assert(denied, "control character independently refused");
+        }
+        bool nullDenied = false;
+        try { validate(null, new[] {"a.txt"}); } catch (InvalidDataException) { nullDenied = true; }
+        Assert(nullDenied, "null destination refused");
+        validate(@"C:\" + new string('a', 242), new[] {"a"}); // 247 including member separator.
+        bool exactBoundaryDenied = false;
+        try { validate(@"C:\" + new string('a', 243), new[] {"a"}); } catch (InvalidDataException) { exactBoundaryDenied = true; }
+        Assert(exactBoundaryDenied, "248-character expanded path refused");
+        bool overBudget = false;
+        try { validate(@"C:\Users\Sig\Trojaino", new[] {new string('a', 240)}); }
+        catch (InvalidDataException) { overBudget = true; }
+        Assert(overBudget, "final expanded member path refused before creating destination");
+        Console.WriteLine("Windows lexical negative fixtures: " + rejected.Length + "; portable only");
+    }
+    static void WindowsNativeEligibility()
+    {
+        var type = Assembly.GetExecutingAssembly().GetType("Trojaino.Setup.WindowsPreflight");
+        var method = type.GetMethod("ValidateEnvironment", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert(method != null, "Windows native environment eligibility behavior is missing");
+        Action<ushort, DriveType, string> validate = (machine, drive, format) => {
+            try { method.Invoke(null, new object[] {machine, drive, format}); }
+            catch (TargetInvocationException e) { throw e.InnerException; }
+        };
+        validate(0x8664, DriveType.Fixed, "NTFS");
+        foreach (ushort machine in new ushort[] {0, 0x014c, 0xaa64, 0x0200})
+        {
+            bool denied = false;
+            try { validate(machine, DriveType.Fixed, "NTFS"); } catch (InvalidDataException) { denied = true; }
+            Assert(denied, "unknown/non-x64 native machine refused, including emulated x64 on ARM64");
+        }
+        foreach (DriveType drive in Enum.GetValues(typeof(DriveType)))
+        {
+            if (drive == DriveType.Fixed) continue;
+            bool denied = false;
+            try { validate(0x8664, drive, "NTFS"); } catch (InvalidDataException) { denied = true; }
+            Assert(denied, "non-fixed drive refused: " + drive);
+        }
+        foreach (string format in new[] {null, "", "FAT32", "exFAT", "ReFS"})
+        {
+            bool denied = false;
+            try { validate(0x8664, DriveType.Fixed, format); } catch (InvalidDataException) { denied = true; }
+            Assert(denied, "unknown/non-NTFS format refused");
+        }
+    }
+    static void NativeProbePlatformBoundary()
+    {
+        var type = Assembly.GetExecutingAssembly().GetType("Trojaino.Setup.WindowsPreflight");
+        var method = type.GetMethod("Check", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert(method != null, "Windows native pre-write probe is missing");
+        if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+        {
+            bool denied = false;
+            try { method.Invoke(null, new object[] {@"C:\Users\Sig\Trojaino", new[] {"python.exe"}}); }
+            catch (TargetInvocationException e) { denied = e.InnerException is PlatformNotSupportedException; }
+            Assert(denied, "native probe must not emulate Windows success on another OS");
+            Console.WriteLine("SKIP native Win32 execution: non-Windows host; only explicit refusal exercised");
+        }
+        else
+        {
+            var destination = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-native-probe-" + Guid.NewGuid().ToString("N"));
+            method.Invoke(null, new object[] {destination, new[] {"python.exe"}});
+            Assert(!Directory.Exists(destination), "native preflight is read-only");
+        }
+    }
     static int Main(string[] args)
     {
-        var tests = new Action[] { FreshPinnedInstall, OwnedRemoval, FailedWriteRollsBackOnlyOwnedTree, PartialWriteRollsBack, RejectSpecialMetadataBeforeWriting, RejectUnsafeArchives, ExistingAndLinkedDestinationsPreserved, ChangedBytesAndRollbackIntruderPreserved };
+        var tests = new Action[] { FreshPinnedInstall, OwnedRemoval, FailedWriteRollsBackOnlyOwnedTree, PartialWriteRollsBack, RejectSpecialMetadataBeforeWriting, RejectUnsafeArchives, ExistingAndLinkedDestinationsPreserved, ChangedBytesAndRollbackIntruderPreserved, WindowsLiteralDestinations, WindowsNativeEligibility, NativeProbePlatformBoundary };
         int failed = 0;
         foreach (var test in tests)
             try { test(); Console.WriteLine("PASS " + test.Method.Name); }

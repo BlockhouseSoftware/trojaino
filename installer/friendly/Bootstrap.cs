@@ -115,6 +115,7 @@ namespace Trojaino.Setup
         public static Receipt Install(byte[] archive, string archiveHash, IDictionary<string, string> pins, string destination)
         {
             var payload = VerifiedFiles(archive, archiveHash, pins); // Before any writes or runtime execution.
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT) WindowsPreflight.Check(destination, payload.Keys);
             Require(Path.IsPathRooted(destination) && Path.GetFullPath(destination) == destination, "Literal absolute destination required");
             PlainAncestors(Path.GetDirectoryName(destination));
             CreatePrivate(destination); // Never accept an existing name.
