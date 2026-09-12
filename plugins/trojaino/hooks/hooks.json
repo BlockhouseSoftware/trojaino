@@ -1,29 +1,3 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "TROJAINO_UNCONFIGURED_RUN_PREPARE_HELPER",
-            "args": ["-I", "-S", "${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py", "hook"],
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|Workflow|mcp__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "TROJAINO_UNCONFIGURED_RUN_PREPARE_HELPER",
-            "args": ["-I", "-S", "${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py", "hook"],
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }

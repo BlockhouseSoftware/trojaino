@@ -3,6 +3,20 @@ from pathlib import Path
 import tempfile
 
 
+def sealed_gate(source, state):
+    """Issue a receipt using the same image that the integration CLI launches."""
+    import json
+    import subprocess
+    import sys
+    entry = Path(__file__).resolve().parents[1] / 'plugins/trojaino/scripts/preflight.py'
+    result = subprocess.run([sys.executable, '-I', '-S', str(entry), 'scan',
+                             str(source), '--state', str(state)],
+                            capture_output=True, text=True, timeout=25)
+    if result.returncode not in (0, 2):
+        raise AssertionError(result.stderr)
+    return json.loads(result.stdout)
+
+
 def assert_private_dacl(case, snapshot, token_user_sid):
     """Check numeric SecurityIdentifier rules, never localized SDDL aliases."""
     case.assertIs(snapshot['protected'], True, snapshot)

@@ -1,0 +1,22 @@
+{
+  "name": "blockhouse-tools",
+  "owner": {
+    "name": "Blockhouse Software",
+    "url": "https://github.com/BlockhouseSoftware"
+  },
+  "description": "Reviewed experimental safety tools for native Claude Code.",
+  "plugins": [
+    {
+      "name": "trojaino",
+      "source": "./plugins/trojaino",
+      "version": "0.1.6",
+      "defaultEnabled": false,
+      "displayName": "Trojaino",
+      "description": "Experimental, disabled-by-default Claude Code inspection-session preflight. Requires explicit local runtime setup. Not a universal execution firewall.",
+      "homepage": "https://github.com/BlockhouseSoftware/trojaino",
+      "repository": "https://github.com/BlockhouseSoftware/trojaino",
+      "license": "AGPL-3.0-only",
+      "tags": ["security", "preflight", "source-inspection"]
+    }
+  ]
+}

@@ -1,6 +1,11 @@
 # Trojaino Claude Code marketplace requirements
 
-**Status:** implementation requirements — supervised development only
+**Status:** supervised trial preparation; Windows qualification pending
+
+Jose’s current instruction authorizes Alpha to resolve non-Windows blockers,
+choose recommended implementation decisions, and prepare a Sig Windows 11 test
+package. This permits a reviewed local trial snapshot and private handoff to Jose;
+it is not production rollout, target activation or a claim of Windows qualification.
 
 ## Goal
 
@@ -17,6 +22,18 @@ This work does **not** add support for Claude Desktop Chat or Cowork. It does **
 5. No candidate source, plugin, MCP, or application may be executed while being prepared, packaged, validated, or scanned.
 6. Marketplace source, plugin version, package contents, and release documentation must be bound to a reviewed Git commit.
 7. Marketplace installation is not a substitute for Windows 11/native-Claude/ordinary-account acceptance testing.
+
+## Approved user-scope boundary
+
+Jose approved the user-scope boundary in the Alpha Telegram DM: “Proceed with user-scope and 3.” This authorizes completing lifecycle documentation, install/update/remove checks, regression testing and review closure without adding a privileged installer or service.
+
+The trusted local account, reviewed Python interpreter and reviewed setup source are trust anchors. Protection against malicious concurrent processes already running as that same user, administrators or a compromised OS is outside scope. The new-directory requirement applies within that boundary: reject existing destinations, nonempty acquired directories, unsafe paths and file overwrites; retain exclusive creation, identity checks and all verified safeguards. The reproduced empty-directory substitution by a hostile same-user process is an acknowledged excluded attack, not a fixed defect or a guarantee of atomic publication.
+
+Native Windows 11 acceptance remains mandatory before rollout. This approval does not authorize publication, merge, release, or weakening candidate-code isolation.
+
+## Approved separate local-plugin delivery
+
+Jose explicitly approved: “Approve the separate prepared local plugin; preserve security safeguards and Windows release gate.” The marketplace installation remains disabled and inert. Explicit trusted preparation may create a fresh self-contained plugin directly at its final personal skills-directory location, with a distinct version-qualified identity and disabled default. Enablement is a separate visible action. Updates create new identities/directories without overwriting prior copies. Marketplace uninstall does not disable or remove this local plugin; its lifecycle must be documented separately. This amends the marketplace-only activation goal, not runtime binding, isolation, no-overwrite safeguards, or the native Windows release gate.
 
 ## Delivery model
 
@@ -41,6 +58,18 @@ As a user, I can add a Blockhouse marketplace and see a clearly described Trojai
 - The entry describes it as an experimental, disabled-by-default, Claude Code-only inspection-session plugin.
 - The package layout contains only the plugin’s own files; no `../` dependency or top-level `bin/` directory is allowed.
 - Automated tests verify catalog schema, source path containment, plugin metadata parity, and rejection of unsafe/mutable release references.
+
+### MKT-001A — Self-contained package boundary
+
+As a marketplace user, I receive every Trojaino runtime file inside the installed plugin directory and never resolve code from the marketplace checkout, its parent, or an ambient package.
+
+**Acceptance criteria**
+
+- The installed plugin copy runs its preflight entrypoint without importing from a path outside `${CLAUDE_PLUGIN_ROOT}`.
+- No plugin script adds a parent directory to `sys.path`, invokes a shell to discover code, or relies on an ambient `trojaino` package.
+- An isolated copied-package test proves the entrypoint imports only bundled runtime files under an explicit trusted interpreter.
+- The plugin has no symlinks escaping its root, no `../` runtime references, and no Node dependency-install surface.
+- An unprepared disabled installation has no active executable hook command; its setup/status path is non-executing.
 
 ### MKT-002 — Disabled-before-setup lifecycle
 

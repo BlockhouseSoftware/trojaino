@@ -25,6 +25,11 @@ class BundleTests(unittest.TestCase):
                 self.assertFalse(any('/.git/' in n or '/.venv/' in n or '__pycache__' in n for n in names))
                 self.assertIn('trojaino-source/scripts/prepare_preflight_plugin.py', names)
                 self.assertIn('trojaino-source/scripts/build_preflight_bundle.py', names)
+                for document in ('sig-windows-trial.md', 'marketplace-lifecycle.md',
+                                 'marketplace-requirements.md', 'marketplace-runtime-architecture.md',
+                                 'personal-plugin-delivery.md'):
+                    self.assertIn('trojaino-source/docs/' + document, names)
+                self.assertIn('trojaino-source/.claude-plugin/marketplace.json', names)
                 manifest = json.loads(archive.read('trojaino-source/MANIFEST.sha256.json'))
                 for name, digest in manifest.items():
                     self.assertEqual(hashlib.sha256(archive.read('trojaino-source/' + name)).hexdigest(), digest)

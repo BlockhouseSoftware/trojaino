@@ -284,7 +284,8 @@ class GateTests(unittest.TestCase):
         import sys
         entry = Path(__file__).resolve().parents[1] / "plugins/trojaino/scripts/preflight.py"
         (self.source / "server.py").write_text('import sys\nprint(sys.stdin.readline().strip())\n')
-        receipt = self.api().gate(str(self.source), self.state)
+        from preflight_test_support import sealed_gate
+        receipt = sealed_gate(self.source, self.state)
         args = [sys.executable, "-I", "-S", str(entry), "launch", receipt["report_path"], "--entry", "server.py"]
         process = subprocess.run(args, input='{"jsonrpc":"2.0","id":1}\n', capture_output=True, text=True)
         self.assertEqual(process.returncode, 0, process.stderr)
@@ -304,7 +305,8 @@ class GateTests(unittest.TestCase):
         cli = Path(__file__).resolve().parents[1] / "plugins/trojaino/scripts/preflight.py"
         (self.source / "server.py").write_text("print(1)")
         (self.source / "payload.txt").write_text("print(1)")
-        receipt = self.api().gate(str(self.source), self.state)
+        from preflight_test_support import sealed_gate
+        receipt = sealed_gate(self.source, self.state)
         for entry in ("../scanner.json", str(self.source / "server.py"), "payload.txt", "-c", "missing.py"):
             with self.subTest(entry=entry):
                 process = subprocess.run([sys.executable, "-I", "-S", str(cli), "launch", receipt["report_path"],
@@ -323,7 +325,8 @@ class GateTests(unittest.TestCase):
             self.skipTest("Node runtime unavailable")
         cli = Path(__file__).resolve().parents[1] / "plugins/trojaino/scripts/preflight.py"
         (self.source / "server.js").write_text('console.log(JSON.stringify({ok: true, injected: process.env.NODE_OPTIONS || null}));')
-        receipt = self.api().gate(str(self.source), self.state)
+        from preflight_test_support import sealed_gate
+        receipt = sealed_gate(self.source, self.state)
         args = [sys.executable, "-I", "-S", str(cli), "launch", receipt["report_path"], "--entry", "server.js"]
         env = dict(os.environ, TROJAINO_NODE=str(Path(node).resolve()), NODE_OPTIONS="--require /not/a/real/module")
         observer = Path(__file__).with_name("node_probe_observer.py")
@@ -413,33 +416,20 @@ class GateTests(unittest.TestCase):
         cli = Path(__file__).resolve().parents[1] / "plugins/trojaino/scripts/preflight.py"
         (self.source / "server.py").write_text('import helper\nprint(helper.answer)\n')
         (self.source / "helper.py").write_text('answer = 42\n')
-        receipt = self.api().gate(str(self.source), self.state)
+        from preflight_test_support import sealed_gate
+        receipt = sealed_gate(self.source, self.state)
         result = subprocess.run([sys.executable, "-I", "-S", str(cli), "launch", receipt["report_path"],
                                  "--entry", "server.py"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "42\n")
 
-    def test_plugin_manifest_synchronous_hook_and_missing_runtime_deny(self):
-        import os
-        import subprocess
+    def test_unprepared_plugin_has_no_executable_hook_and_bundles_runtime(self):
         plugin = Path(__file__).resolve().parents[1] / "plugins/trojaino"
         self.assertTrue((plugin / ".claude-plugin/plugin.json").is_file(), "plugin manifest missing")
         manifest = json.loads((plugin / ".claude-plugin/plugin.json").read_text())
         self.assertEqual(manifest["name"], "trojaino")
-        hooks = json.loads((plugin / "hooks/hooks.json").read_text())["hooks"]["PreToolUse"]
-        self.assertIn("Bash", hooks[0]["matcher"])
-        self.assertIn("Write", hooks[0]["matcher"])
-        self.assertIn("Edit", hooks[0]["matcher"])
-        handler = hooks[0]["hooks"][0]
-        self.assertEqual(handler["type"], "command")
-        self.assertEqual(handler["timeout"], 30)
-        self.assertFalse(handler.get("async", False))
-        env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(plugin))
-        env.pop("TROJAINO_PYTHON", None)
-        output = subprocess.run(["/bin/sh", str(plugin / "scripts/hook.sh")], env=env,
-                                input="{}", capture_output=True, text=True)
-        self.assertEqual(output.returncode, 0)
-        self.assertEqual(json.loads(output.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertEqual(json.loads((plugin / "hooks/hooks.json").read_text()), {"hooks": {}})
+        self.assertTrue("'trojaino.preflight':" in (plugin / "scripts/preflight.py").read_text())
         self.assertTrue((plugin / "skills/scan/SKILL.md").is_file())
 
 

@@ -24,7 +24,8 @@ class NodeProbeObserverTests(unittest.TestCase):
             source = root / "source"
             source.mkdir()
             (source / "server.js").write_text('console.log("fixture");')
-            receipt = preflight.gate(str(source), root / "state")
+            from preflight_test_support import sealed_gate
+            receipt = sealed_gate(source, root / "state")
             self.assertEqual(receipt["decision"], "permit", receipt)
             node = root / "node"
             node.write_text("#!/bin/sh\nexit 0\n")
@@ -44,7 +45,8 @@ class NodeProbeObserverTests(unittest.TestCase):
             source = root / "source"
             source.mkdir()
             (source / "server.js").write_text('console.log("TARGET_EXECUTED");')
-            receipt = preflight.gate(str(source), root / "state")
+            from preflight_test_support import sealed_gate
+            receipt = sealed_gate(source, root / "state")
             self.assertEqual(receipt["decision"], "permit", receipt)
             count = root / "calls"
             node = root / "node"

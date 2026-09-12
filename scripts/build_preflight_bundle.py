@@ -14,14 +14,19 @@ ROOT = Path(__file__).resolve().parents[1]
 def build(output):
     files = [ROOT / name for name in ('LICENSE', 'README.md', 'pyproject.toml',
                                       'scripts/build_preflight_bundle.py',
-                                      'scripts/prepare_preflight_plugin.py')]
+                                      'scripts/prepare_preflight_plugin.py',
+                                      'scripts/write_prepared_tree.py',
+                                      'scripts/build_sealed_runtime.py',
+                                      'scripts/sealed_runtime_bootstrap.py')]
     files += sorted((ROOT / 'trojaino').rglob('*.py'))
     files += sorted(p for p in (ROOT / 'plugins/trojaino').rglob('*')
                     if p.is_file() and '__pycache__' not in p.parts
                     and p.suffix in {'.py', '.sh', '.json', '.md'})
-    windows_doc = ROOT / 'docs/windows-preflight.md'
-    if windows_doc.is_file():
-        files.append(windows_doc)
+    files += [ROOT / name for name in (
+        '.claude-plugin/marketplace.json',
+        'docs/windows-preflight.md', 'docs/sig-windows-trial.md',
+        'docs/marketplace-lifecycle.md', 'docs/marketplace-requirements.md',
+        'docs/marketplace-runtime-architecture.md', 'docs/personal-plugin-delivery.md')]
     payload = {}
     for path in files:
         if path.is_symlink() or any(p.is_symlink() for p in path.parents if p != ROOT.parent):

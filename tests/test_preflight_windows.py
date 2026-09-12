@@ -34,8 +34,11 @@ class WindowsTests(unittest.TestCase):
         receipt = api.gate(str(self.source), str(self.state))
         self.assertEqual(receipt['decision'], 'permit', receipt)
         self.assertEqual(api.verify(receipt['report_path'])['decision'], 'permit')
+        from preflight_test_support import sealed_gate
+        sealed_receipt = sealed_gate(self.source, self.state)
+        self.assertEqual(sealed_receipt['decision'], 'permit', sealed_receipt)
         result = subprocess.run([sys.executable, '-I', '-S', str(CLI), 'launch',
-                                 receipt['report_path'], '--entry', 'server.py'],
+                                 sealed_receipt['report_path'], '--entry', 'server.py'],
                                 capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, 'hello\n')
@@ -179,7 +182,8 @@ class WindowsTests(unittest.TestCase):
         for code, expected in [('console.log(require("./helper.cjs"))', True), ('require("ambient")', False)]:
             (self.source / 'helper.cjs').write_text('module.exports=42')
             (self.source / 'server.js').write_text(code)
-            receipt = api.gate(str(self.source), str(self.state))
+            from preflight_test_support import sealed_gate
+            receipt = sealed_gate(self.source, self.state)
             self.assertEqual(receipt['decision'], 'permit', receipt)
             result = subprocess.run([sys.executable, '-I', '-S', str(CLI), 'launch',
                                      receipt['report_path'], '--entry', 'server.js'], env=env,

@@ -1,5 +1,10 @@
 # Native Windows 11 preflight pilot
 
+**Current trial:** use [Sig’s Windows trial guide](sig-windows-trial.md) for the
+separate prepared personal-plugin route. The `--plugin-dir` commands below are
+legacy engineering reference, not the current marketplace handoff. Do not mix
+the two installation or removal procedures.
+
 **Implemented, experimental, not Windows-validated in this development environment.**
 The Win32 acceptance tests must run on a real Windows host before rollout. macOS
 unit tests, a real PowerShell run on macOS, and Claude manifest validation do not

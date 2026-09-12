@@ -37,6 +37,12 @@ def trusted_environment():
 
 def isolated_operation(name, args, timeout=20, stdin=subprocess.DEVNULL):
     """A killable trusted process, not an uninterruptible Windows timer thread."""
+    worker = getattr(sys.modules['trojaino'], '_sealed_worker', None)
+    if worker is not None:
+        try:
+            return worker(name, args, timeout=timeout, stdin=stdin if name == 'hook_input' else None)
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            raise Denied('operation_error_or_timeout') from exc
     trusted = str(Path(__file__).resolve().parent.parent)
     code = ("import sys; sys.path.insert(0,sys.argv[1]); "
             "from trojaino.preflight_process import main; "
@@ -61,6 +67,12 @@ def isolated_operation(name, args, timeout=20, stdin=subprocess.DEVNULL):
 
 def scan_path(target, profile="default"):
     """Isolated trusted worker: target cwd/PYTHONPATH/site hooks never import."""
+    worker = getattr(sys.modules['trojaino'], '_sealed_worker', None)
+    if worker is not None:
+        report = worker('scan_path', [str(target)], timeout=SCAN_TIMEOUT)
+        report['raw_report'] = dict(report)
+        report['findings'] = [SimpleNamespace(**f) for f in report['findings']]
+        return SimpleNamespace(**report)
     trusted = str(Path(__file__).resolve().parent.parent)
     code = (
         "import sys,json; sys.path.insert(0,sys.argv[1]); "
@@ -88,6 +100,9 @@ from trojaino.contract import REPORT_SCHEMA_VERSION, RULE_PACK_ID, RULE_PACK_VER
 
 
 def scanner_identity():
+    sealed_identity = getattr(sys.modules['trojaino'], '_sealed_identity', None)
+    if sealed_identity is not None:
+        return sealed_identity
     root = Path(__file__).resolve().parent
     digest = hashlib.sha256()
     digest.update(json.dumps([__version__, RULE_PACK_ID, RULE_PACK_VERSION]).encode())
@@ -311,7 +326,9 @@ def verify(receipt_path):
 
 
 def command_prefix(tool):
-    entry = Path(__file__).resolve().parent.parent / "plugins/trojaino/scripts/preflight.py"
+    sealed_entry = getattr(sys.modules['trojaino'], '_sealed_entry', None)
+    entry = (Path(sealed_entry) if sealed_entry else
+             Path(__file__).resolve().parent.parent / "plugins/trojaino/scripts/preflight.py")
     values = [sys.executable, "-I", "-S", str(entry)]
     if os.name == "nt" and tool == "Bash":
         values = [v.replace("\\", "/") for v in values]
@@ -354,7 +371,7 @@ def hook(event):
                        if os.name == "nt" else "Bash: use canonical shlex.join argument quoting. ")
             return {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": (
                 "Trojaino inspection-session pilot is loaded. When asked to try or install a new MCP, "
-                "plugin, or app, invoke the trojaino:scan skill and inspect supported source before execution. "
+                "plugin, or app, invoke this plugin's scan skill and inspect supported source before execution. "
                 "Trusted command prefix: " + command + ". " + grammar + "Append scan SOURCE for a report-only call. "
                 "Read and report the result before any separate launch RECEIPT --entry RELATIVE_ENTRY call. "
                 "Only absolute source directories and exact full-commit GitHub tree URLs are supported. "
@@ -479,7 +496,8 @@ def hook_input():
 
 
 def capabilities():
-    return {"platform": sys.platform, "python": sys.version.split()[0],
+    return {"runtime_storage": "sealed-memory" if hasattr(sys.modules['trojaino'], '_sealed_identity') else "source-tree",
+            "platform": sys.platform, "python": sys.version.split()[0],
             "filesystem_backend": "win32-ntfs" if os.name == "nt" else "posix-openat",
             "watchdog": "job-contained-process" if os.name == "nt" else "posix-signal",
             "hook_transport": "direct-argv; run scripts/prepare_preflight_plugin.py for literal interpreter and args",

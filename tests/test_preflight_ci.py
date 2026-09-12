@@ -16,7 +16,16 @@ class NativeWindowsCIContract(unittest.TestCase):
         required = {
             'scripts/build_preflight_bundle.py',
             'scripts/prepare_preflight_plugin.py',
+            'scripts/build_sealed_runtime.py',
+            'scripts/sealed_runtime_bootstrap.py',
+            'scripts/write_prepared_tree.py',
             'docs/windows-preflight.md',
+            'docs/sig-windows-trial.md',
+            'docs/personal-plugin-delivery.md',
+            'docs/marketplace-lifecycle.md',
+            'docs/marketplace-requirements.md',
+            'docs/marketplace-runtime-architecture.md',
+            '.claude-plugin/**',
             'README.md',
             'plugins/trojaino/**',
         }

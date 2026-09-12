@@ -1,7 +1,11 @@
 {
   "name": "trojaino",
-  "version": "0.1.0",
-  "description": "Controlled inspection-session preflight pilot for local and commit-pinned GitHub source. Not a universal execution firewall.",
+  "version": "0.1.6",
+  "displayName": "Trojaino",
+  "description": "Experimental, disabled-by-default Claude Code inspection-session preflight. Requires explicit local runtime setup. Not a universal execution firewall.",
   "author": {"name": "Blockhouse Software"},
-  "license": "AGPL-3.0-only"
+  "homepage": "https://github.com/BlockhouseSoftware/trojaino",
+  "repository": "https://github.com/BlockhouseSoftware/trojaino",
+  "license": "AGPL-3.0-only",
+  "keywords": ["security", "preflight", "source-inspection"]
 }
