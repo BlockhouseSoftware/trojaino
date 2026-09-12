@@ -118,7 +118,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native handoff compilation failed: ' + ($compiled -join "`n")) }
           $handoffResult = & $handoffExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native handoff tests failed: ' + ($handoffResult -join "`n")) }
-          $handoffEvidence = [ordered]@{sha=$env:GITHUB_SHA; handoff=$handoffResult; qualification='source retirement only; runtime not executed; no controller or GUI'} | ConvertTo-Json -Compress
+          # Pure document edit on native Framework; no settings IO or activation.
+          $preferenceExe = Join-Path $work 'PreferenceTests.exe'
+          $preferenceArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/out:' + $preferenceExe)) + $refArgs + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\AccountPreferenceDocument.cs'), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\preference-tests\Program.cs'))
+          $preferenceRsp = Join-Path $work 'preference.rsp'
+          $preferenceArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $preferenceRsp -Encoding utf8
+          $preferenceCompile = & $compiler ('@' + $preferenceRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native preference compilation failed: ' + ($preferenceCompile -join "`n")) }
+          Write-Output $preferenceCompile
+          $preferenceResult = @(& $preferenceExe 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw ('Native preference tests failed: ' + ($preferenceResult -join "`n")) }
+          $handoffEvidence = [ordered]@{sha=$env:GITHUB_SHA; handoff=$handoffResult; preference=$preferenceResult; qualification='source retirement and pure document edit only; no settings IO or activation'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native handoff results::' + $handoffEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
           # Read-only six-role controller preflight; no installer or activation.
           $locationsExe = Join-Path $work 'LocationsTests.exe'
