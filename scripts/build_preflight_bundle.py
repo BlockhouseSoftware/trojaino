@@ -26,7 +26,8 @@ def build(output):
         '.claude-plugin/marketplace.json',
         'docs/windows-preflight.md', 'docs/sig-windows-trial.md',
         'docs/marketplace-lifecycle.md', 'docs/marketplace-requirements.md',
-        'docs/marketplace-runtime-architecture.md', 'docs/personal-plugin-delivery.md')]
+        'docs/marketplace-runtime-architecture.md', 'docs/personal-plugin-delivery.md',
+        'docs/friendly-setup-architecture.md')]
     payload = {}
     for path in files:
         if path.is_symlink() or any(p.is_symlink() for p in path.parents if p != ROOT.parent):

@@ -27,7 +27,7 @@ class BundleTests(unittest.TestCase):
                 self.assertIn('trojaino-source/scripts/build_preflight_bundle.py', names)
                 for document in ('sig-windows-trial.md', 'marketplace-lifecycle.md',
                                  'marketplace-requirements.md', 'marketplace-runtime-architecture.md',
-                                 'personal-plugin-delivery.md'):
+                                 'personal-plugin-delivery.md', 'friendly-setup-architecture.md'):
                     self.assertIn('trojaino-source/docs/' + document, names)
                 self.assertIn('trojaino-source/.claude-plugin/marketplace.json', names)
                 manifest = json.loads(archive.read('trojaino-source/MANIFEST.sha256.json'))

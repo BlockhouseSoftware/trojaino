@@ -1,6 +1,23 @@
 # Trojaino Claude Code marketplace requirements
 
-**Status:** supervised trial preparation; Windows qualification pending
+**Status:** overnight independent-setup repair in progress; prior manual trial rejected
+
+## Overnight usability amendment — Jose, 2026-09-12 EDT
+
+Jose rejected the source-only 0.1.6 handoff: Sig is nontechnical, lives in Norway,
+cannot screenshare this weekend, and must install independently. Alpha is
+approved to choose the smallest safe friendly setup mechanism, including an
+explicit user-consented pinned approved runtime and native installer if vendor
+constraints prevent true Marketplace activation. No hand-entered Python paths,
+config editing, long PowerShell instructions or security-bypass launcher qualify.
+The old `.exe`/`.msi` exclusion below is superseded only for this reviewed setup
+work. Silent runtime/package installation remains prohibited. No publication,
+merge, new spending or messages to Sig are authorized. All candidate isolation,
+final-path binding, no-overwrite and native Windows 11 gates remain intact.
+
+See [friendly setup architecture](friendly-setup-architecture.md) for current
+vendor research, provenance and actual implementation status. Engineering
+payloads are not installers and must not be handed to Sig as one.
 
 Jose’s current instruction authorizes Alpha to resolve non-Windows blockers,
 choose recommended implementation decisions, and prepare a Sig Windows 11 test
