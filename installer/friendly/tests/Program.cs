@@ -60,6 +60,20 @@ internal static class Tests
     }
     static void OwnedRemoval()
     {
+        var emptyMethod = typeof(Trojaino.Setup.Bootstrap).GetMethod("CreateEmpty");
+        Assert(emptyMethod != null, "private empty scratch creation is missing");
+        string scratchRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-empty-test-" + Guid.NewGuid().ToString("N"));
+        var empty = Call("CreateEmpty", scratchRoot);
+        Call("Verify", empty);
+        try { Call("CreateEmpty", scratchRoot); throw new Exception("ASSERT: existing scratch reused"); }
+        catch (System.ComponentModel.Win32Exception) { }
+        File.WriteAllText(Path.Combine(scratchRoot, "unknown.dll"), "not executable");
+        try { Call("Remove", empty); throw new Exception("ASSERT: unknown scratch content deleted"); }
+        catch (InvalidDataException) { }
+        Assert(File.ReadAllText(Path.Combine(scratchRoot, "unknown.dll")) == "not executable", "prior scratch bytes preserved");
+        File.Delete(Path.Combine(scratchRoot, "unknown.dll"));
+        Call("Remove", empty);
+        Assert(!Directory.Exists(scratchRoot), "private empty scratch removed");
         var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(parent);
         try

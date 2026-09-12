@@ -77,13 +77,35 @@ internal static class PreparationTests
         try
         {
             string runtime = Path.Combine(parent, "runtime"), source = Path.Combine(parent, "source");
-            string scratch = Path.Combine(parent, "scratch"); Directory.CreateDirectory(scratch);
+            string scratch = Path.Combine(parent, "scratch"); var scratchReceipt = Bootstrap.CreateEmpty(scratch);
             string name = "trojaino-local-native-plan-test", final = Path.Combine(parent, name);
             var pair = StagedPayload.Install(runtime, source);
             StagedPayload.Verify(pair);
             string python = Path.Combine(runtime, "python.exe");
             string helper = Path.Combine(source, "trojaino-source", "scripts", "prepare_preflight_plugin.py");
-            byte[] plan = RunPlan(python, helper, final, name, scratch);
+            byte[] reference = RunPlan(python, helper, final, name, scratch);
+            byte[] plan = TrustedPreparation.Render(pair, final, name, scratchReceipt, System.Threading.CancellationToken.None);
+            Assert(plan.SequenceEqual(reference), "production authenticated transformation equals independent helper output");
+            try { TrustedPreparation.Render(pair, final, "wrong-name", scratchReceipt, System.Threading.CancellationToken.None); throw new Exception("invalid identity accepted"); }
+            catch (InvalidDataException) { }
+            var nestedScratch = Bootstrap.CreateEmpty(Path.Combine(runtime, "scratch"));
+            try { TrustedPreparation.Render(pair, final, name, nestedScratch, System.Threading.CancellationToken.None); throw new Exception("runtime scratch overlap accepted"); }
+            catch (InvalidDataException) { }
+            Bootstrap.Remove(nestedScratch);
+            File.WriteAllText(Path.Combine(scratch, "unknown.txt"), "must not be consumed");
+            try { TrustedPreparation.Render(pair, final, name, scratchReceipt, System.Threading.CancellationToken.None); throw new Exception("unknown scratch accepted"); }
+            catch (InvalidDataException) { }
+            Assert(File.ReadAllText(Path.Combine(scratch, "unknown.txt")) == "must not be consumed", "unknown scratch bytes preserved");
+            File.Delete(Path.Combine(scratch, "unknown.txt"));
+            using (var cancelled = new System.Threading.CancellationTokenSource())
+            {
+                cancelled.Cancel();
+                try { TrustedPreparation.Render(pair, final, name, scratchReceipt, cancelled.Token); throw new Exception("cancelled plan accepted"); }
+                catch (OperationCanceledException) { }
+            }
+            Bootstrap.Verify(scratchReceipt);
+            Bootstrap.Remove(scratchReceipt);
+            Console.WriteLine("PASS production Render: exact independent output, invalid identity/private scratch overlap/unknown scratch/cancellation refused; private empty scratch Verify/Remove");
             Assert(!Directory.Exists(final), "plan must not publish final plugin");
             StagedPayload.Verify(pair); // -B must leave every authenticated input byte unchanged.
             var files = new Dictionary<string, byte[]>(StringComparer.Ordinal);

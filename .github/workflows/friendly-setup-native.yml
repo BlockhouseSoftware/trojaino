@@ -86,7 +86,7 @@ jobs:
           $runtimeInfo = @(Get-ChildItem -LiteralPath $references -Recurse -File -Filter 'System.Runtime.InteropServices.RuntimeInformation.dll')
           if ($runtimeInfo.Count -ne 1) { throw 'Framework RuntimeInformation reference missing or ambiguous' }
           $refArgs += '/reference:' + $runtimeInfo[0].FullName
-          $sources = @('installer\friendly\Bootstrap.cs', 'installer\friendly\WindowsPreflight.cs', 'installer\friendly\StagedPayload.cs') | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
+          $sources = @('installer\friendly\Bootstrap.cs', 'installer\friendly\WindowsPreflight.cs', 'installer\friendly\StagedPayload.cs', 'installer\friendly\TrustedPreparation.cs') | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
           $common = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/resource:' + $payload + ',Trojaino.Setup.Payload')) + $refArgs
           $resourceExe = Join-Path $work 'ResourceTests.exe'
           # Documented csc response file avoids native-shell argument splitting.
@@ -142,6 +142,20 @@ jobs:
           $evidence = [ordered]@{sha=$env:GITHUB_SHA; payload=$payloadPin; resource=$resourceResult; faults=$faultResult; tamper=$tamperResult} | ConvertTo-Json -Depth 4 -Compress
           Write-Output ('::notice title=Native staging results::' + $evidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
           Write-Output "PASS native Framework staging SHA=$env:GITHUB_SHA payload=$payloadPin; staging harness does not execute bundled runtime"
+          # Test-only self-child process fixtures; no candidate code or PATH lookup.
+          $processExe = Join-Path $work 'ProcessTests.exe'
+          $processArgs = $common + @('/define:PREPARATION_TESTS', ('/out:' + $processExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\process-tests\Program.cs'))
+          $processRsp = Join-Path $work 'process.rsp'
+          $processArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $processRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $processRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native process test compilation failed: ' + ($compiled -join "`n")) }
+          $processResult = & $processExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native bounded process tests failed: ' + ($processResult -join "`n")) }
+          $processEvidence = [ordered]@{sha=$env:GITHUB_SHA; process=$processResult} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native process results::' + $processEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
           # Separate developer feasibility test, not an installer: explicit approved
           # runtime execution after compiled receipt verification, no candidates.
           $serializerRef = Join-Path $references 'System.Web.Extensions.dll'

@@ -171,6 +171,17 @@ namespace Trojaino.Setup
                 throw;
             }
         }
+        public static Receipt CreateEmpty(string destination)
+        {
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT) WindowsPreflight.Check(destination, new string[0]);
+            Require(!string.IsNullOrEmpty(destination) && Path.IsPathRooted(destination) && Path.GetFullPath(destination) == destination, "Literal absolute scratch destination required");
+            PlainAncestors(Path.GetDirectoryName(destination));
+            CreatePrivate(destination); // Exclusive and private, never adopt an existing directory.
+            var receipt = new Receipt(destination);
+            receipt.Identities.Add(destination, Identity(destination));
+            Verify(receipt);
+            return receipt; // On identity/probe failure retain the new tree; never guess ownership.
+        }
         public sealed class Receipt
         {
             internal readonly string Root;

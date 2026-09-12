@@ -9,6 +9,8 @@ namespace Trojaino.Setup
     {
         readonly Bootstrap.Receipt runtime;
         readonly Bootstrap.Receipt source;
+        internal string RuntimeRoot { get { return runtime.Root; } }
+        internal string SourceRoot { get { return source.Root; } }
         StagedPayload(Bootstrap.Receipt runtime, Bootstrap.Receipt source)
         {
             this.runtime = runtime;

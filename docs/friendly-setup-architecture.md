@@ -242,6 +242,43 @@ The archive itself is not a downloadable installer or an activation artifact.
 Controller integration, output validation/budgets, cancellation, persistent
 lifecycle and native execution remain separate unimplemented gates.
 
+## Authenticated preparation process boundary (iteration 7)
+
+The separate native feasibility harness actually passed on WindowsServer2025 at
+5afc52a6335dbe9226192f2c3fd1fc66f9f40183: approved CPython3.14.7 executed the reviewed
+--plan helper, produced8 rendered plugin files, and exact bytes/digests/bindings,
+disabled identity and Verify/Remove passed. Compiled-resource tampering refused
+before writes. This is NOT Windows11, GUI or authenticated Claude scan evidence.
+
+The next production slice is `TrustedPreparation.Render`: it accepts only the
+private-constructor StagedPayload receipt and derives the exact approved Python
+and source helper internally. It validates native eligibility, literal matching
+personal identity/final path, new destination and separate private empty scratch
+sibling created exclusively through Bootstrap.CreateEmpty. Render requires the
+scratch ownership receipt, not a caller-supplied directory path, and verifies its
+empty inventory/identity before and after execution. Unknown scratch content is
+retained, never deleted by Render. It verifies both staged input trees before and
+after execution. It runs
+only approved Python -I -S -B and helper --plan, with no shell/PATH/runtime override,
+cleared child environment except SystemRoot/TEMP/TMP, and binary stdout/stderr.
+Concurrent bounded readers, timeout and cancellation refuse partial output;
+post-start errors terminate/wait for the trusted helper and preserve cleanup
+errors. Unknown stop state requires retaining staged trees, never publication.
+
+The reviewed helper does not spawn descendants. Kill()+WaitForExit is NOT a
+sandbox, process-tree containment or crash recovery. Future helper changes adding
+subprocesses require new containment review. No candidate code executes. Only a
+test-symbol build exposes private runner injection to a reviewed self-child EXE.
+Native Framework execution of this new boundary remains pending its exact CI SHA.
+Mac process tests are not proof of Windows APIs or the approved Python runtime.
+
+This component returns authenticated transformation bytes only: it does NOT parse
+or publish a plugin, remove staging, persist receipts, activate Claude or implement
+user consent/UI. Source receipt verification is authority, not an arbitrary ZIP's
+self-reported manifest. Complete output validation/publication, durable lifecycle,
+friendly GUI and Windows11 first-download acceptance remain unfinished. Existing
+inert Marketplace/separate local-plugin lifecycle and all protection gates remain.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in
