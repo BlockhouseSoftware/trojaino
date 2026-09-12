@@ -62,18 +62,25 @@ rejects every unknown/replaced/changed entry, and verifies the entire state cont
 before deletion. Normal Open/Load/Verify still refuse missing files. No missing file
 is recreated, no disk ownership is adopted, and the original receipt is not mutated.
 A separate unchecked closed-session consent is bound to the displayed runtime root;
-each click reauthenticates, and full/absent/different/ambiguous state requires recheck.
-The UI never grants Install/ordinary Remove/activation from a recoverable remainder.
-Native GREEN at the exact reviewed SHA is still required for this new path.
+read-only details show the authenticated runtime and protected-state locations before
+consent is enabled. Each click reauthenticates, and full/absent/different/ambiguous
+state requires recheck. The UI never grants Install/ordinary Remove/activation from
+a recoverable remainder. Native Windows Server check `103579685816` at reviewed
+commit `e235b7bb6c8c0410a79bf509771bbf35c5a21aac` passed the repaired display and
+consented recovery journey twice. This closes that native UI regression, not every
+recovery acceptance case or Windows11/Claude/visual usability qualification.
 
 The companion native test deterministically retires one known approved-runtime fixture
 file after the real lock failure, so the missing-file branch is reached before recovery.
 It tests unknown content in BOTH runtime and runtime-state after consent, requiring
 whole survivor inventory/identity/hash preservation before retry. Additional native
 fixtures require refusal of a second authentic identity and of stale consent when
-only a different authentic remainder is discoverable. A production-symbol test
-checks that recovery starts disabled and unchecked. These added tests still require
-actual native execution; portable schema results do not qualify DPAPI or UI behavior.
+only a different authentic remainder is discoverable, and stale consent when the
+remainder becomes absent or an authentic full pair replaces discovery. A
+production-symbol test checks that recovery starts disabled and unchecked. These
+window cases passed natively at `e235b7b`; portable schema results alone do not
+qualify DPAPI or UI behavior. Recovery-specific discovery link/access cases and
+remaining refusal-snapshot coverage are still open.
 Shared parents, settings and unrelated skills are compared by original identities
 and exact hashes.
 
@@ -107,7 +114,7 @@ production-symbol harness constructs without showing the Form, proving test root
 factories absent and initial consent/install/removal state without touching normal profile
 settings. Neither is visual/DPI/keyboard or Windows11 acceptance.
 
-Next: qualify the new recovery journey natively and produce a distributable installer;
+Next: complete recovery qualification and produce a distributable installer;
 effective Claude enable/verify/disable and other retained-output recovery; full independent
 first-download journey and final QA. Windows11 ordinary-account/SmartScreen and
 real authenticated Claude evidence remain mandatory, as does release approval.

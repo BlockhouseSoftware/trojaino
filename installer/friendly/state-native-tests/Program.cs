@@ -6,6 +6,8 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using Trojaino.Setup;
 class Program
 {
@@ -21,10 +23,33 @@ class Program
         }
         throw new Exception("Unsafe production state operation accepted");
     }
+    [StructLayout(LayoutKind.Sequential)] struct FileInformation
+    {
+        internal uint Attributes, CreatedLow, CreatedHigh, AccessLow, AccessHigh, WriteLow, WriteHigh, Volume, SizeHigh, SizeLow, Links, IndexHigh, IndexLow;
+    }
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern SafeFileHandle CreateFileW(string path, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetFileInformationByHandle(SafeFileHandle handle, out FileInformation info);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern bool CreateHardLinkW(string alias, string existing, IntPtr security);
+    // Diagnostic only: unlike the production ownership gate, observe hardlink IDs
+    // and link counts so the refusal itself, not the before-snapshot, is exercised.
+    static string ObservedIdentity(string path)
+    {
+        using (var handle = CreateFileW(path, 0, 7, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero))
+        {
+            if (handle.IsInvalid) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+            FileInformation info;
+            if (!GetFileInformationByHandle(handle, out info)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+            Check((info.Attributes & 0x400) == 0, "Reparse snapshot requires a separate no-follow fixture");
+            return info.Volume + ":" + info.IndexHigh + ":" + info.IndexLow + ":" + info.CreatedHigh + ":" + info.CreatedLow + ":links=" + info.Links;
+        }
+    }
     static string[] Snapshot(string root)
     {
         return new[] { root }.Concat(Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories)).OrderBy(p => p, StringComparer.Ordinal).Select(p =>
-            p + "|" + Bootstrap.Identity(p) + "|" + (Directory.Exists(p) ? "directory" : Bootstrap.Hash(File.ReadAllBytes(p)))).ToArray();
+            p + "|" + ObservedIdentity(p) + "|" + (Directory.Exists(p) ? "directory" : Bootstrap.Hash(File.ReadAllBytes(p)))).ToArray();
     }
     static void Main(string[] args)
     {
@@ -133,6 +158,22 @@ class Program
             using (var locked = new FileStream(survivor, FileMode.Open, FileAccess.Read, FileShare.None))
                 Refuse(() => StateStore.LoadRemaining(root, state));
             Check(Snapshot(temp).SequenceEqual(beforeRefusal), "Read-sharing access refusal altered inventory/identities/bytes");
+            foreach (string linked in new[] { survivor, file })
+            {
+                string alias = Path.Combine(temp, "outside-hardlink.bin");
+                Check(CreateHardLinkW(alias, linked, IntPtr.Zero), "Native hardlink fixture creation failed: " + Marshal.GetLastWin32Error());
+                try
+                {
+                    Check(ObservedIdentity(alias) == ObservedIdentity(linked) && ObservedIdentity(linked).EndsWith(":links=2", StringComparison.Ordinal), "Fixture is not the same original two-link object");
+                    beforeRefusal = Snapshot(temp);
+                    Refuse(() => StateStore.LoadRemaining(root, state), "hard-linked object refused");
+                    Refuse(() => remainder.Remove(), "hard-linked object refused");
+                    Check(Snapshot(temp).SequenceEqual(beforeRefusal), "Hardlink refusal changed either tree, original identity, aliases or bytes");
+                }
+                finally { File.Delete(alias); } // Only the alias explicitly created by this test.
+                StateStore.LoadRemaining(root, state); // Original ownership remains valid when test alias is retired.
+            }
+            Console.WriteLine("PASS actual native runtime/state original hardlink refusals in LoadRemaining and stale Remove; whole inventory/native IDs/link counts/bytes unchanged, original ownership reverified after test alias retirement");
             foreach (string unknownRoot in new[] { root, state })
             {
                 string unknown = Path.Combine(unknownRoot, "unknown"); File.WriteAllBytes(unknown, content);
