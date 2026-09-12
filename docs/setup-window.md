@@ -54,6 +54,15 @@ person must wait. It does not claim cancellation during the synchronous commit,
 process-kill resistance, Windows shutdown prevention or crash recovery. The
 application guard belongs to `SetupProgram`, not to a Form constructed in isolation.
 
+The window harness keeps a persistent `Application.Run(ApplicationContext)` loop
+across the entire twice-repeated journey, including closed/reopened fixture forms.
+It checks UI-thread affinity and retains every consent/removal/preservation assertion.
+The earlier standalone `DoEvents` harness was invalid: exact native diagnostic
+`d4d3a32` recorded completion control events on threads 3/7 while the UI owned thread 1.
+The production launcher already uses a persistent `Application.Run(window)` loop;
+no production state ordering or ownership checks were changed to hide that failure.
+Nested test waits still pump events; this is not visual or keyboard qualification.
+
 Native Windows Server Framework tests execute actual controls and handlers in
 isolated OS-folder fixtures: unchecked/revoked consent and initial zero writes;
 real approved runtime/controller install; busy close; authenticated reopen; changed

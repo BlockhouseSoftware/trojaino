@@ -12,6 +12,12 @@ internal static class WindowTests
     static void Assert(bool ok, string why) { if (!ok) throw new Exception("ASSERT: " + why); }
     static T Control<T>(Form form, string name) where T : Control
     { return (T)form.Controls.Find(name, true).Single(); }
+    static int uiThread;
+    static void ObserveThread(Control control)
+    {
+        control.EnabledChanged += delegate { Assert(Thread.CurrentThread.ManagedThreadId == uiThread, "control update left owning UI thread: " + control.Name); };
+        foreach (Control child in control.Controls) ObserveThread(child);
+    }
     static Form Open(DefaultSetupPlan plan)
     {
         var type = Assembly.GetExecutingAssembly().GetType("Trojaino.Setup.SetupWindow");
@@ -19,10 +25,11 @@ internal static class WindowTests
         var factory = type.GetMethod("TestCreate", BindingFlags.Static | BindingFlags.NonPublic);
         Assert(factory != null, "fixture-only window entry missing");
         var form = (Form)factory.Invoke(null, new object[] {plan});
-        form.Show(); return form;
+        ObserveThread(form); form.Show(); return form;
     }
     static void Idle(Form form)
     {
+        Assert(Thread.CurrentThread.ManagedThreadId == uiThread && SynchronizationContext.Current is WindowsFormsSynchronizationContext && Application.MessageLoop, "operation lost persistent UI context");
         var clock = Stopwatch.StartNew();
         while (!Control<Button>(form, "refresh").Enabled)
         {
@@ -35,6 +42,29 @@ internal static class WindowTests
     static int Main()
     {
         Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+        System.Windows.Forms.Control.CheckForIllegalCrossThreadCalls = true;
+        uiThread = Thread.CurrentThread.ManagedThreadId;
+        Exception failure = null;
+        using (var context = new ApplicationContext())
+        using (var dispatch = new System.Windows.Forms.Control())
+        {
+            var handle = dispatch.Handle;
+            dispatch.BeginInvoke((Action)delegate {
+                try { Journey(); Journey(); }
+                catch (Exception error) { failure = error; }
+                finally { context.ExitThread(); }
+            });
+            // Unlike standalone DoEvents, this outer loop keeps the same WinForms
+            // synchronization context alive across every operation and reopened form.
+            Application.Run(context);
+        }
+        if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        return 0;
+    }
+    static void Journey()
+    {
+        Assert(SynchronizationContext.Current is WindowsFormsSynchronizationContext && Application.MessageLoop, "journey requires persistent native UI loop");
         string root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "ui-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root); string local = Path.Combine(root, "local"); Directory.CreateDirectory(local);
         bool journeyFinished = false;
@@ -73,10 +103,6 @@ internal static class WindowTests
                 Assert(reopened.Controls.Find("remove", true).Length == 1 && reopened.Controls.Find("removalConsent", true).Length == 1, "consented removal controls are missing");
                 var remove = Control<Button>(reopened, "remove");
                 var removalConsent = Control<CheckBox>(reopened, "removalConsent");
-                int uiThread = Thread.CurrentThread.ManagedThreadId;
-                var events = new System.Collections.Concurrent.ConcurrentQueue<string>();
-                removalConsent.EnabledChanged += delegate { events.Enqueue("consent=" + removalConsent.Enabled + " thread=" + Thread.CurrentThread.ManagedThreadId); };
-                Control<Button>(reopened, "refresh").EnabledChanged += delegate { events.Enqueue("refresh=" + Control<Button>(reopened, "refresh").Enabled + " thread=" + Thread.CurrentThread.ManagedThreadId); };
                 Assert(!removalConsent.Checked && !remove.Enabled, "removal consent defaults unsafe");
                 Assert(removalConsent.Text.Contains("all Claude Code sessions") && removalConsent.Text.Contains("remove") && removalConsent.Text.Contains("runtime"), "removal consent lacks closed-session/destructive scope explanation");
                 string setting = Path.Combine(root, ".claude", "settings.json");
@@ -101,7 +127,7 @@ internal static class WindowTests
                 Bootstrap.Verify(pair.Runtime.Component); Bootstrap.Verify(pair.Runtime.State); Bootstrap.Verify(pair.Plugin.Component);
                 File.Delete(extra); PairState.Verify(pair);
                 Control<Button>(reopened, "refresh").PerformClick(); Idle(reopened);
-                Assert(!removalConsent.Checked && !remove.Enabled && removalConsent.Enabled, "recheck silently restored removal consent: checked=" + removalConsent.Checked + "; remove=" + remove.Enabled + "; consent=" + removalConsent.Enabled + "; status=" + Control<Label>(reopened, "status").Text + "; uiThread=" + uiThread + "; context=" + (SynchronizationContext.Current == null ? "null" : SynchronizationContext.Current.GetType().FullName) + "; events=" + String.Join(",", events.ToArray()) + "; details=" + Control<TextBox>(reopened, "details").Text);
+                Assert(!removalConsent.Checked && !remove.Enabled && removalConsent.Enabled, "verified recheck did not restore unchecked removal choice: checked=" + removalConsent.Checked + "; remove=" + remove.Enabled + "; consent=" + removalConsent.Enabled + "; status=" + Control<Label>(reopened, "status").Text + "; details=" + Control<TextBox>(reopened, "details").Text);
                 removalConsent.Checked = true; remove.PerformClick(); Idle(reopened);
                 Assert(Control<Label>(reopened, "status").Text.Contains("Removed") && !remove.Enabled && !removalConsent.Checked, "actual UI removal did not complete honestly");
                 Assert(new[] {pair.Runtime.Component.Root, pair.Runtime.State.Root, pair.Plugin.Component.Root, pair.Plugin.State.Root}.All(p => !Directory.Exists(p)), "UI removal left owned pair trees");
@@ -130,6 +156,5 @@ internal static class WindowTests
             if (journeyFinished) Directory.Delete(root, true);
             else Console.WriteLine("RETAINED failed window-test fixture; helper exit is unconfirmed: " + root);
         }
-        return 0;
     }
 }
