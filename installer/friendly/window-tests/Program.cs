@@ -74,10 +74,16 @@ internal static class WindowTests
                 var remove = Control<Button>(reopened, "remove");
                 var removalConsent = Control<CheckBox>(reopened, "removalConsent");
                 Assert(!removalConsent.Checked && !remove.Enabled, "removal consent defaults unsafe");
+                Assert(removalConsent.Text.Contains("all Claude Code sessions") && removalConsent.Text.Contains("remove") && removalConsent.Text.Contains("runtime"), "removal consent lacks closed-session/destructive scope explanation");
+                string setting = Path.Combine(root, ".claude", "settings.json");
+                byte[] settingBytes = System.Text.Encoding.UTF8.GetBytes("{\"testOnly\":true}"); File.WriteAllBytes(setting, settingBytes);
+                string sibling = Path.Combine(root, ".claude", "skills", "unrelated.txt"); File.WriteAllBytes(sibling, new byte[] {1, 2, 3});
                 remove.PerformClick(); PairState.Verify(DefaultSetupDiscovery.TestFind(plan));
                 removalConsent.Checked = true; Assert(remove.Enabled, "explicit removal consent ignored");
                 removalConsent.Checked = false; Assert(!remove.Enabled, "revoked removal consent ignored");
                 remove.PerformClick(); PairState.Verify(DefaultSetupDiscovery.TestFind(plan));
+                removalConsent.Checked = true; Control<Button>(reopened, "refresh").PerformClick(); Idle(reopened);
+                Assert(!removalConsent.Checked && !remove.Enabled, "recheck retained prior removal consent");
                 var pair = DefaultSetupDiscovery.TestFind(plan);
                 removalConsent.Checked = true;
                 string extra = Path.Combine(pair.Plugin.State.Root, "unknown-after-consent");
@@ -97,6 +103,7 @@ internal static class WindowTests
                 Assert(new[] {pair.Runtime.Component.Root, pair.Runtime.State.Root, pair.Plugin.Component.Root, pair.Plugin.State.Root}.All(p => !Directory.Exists(p)), "UI removal left owned pair trees");
                 Assert(DefaultSetupDiscovery.TestFind(plan) == null, "removed pair still discovered");
                 Assert(Directory.Exists(Path.Combine(root, ".claude", "skills")), "removal deleted shared parents");
+                Assert(File.ReadAllBytes(setting).SequenceEqual(settingBytes) && File.ReadAllBytes(sibling).SequenceEqual(new byte[] {1, 2, 3}), "removal changed unrelated Claude settings/skill bytes");
                 reopened.Close();
             }
             using (var stale = Open(plan))
@@ -110,7 +117,7 @@ internal static class WindowTests
                 stale.Close(); File.Delete(unknown);
             }
             journeyFinished = true;
-            Console.WriteLine("PASS native actual WinForms controls: unchecked/revoked consent zero writes, real approved default setup, busy close retained, existing authenticated rediscovery, stale hint refusal/exact unknown bytes retained; protection never claimed; NOT Windows11/visual/keyboard/Claude qualification");
+            Console.WriteLine("PASS native actual WinForms controls: unchecked/revoked consent zero writes, real approved default setup, busy close retained, authenticated reopen; explicit consented UI removal, stale unknown-state refusal, all four owned trees removed, shared parents/settings/unrelated skills retained; protection never claimed; NOT Windows11/visual/keyboard/Claude qualification");
         }
         finally
         {

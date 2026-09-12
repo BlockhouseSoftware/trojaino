@@ -1,7 +1,9 @@
 # Native setup staging core — engineering only
 
 This directory is not an independently usable installer. Do not send its test
-binary, source, or SDK instructions to Sig. No GUI or end-user EXE exists here.
+binary, source, or SDK instructions to Sig. A real development-preview WinForms
+window and production-symbol x64 WinExe build now exist; neither has completed
+the independent first-download/Windows11/Claude acceptance journey.
 
 `Bootstrap.cs` implements pre-Python staging of one build-approved ZIP into a
 new private final directory. It authenticates complete archive and member bytes,
@@ -33,7 +35,7 @@ creation: native AMD64 via IsWow64Process2, Fixed+NTFS, literal Windows spelling
 reserved devices, full member-path budgets, non-reparse ancestors, long-name and
 final-handle parent equality. It refuses missing/failed probes without fallback.
 Portable predicate tests are not proof of these native APIs or NTFS behavior.
-The future GUI must select the approved known-folder destination; this component
+The GUI selects the approved known-folder destination; this component
 is not a general caller-selected extractor. The user chooses Install, not a path.
 macOS identity code uses Darwin's stat64 ABI, not Linux. The approved threat
 boundary excludes hostile same-user/admin/compromised-OS races; safeguards remain.
@@ -45,8 +47,12 @@ then authenticates the exact persisted pair before returning it. It performs no
 writes, runtime execution or cleanup. See [rediscovery](../../docs/setup-rediscovery.md)
 for bounded enumeration, incomplete-state refusal and native test scope. The
 friendly [consent/setup window](../../docs/setup-window.md) now uses this discovery
-and the real disabled-install controller. A guarded executable, effective Claude
-lifecycle and independent-install qualification remain unfinished.
+and the real disabled-install controller. `SetupProgram` guards the window with
+an account-specific mutex, and the native workflow builds the embedded WinExe.
+Consented local file removal uses fresh authenticated rediscovery and the owned
+pair. It does not terminate Claude sessions, change settings or qualify effective
+disablement. Effective Claude lifecycle, partial-output recovery and independent-
+install qualification remain unfinished.
 
 ## Developer-only verification
 
