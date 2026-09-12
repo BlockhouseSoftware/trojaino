@@ -6,8 +6,12 @@ namespace Trojaino.Setup
     internal sealed class DefaultSetupPlan
     {
         readonly string[] roots;
-        readonly string name;
-        DefaultSetupPlan(string[] roots, string name) { this.roots = (string[])roots.Clone(); this.name = name; }
+        readonly string name, profile, local;
+        DefaultSetupPlan(string[] roots, string name, string profile, string local)
+        { this.roots = (string[])roots.Clone(); this.name = name; this.profile = profile; this.local = local; }
+        internal string Profile { get { return profile; } }
+        internal string LocalData { get { return local; } }
+        internal DefaultSetupPlan WithIdentity(string id) { return Create(profile, local, null, id); }
         internal string[] Roots { get { return (string[])roots.Clone(); } }
         internal string Name { get { return name; } }
         internal static DefaultSetupPlan Resolve()
@@ -37,7 +41,7 @@ namespace Trojaino.Setup
                 profile + "\\.claude\\skills\\" + name, prefix + "-runtime-state", prefix + "-plugin-state"
             };
             SetupLocations.ValidateLayout(roots, name);
-            return new DefaultSetupPlan(roots, name);
+            return new DefaultSetupPlan(roots, name, profile, local);
         }
 #if SETUP_PLAN_TESTS
         internal static DefaultSetupPlan TestCreate(string profile, string local, string config, string id)

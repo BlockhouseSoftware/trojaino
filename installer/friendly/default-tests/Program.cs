@@ -18,6 +18,15 @@ internal static class DefaultTests
         try { return (PairState.Record)method.Invoke(null, new object[] {plan, cancellation}); }
         catch (TargetInvocationException error) { throw error.InnerException; }
     }
+    static PairState.Record Discover(DefaultSetupPlan fixture)
+    {
+        var type = Assembly.GetExecutingAssembly().GetType("Trojaino.Setup.DefaultSetupDiscovery");
+        Assert(type != null, "discovery missing");
+        var method = type.GetMethod("TestFind", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert(method != null, "native discovery fixture seam missing");
+        try { return (PairState.Record)method.Invoke(null, new object[] {fixture}); }
+        catch (TargetInvocationException error) { throw error.InnerException; }
+    }
     static int Main(string[] args)
     {
         Assert(typeof(SharedParents).GetMethod("TestRun", BindingFlags.NonPublic | BindingFlags.Static) == null, "raw parent seam leaked");
@@ -28,9 +37,15 @@ internal static class DefaultTests
         Assert(refused, "exact unsupported-platform refusal required");
         Console.WriteLine("PASS default composition production controller/parent seams absent; exact non-Framework refusal; NOT native execution");
 #else
-        if (args.Length == 5 && args[0] == "--remove")
+        if (args.Length == 3 && args[0] == "--rediscover-remove")
         {
-            PairState.Remove(PairState.Load(args[1], args[2], args[3], args[4])); return 0;
+            // Only fixture OS-folder inputs cross processes; no saved component paths or identity.
+            var fixture = DefaultSetupPlan.TestCreate(args[1], args[2], null, Guid.NewGuid().ToString("N"));
+            var found = Discover(fixture);
+            Assert(found != null, "fresh process failed to rediscover existing install");
+            PairState.Remove(found);
+            Assert(Discover(fixture) == null, "removed install still discovered");
+            return 0;
         }
         Assert(args.Length == 0, "unexpected fixture arguments");
         string root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "dc-" + Guid.NewGuid().ToString("N"));
@@ -46,7 +61,20 @@ internal static class DefaultTests
             try { Install(plan, CancellationToken.None); } catch (InvalidDataException) { refused = true; }
             Assert(refused && !Directory.Exists(config) && File.ReadAllText(roots[5]) == "retain" && Directory.GetFileSystemEntries(local).Length == 1, "last-role conflict wrote parents or changed prior");
             File.Delete(roots[5]);
+            Assert(Discover(plan) == null && !Directory.Exists(config), "discovery wrote optional parents");
             var pair = Install(plan, CancellationToken.None); PairState.Verify(pair);
+            var reopened = Discover(DefaultSetupPlan.TestCreate(root, local, null, Guid.NewGuid().ToString("N")));
+            Assert(reopened.Runtime.Component.Root == roots[0], "rediscovery invented a new installation");
+            string unknown = Path.Combine(roots[5], "unknown"); File.WriteAllText(unknown, "keep");
+            bool unknownRefused = false;
+            try { Discover(plan); } catch (InvalidDataException) { unknownRefused = true; }
+            Assert(unknownRefused && File.ReadAllText(unknown) == "keep", "unknown state accepted or changed");
+            File.Delete(unknown);
+            string residual = roots[2]; Directory.CreateDirectory(residual);
+            bool residualRefused = false;
+            try { Discover(plan); } catch (InvalidDataException) { residualRefused = true; }
+            Assert(residualRefused && Directory.Exists(residual), "transient residual accepted/deleted");
+            Directory.Delete(residual);
             Assert(!Directory.Exists(roots[1]) && !Directory.Exists(roots[2]), "transient inputs remain");
             Assert(pair.Runtime.Component.Root == roots[0] && pair.Plugin.Component.Root == roots[3] && pair.Runtime.State.Root == roots[4] && pair.Plugin.State.Root == roots[5], "different plan/returned ownership");
             var json = new System.Web.Script.Serialization.JavaScriptSerializer();
@@ -60,13 +88,13 @@ internal static class DefaultTests
             string[] paths = new[] {roots[0], roots[3], roots[4], roots[5]};
             Assert(paths.All(p => !p.Contains("\"") && !p.EndsWith("\\")), "safe child fixture quoting");
             using (var child = Process.Start(new ProcessStartInfo { FileName = Process.GetCurrentProcess().MainModule.FileName,
-                UseShellExecute = false, CreateNoWindow = true, Arguments = "--remove " + string.Join(" ", paths.Select(p => "\"" + p + "\"")) }))
+                UseShellExecute = false, CreateNoWindow = true, Arguments = "--rediscover-remove \"" + root + "\" \"" + local + "\"" }))
             {
                 if (!child.WaitForExit(30000)) { child.Kill(); child.WaitForExit(5000); throw new TimeoutException("remove fixture child timed out"); }
                 Assert(child.ExitCode == 0, "fresh process DPAPI remove failed");
             }
             Assert(roots.All(p => !Directory.Exists(p)) && Directory.Exists(Path.Combine(config, "skills")), "components removed/shared parents retained");
-            Console.WriteLine("PASS native default plan -> missing shared parents -> actual approved CPython/controller -> verified exact persistent roots, disabled name/literal binding -> fresh-process DPAPI removal; pre-cancel and occupied last role zero parent writes; shared parents retained; NOT GUI/activation/Windows11");
+            Console.WriteLine("PASS native default plan -> missing shared parents -> actual approved CPython/controller -> verified exact persistent roots, disabled name/literal binding -> fresh-process identity-free rediscovery and DPAPI removal; absent optional folders zero writes, unknown state/residual refusal; pre-cancel and occupied last role zero parent writes; shared parents retained; NOT GUI/activation/Windows11");
         }
         finally { Directory.Delete(root, true); }
 #endif

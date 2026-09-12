@@ -341,8 +341,8 @@ jobs:
           # Composition starts with missing shared parents and runs the real approved
           # helper/controller. Only default-plan fixture input is compiled into tests.
           $defaultExe = Join-Path $work 'DefaultTests.exe'
-          $defaultSources = $controllerSources + @('DefaultSetupPlan.cs', 'SharedParents.cs', 'DefaultSetup.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) })
-          $defaultArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS', ('/out:' + $defaultExe), ('/reference:' + $securityRef), ('/reference:' + $serializerRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\default-tests\Program.cs'))
+          $defaultSources = $controllerSources + @('DefaultSetupPlan.cs', 'DefaultSetupDiscovery.cs', 'SharedParents.cs', 'DefaultSetup.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) })
+          $defaultArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS', ('/out:' + $defaultExe), ('/reference:' + $securityRef), ('/reference:' + $serializerRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\default-tests\Program.cs'))
           $defaultRsp = Join-Path $work 'default.rsp'
           $defaultArgs | ForEach-Object {
             if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
@@ -352,5 +352,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native default composition compilation failed: ' + ($compiled -join "`n")) }
           $defaultResult = & $defaultExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native default composition tests failed: ' + ($defaultResult -join "`n")) }
-          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; qualification='default plan, transient shared parents and actual approved helper/controller/DPAPI composition; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          $discoveryResults = @()
+          foreach ($kind in @('pure', 'production')) {
+            $discoveryExe = Join-Path $work ($kind + '-DiscoveryTests.exe')
+            $testPath = if ($kind -eq 'pure') { 'installer\friendly\discovery-tests\Program.cs' } else { 'installer\friendly\discovery-production-tests\Program.cs' }
+            $symbols = if ($kind -eq 'pure') { '/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS' } else { '/define:NETFRAMEWORK' }
+            $discoveryArgs = $common + @($symbols, ('/out:' + $discoveryExe), ('/reference:' + $securityRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $discoveryRsp = Join-Path $work ($kind + '-discovery.rsp')
+            $discoveryArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $discoveryRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $discoveryRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native discovery compilation failed: ' + ($compiled -join "`n")) }
+            $discoveryResult = & $discoveryExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native discovery tests failed: ' + ($discoveryResult -join "`n")) }
+            $discoveryResults += $discoveryResult
+          }
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; qualification='default plan, transient shared parents and actual approved helper/controller/DPAPI composition; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
