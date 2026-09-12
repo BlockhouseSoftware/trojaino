@@ -178,6 +178,12 @@ internal static class WindowTests
                     Assert(Control<Label>(partial, "status").Text.Contains("could not") && recoveryDetails.Contains("System.IO.IOException"), "actual partial removal error missing");
                     Assert(!Control<Button>(partial, "install").Enabled && !Control<Button>(partial, "remove").Enabled, "partial removal authorized a new operation");
                 }
+                // Deterministic companion to the real lock failure: retire one known
+                // fixture file so the missing-original-file recovery branch is exercised.
+                string retired = pair.Runtime.Component.Hashes.Keys.First(p => p != runtimeFile && File.Exists(p));
+                File.Delete(retired);
+                try { Bootstrap.Verify(pair.Runtime.Component); throw new Exception("ASSERT: ordinary runtime verification accepted missing file"); }
+                catch (InvalidDataException) { }
                 survivors = Snapshot(root);
                 partial.Close();
             }
@@ -196,20 +202,50 @@ internal static class WindowTests
                 var action = Control<Button>(finish, "finishRemoval");
                 var agreement = Control<CheckBox>(finish, "finishRemovalConsent");
                 Assert(!agreement.Checked && !action.Enabled && agreement.Enabled, "finish-removal choice did not require fresh consent");
+                Assert(Control<TextBox>(finish, "details").Text.Contains(plan.Roots[0]) && Control<TextBox>(finish, "details").Text.Contains(plan.Roots[4]), "recovery consent does not display the authenticated runtime and ownership-state locations");
+                Assert(!Control<Button>(finish, "install").Enabled && !Control<Button>(finish, "remove").Enabled, "fresh recovery display enabled ordinary actions");
                 Assert(agreement.Text.Contains("all Claude Code sessions") && agreement.Text.Contains("remaining"), "finish-removal consent lacks closed-session and remaining-file scope");
                 action.PerformClick(); Assert(Snapshot(root).SequenceEqual(survivors), "unconsented finish removal changed survivors");
                 agreement.Checked = true; Assert(action.Enabled, "finish-removal consent ignored");
                 agreement.Checked = false; action.PerformClick();
                 Assert(!action.Enabled && Snapshot(root).SequenceEqual(survivors), "revoked finish-removal consent ignored");
+                foreach (string role in new[] {plan.Roots[0], plan.Roots[4]})
+                {
+                    agreement.Checked = true;
+                    string extra = Path.Combine(role, "unknown-before-finish"); File.WriteAllBytes(extra, new byte[] {7, 0, 255});
+                    string[] unknownSnapshot = Snapshot(root);
+                    action.PerformClick(); Idle(finish);
+                    Assert(Control<Label>(finish, "status").Text.Contains("could not") && !action.Enabled && !agreement.Checked, "stale interrupted-removal recovery trusted unknown content");
+                    Assert(!Control<Button>(finish, "install").Enabled && !Control<Button>(finish, "remove").Enabled, "recovery failure enabled ordinary actions");
+                    Assert(Snapshot(root).SequenceEqual(unknownSnapshot), "failed finish removal changed unknown or owned survivor bytes/identities");
+                    File.Delete(extra); // Only the test-created unknown file, never production recovery.
+                    Control<Button>(finish, "refresh").PerformClick(); Idle(finish);
+                    Assert(agreement.Enabled && !agreement.Checked && !action.Enabled, "recheck failed to restore fresh recovery choice");
+                    Assert(!Control<Button>(finish, "install").Enabled && !Control<Button>(finish, "remove").Enabled, "recovery recheck enabled ordinary actions");
+                }
+                var secondPlan = DefaultSetupPlan.TestCreate(root, local, null, Guid.NewGuid().ToString("N"));
+                var second = DefaultSetup.Install(secondPlan, CancellationToken.None);
                 agreement.Checked = true;
-                string extra = Path.Combine(plan.Roots[0], "unknown-before-finish"); File.WriteAllBytes(extra, new byte[] {7, 0, 255});
-                string[] unknownSnapshot = Snapshot(root);
+                string[] ambiguousSnapshot = Snapshot(root);
                 action.PerformClick(); Idle(finish);
-                Assert(Control<Label>(finish, "status").Text.Contains("could not") && !action.Enabled && !agreement.Checked, "stale interrupted-removal recovery trusted unknown content");
-                Assert(Snapshot(root).SequenceEqual(unknownSnapshot), "failed finish removal changed unknown or owned survivor bytes/identities");
-                File.Delete(extra); // Only the test-created unknown file, never production recovery.
+                Assert(!agreement.Checked && !action.Enabled && Snapshot(root).SequenceEqual(ambiguousSnapshot), "second identity did not revoke stale recovery consent without writes");
+                PairState.Remove(second); // Only the test's returned original pair authority.
                 Control<Button>(finish, "refresh").PerformClick(); Idle(finish);
-                Assert(agreement.Enabled && !agreement.Checked && !action.Enabled, "recheck failed to restore fresh recovery choice");
+                Assert(agreement.Enabled && !agreement.Checked && !action.Enabled, "second-identity recovery failed to require renewed consent");
+                agreement.Checked = true;
+                second = DefaultSetup.Install(secondPlan, CancellationToken.None);
+                StateStore.Remove(second.Plugin); // Make a different authentic remainder using original authority.
+                string heldRuntime = Path.Combine(root, "held-runtime"), heldState = Path.Combine(root, "held-state");
+                Directory.Move(plan.Roots[0], heldRuntime); Directory.Move(plan.Roots[4], heldState);
+                string[] switchedSnapshot = Snapshot(root);
+                action.PerformClick(); Idle(finish);
+                Assert(Control<TextBox>(finish, "details").Text.Contains("displayed remaining installation changed") && Control<Label>(finish, "status").Text.Contains("could not") && !agreement.Checked && !action.Enabled && Snapshot(root).SequenceEqual(switchedSnapshot), "consent silently rebound to a different authentic remaining identity");
+                Directory.Move(heldRuntime, plan.Roots[0]); Directory.Move(heldState, plan.Roots[4]);
+                StateStore.LoadRemaining(secondPlan.Roots[0], secondPlan.Roots[4]).Remove();
+                Control<Button>(finish, "refresh").PerformClick(); Idle(finish);
+                Assert(agreement.Enabled && !agreement.Checked && !action.Enabled, "identity-switch refusal failed to reset consent");
+                string[] unrelated = new[] {Path.Combine(root, ".claude"), Path.Combine(root, ".claude", "skills"), Path.Combine(root, ".claude", "settings.json"), Path.Combine(root, ".claude", "skills", "unrelated.txt")};
+                string[] unrelatedBefore = Snapshot(root).Where(line => unrelated.Any(path => line.StartsWith(path + "|", StringComparison.Ordinal))).ToArray();
                 agreement.Checked = true; action.PerformClick();
                 Assert(!action.Enabled && !agreement.Enabled, "busy finish removal permits duplicate action");
                 finish.Close(); Assert(!finish.IsDisposed, "busy finish removal abandoned worker");
@@ -217,11 +253,11 @@ internal static class WindowTests
                 Assert(Control<Label>(finish, "status").Text.Contains("Removed") && !action.Enabled && !agreement.Checked, "finish removal did not report verified absence");
                 Assert(new[] {plan.Roots[0], plan.Roots[3], plan.Roots[4], plan.Roots[5]}.All(p => !Directory.Exists(p)), "finish removal left owned trees");
                 Assert(DefaultSetupDiscovery.TestFind(plan) == null, "finished removal remains discoverable");
-                Assert(File.ReadAllText(Path.Combine(root, ".claude", "settings.json")) == "{\"testOnly\":true}" && File.ReadAllBytes(Path.Combine(root, ".claude", "skills", "unrelated.txt")).SequenceEqual(new byte[] {1, 2, 3}), "finish removal changed unrelated settings/skills");
+                Assert(Snapshot(root).Where(line => unrelated.Any(path => line.StartsWith(path + "|", StringComparison.Ordinal))).SequenceEqual(unrelatedBefore), "finish removal changed unrelated parent/settings/skill identities or bytes");
                 finish.Close();
             }
             Console.WriteLine("PASS native consented finish-removal UI: original partial runtime survivors authenticated; unchecked/revoked consent and stale unknown content preserve all bytes/identities; fresh recheck, busy-close guard, removal and unrelated-file preservation; NOT arbitrary leftover adoption/crash recovery");
-            Console.WriteLine("PASS native locked-runtime partial removal: plugin retired before IOException, runtime bytes/state retained, actions refused, reopened survivor inventory/identity/hashes unchanged, explicit closed-session/partway guidance; NOT automatic recovery");
+            Console.WriteLine("PASS native initial locked-runtime failure/reopen phase: plugin retired before IOException, runtime bytes/state retained, ordinary actions refused, reopened survivor inventory/identity/hashes unchanged, explicit closed-session/partway guidance; recovery tested separately");
             journeyFinished = true;
             Console.WriteLine("PASS native actual WinForms controls: unchecked/revoked consent zero writes, real approved default setup, busy close retained, authenticated reopen; explicit consented UI removal, stale unknown-state refusal, all four owned trees removed, shared parents/settings/unrelated skills retained; protection never claimed; NOT Windows11/visual/keyboard/Claude qualification");
         }

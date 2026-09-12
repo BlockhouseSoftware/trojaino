@@ -184,7 +184,27 @@ namespace Trojaino.Setup
                 throw;
             }
         }
+        // This wrapper grants removal only, never installed-pair/activation authority.
+        internal sealed class Removal
+        {
+            readonly Record record;
+            internal Removal(Record record) { this.record = record; }
+            internal string Root { get { return record.Component.Root; } }
+            internal void Remove() { StateStore.Remove(record); }
+        }
+        static Bootstrap.Receipt OpenRemainingComponent(byte[] bytes, string root, string path)
+        {
+#if STATE_STORE_TESTS
+            return ReceiptCodec.TestDecodeRemaining(bytes, root, path);
+#else
+            return ReceiptCodec.OpenRemaining(bytes, root, path);
+#endif
+        }
+        internal static Removal LoadRemaining(string root, string state)
+        { return new Removal(LoadCore(root, state, OpenRemainingComponent)); }
         internal static Record Load(string root, string state)
+        { return LoadCore(root, state, OpenComponent); }
+        static Record LoadCore(string root, string state, Func<byte[], string, string, Bootstrap.Receipt> openComponent)
         {
             Platform();
             string path = Location(state);
@@ -213,7 +233,7 @@ namespace Trojaino.Setup
                     Require(length > 0 && length <= MaxInner, "Inner receipt budget exceeded");
                     byte[] inner = reader.ReadBytes(length);
                     Require(inner.Length == length && memory.Position == memory.Length, "Truncated or trailing state data");
-                    var component = OpenComponent(inner, root, path);
+                    var component = openComponent(inner, root, path);
                     // This is authenticated object ownership, not an adopted disk inventory.
                     var owned = new Bootstrap.Receipt(state);
                     owned.Identities.Add(state, directoryIdentity); owned.Identities.Add(path, fileIdentity);

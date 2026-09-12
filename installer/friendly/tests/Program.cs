@@ -103,6 +103,58 @@ internal static class Tests
         }
         finally { Directory.Delete(parent, true); }
     }
+    static void RemainingOwnedRemoval()
+    {
+        var method = typeof(Trojaino.Setup.Bootstrap).GetMethod("Remaining", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert(method != null, "authenticated-receipt remaining-file verification is missing");
+        Func<object, object> remaining = original => {
+            try { return method.Invoke(null, new[] {original}); }
+            catch (TargetInvocationException error) { throw error.InnerException; }
+        };
+        string parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-remaining-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            string destination = Path.Combine(parent, "runtime");
+            var files = new Dictionary<string, byte[]> { {"Lib/a.txt", new byte[] {1, 2, 3}}, {"b.txt", new byte[] {4}}, {"Lib/gone.txt", new byte[] {5}} };
+            byte[] data = Zip(files);
+            var original = Call("Install", data, Hash(data), files.ToDictionary(f => f.Key, f => Hash(f.Value)), destination);
+            File.Delete(Path.Combine(destination, "Lib", "gone.txt"));
+            try { Call("Verify", original); throw new Exception("ASSERT: normal verification accepted missing member"); } catch (InvalidDataException) { }
+            string unknown = Path.Combine(destination, "unknown.txt"); File.WriteAllBytes(unknown, new byte[] {255});
+            try { remaining(original); throw new Exception("ASSERT: removal-only verification adopted unknown member"); } catch (InvalidDataException) { }
+            Assert(File.ReadAllBytes(unknown).SequenceEqual(new byte[] {255}) && File.ReadAllBytes(Path.Combine(destination, "b.txt")).SequenceEqual(new byte[] {4}), "unknown refusal changed bytes");
+            File.Delete(unknown);
+            string replaced = Path.Combine(destination, "Lib", "a.txt"), held = Path.Combine(parent, "held.txt");
+            File.Move(replaced, held); File.WriteAllBytes(replaced, files["Lib/a.txt"]);
+            try { remaining(original); throw new Exception("ASSERT: removal-only verification trusted same-byte replacement"); } catch (InvalidDataException) { }
+            Assert(File.Exists(held) && File.ReadAllBytes(replaced).SequenceEqual(files["Lib/a.txt"]), "replacement refusal changed bytes");
+            File.Delete(replaced); File.Move(held, replaced);
+            File.WriteAllBytes(replaced, new byte[] {9, 9, 9});
+            try { remaining(original); throw new Exception("ASSERT: removal-only verification trusted changed bytes"); } catch (InvalidDataException) { }
+            File.WriteAllBytes(replaced, files["Lib/a.txt"]);
+            string library = Path.Combine(destination, "Lib"), heldLibrary = Path.Combine(parent, "held-library");
+            Directory.Move(library, heldLibrary);
+            try { remaining(original); throw new Exception("ASSERT: removal recovery accepted missing directory"); } catch (InvalidDataException) { }
+            File.WriteAllBytes(library, new byte[] {6});
+            try { remaining(original); throw new Exception("ASSERT: removal recovery accepted directory-to-file change"); } catch (InvalidDataException) { }
+            Assert(File.ReadAllBytes(library).SequenceEqual(new byte[] {6}) && File.Exists(Path.Combine(destination, "b.txt")), "kind refusal deleted content");
+            File.Delete(library); Directory.Move(heldLibrary, library);
+            string heldRoot = Path.Combine(parent, "held-runtime");
+            Directory.Move(destination, heldRoot); Directory.CreateDirectory(destination);
+            try { remaining(original); throw new Exception("ASSERT: removal recovery accepted replaced root"); } catch (InvalidDataException) { }
+            Assert(File.Exists(Path.Combine(heldRoot, "b.txt")), "root refusal changed original");
+            Directory.Delete(destination); Directory.Move(heldRoot, destination);
+            File.Move(replaced, held); Directory.CreateDirectory(replaced);
+            try { remaining(original); throw new Exception("ASSERT: removal recovery accepted file-to-directory change"); } catch (InvalidDataException) { }
+            Directory.Delete(replaced); File.Move(held, replaced);
+            object subset = remaining(original);
+            Call("Verify", subset);
+            try { Call("Verify", original); throw new Exception("ASSERT: remaining verification mutated original receipt"); } catch (InvalidDataException) { }
+            Call("Remove", subset); Assert(!Directory.Exists(destination), "verified survivors were not removed");
+        }
+        finally { Directory.Delete(parent, true); } // Inert test-only owned fixture, no helper started.
+    }
     static void FailedWriteRollsBackOnlyOwnedTree()
     {
         var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
@@ -344,7 +396,7 @@ internal static class Tests
     }
     static int Main(string[] args)
     {
-        var tests = new Action[] { FreshPinnedInstall, OwnedRemoval, FailedWriteRollsBackOnlyOwnedTree, PartialWriteRollsBack, RejectSpecialMetadataBeforeWriting, RejectUnsafeArchives, ExistingAndLinkedDestinationsPreserved, ChangedBytesAndRollbackIntruderPreserved, WindowsLiteralDestinations, WindowsNativeEligibility, NativeProbePlatformBoundary };
+        var tests = new Action[] { FreshPinnedInstall, OwnedRemoval, RemainingOwnedRemoval, FailedWriteRollsBackOnlyOwnedTree, PartialWriteRollsBack, RejectSpecialMetadataBeforeWriting, RejectUnsafeArchives, ExistingAndLinkedDestinationsPreserved, ChangedBytesAndRollbackIntruderPreserved, WindowsLiteralDestinations, WindowsNativeEligibility, NativeProbePlatformBoundary };
         int failed = 0;
         foreach (var test in tests)
             try { test(); Console.WriteLine("PASS " + test.Method.Name); }

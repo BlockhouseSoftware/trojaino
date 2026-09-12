@@ -215,6 +215,37 @@ namespace Trojaino.Setup
             }
             Require(found.SetEquals(receipt.Identities.Keys), "Missing installed content; nothing removed");
         }
+        // Removal-only subset of ORIGINAL owned metadata. Never adopt live identities
+        // or hashes, and never relax normal Verify. Only missing regular files qualify.
+        internal static Receipt Remaining(Receipt original)
+        {
+            if (original == null) throw new ArgumentNullException("original");
+            PlainAncestors(Path.GetDirectoryName(original.Root));
+            var remaining = new Receipt(original.Root);
+            var pending = new Stack<string>(); pending.Push(original.Root);
+            while (pending.Count > 0)
+            {
+                string path = pending.Pop(), identity;
+                Require(original.Identities.TryGetValue(path, out identity), "Unknown remaining content; nothing removed");
+                bool file = original.Hashes.ContainsKey(path);
+                FileAttributes attributes = File.GetAttributes(path);
+                Require((attributes & FileAttributes.ReparsePoint) == 0 && ((attributes & FileAttributes.Directory) == 0) == file, "Remaining object kind changed; nothing removed");
+                remaining.Identities.Add(path, identity);
+                if (file)
+                {
+                    remaining.Hashes.Add(path, original.Hashes[path]);
+                    remaining.Lengths.Add(path, original.Lengths[path]);
+                }
+                else foreach (string child in Directory.EnumerateFileSystemEntries(path))
+                {
+                    Require(original.Identities.ContainsKey(child), "Unknown remaining content; nothing removed");
+                    pending.Push(child);
+                }
+            }
+            Require(original.Identities.Keys.Where(p => !original.Hashes.ContainsKey(p)).All(remaining.Identities.ContainsKey), "Missing owned directory; removal recovery refused");
+            Verify(remaining); // Full identities, types, bytes and exact surviving inventory.
+            return remaining;
+        }
         public static void Remove(Receipt receipt)
         {
             Verify(receipt); // Complete preflight before the first deletion. No recursive deletion.

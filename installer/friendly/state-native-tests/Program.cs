@@ -26,8 +26,10 @@ class Program
         Check(typeof(StateStore).GetField("Fault", BindingFlags.NonPublic | BindingFlags.Static) == null, "Test fault leaked");
         Check(typeof(ReceiptCodec).GetMethod("TestEncode", BindingFlags.NonPublic | BindingFlags.Static) == null, "Raw receipt encoder leaked");
         Check(typeof(ReceiptCodec).GetMethod("TestDecode", BindingFlags.NonPublic | BindingFlags.Static) == null, "Raw receipt decoder leaked");
+        Check(typeof(ReceiptCodec).GetMethod("TestDecodeRemaining", BindingFlags.NonPublic | BindingFlags.Static) == null, "Raw removal decoder leaked");
         if (Environment.OSVersion.Platform != PlatformID.Win32NT)
         {
+            Refuse(() => StateStore.LoadRemaining("/unsupported-component", "/unsupported"), "native Windows Framework");
             Refuse(() => StateStore.Store(null, "/unsupported"), "native Windows Framework");
             Refuse(() => StateStore.Load("/unsupported-component", "/unsupported"), "native Windows Framework");
             Refuse(() => StateStore.Remove(null), "native Windows Framework");
@@ -96,6 +98,32 @@ class Program
                 Check(child.ExitCode == 0, "Native state child failed");
             }
             Check(!Directory.Exists(root) && !Directory.Exists(state), "Fresh-process persistent removal failed");
+            component = Bootstrap.Install(archive, Bootstrap.Hash(archive), new Dictionary<string, string> { { "nested/owned.bin", Bootstrap.Hash(content) } }, root);
+            StateStore.Store(component, state); cipher = File.ReadAllBytes(file);
+            File.Delete(installed);
+            Refuse(() => StateStore.Load(root, state), "Missing installed content");
+            var remainder = StateStore.LoadRemaining(root, state);
+            foreach (string unknownRoot in new[] { root, state })
+            {
+                string unknown = Path.Combine(unknownRoot, "unknown"); File.WriteAllBytes(unknown, content);
+                Refuse(() => StateStore.LoadRemaining(root, state));
+                Refuse(() => remainder.Remove());
+                Check(Directory.Exists(Path.Combine(root, "nested")) && File.ReadAllBytes(unknown).SequenceEqual(content) && File.ReadAllBytes(file).SequenceEqual(cipher), "Recovery predelete refusal altered survivor/state");
+                File.Delete(unknown);
+            }
+            bad = (byte[])cipher.Clone(); bad[bad.Length / 2] ^= 1; File.WriteAllBytes(file, bad);
+            Refuse(() => StateStore.LoadRemaining(root, state));
+            File.WriteAllText(file, "plaintext must not authorize recovery"); Refuse(() => StateStore.LoadRemaining(root, state));
+            File.WriteAllBytes(file, cipher);
+            File.Move(file, held); File.WriteAllBytes(file, cipher);
+            Refuse(() => StateStore.LoadRemaining(root, state), "Installed object replaced");
+            File.Delete(file); File.Move(held, file);
+            Refuse(() => StateStore.LoadRemaining(root + "-other", state), "Receipt location binding mismatch");
+            Directory.Move(state, moved);
+            Refuse(() => StateStore.LoadRemaining(root, moved), "State location binding mismatch"); Directory.Move(moved, state);
+            StateStore.LoadRemaining(root, state).Remove();
+            Check(!Directory.Exists(root) && !Directory.Exists(state), "Authenticated missing-file recovery did not remove survivors");
+            Console.WriteLine("PASS real DPAPI removal-only missing-file recovery; strict Load still refuses; unknown both-tree/stale-wrapper/corrupt/plaintext/replaced-state/root/location refusals preserve survivors");
             Console.WriteLine("PASS real Framework DPAPI state persistence/tamper/plaintext/cap/identity/location/root/changed component and unknown-state predelete refusal; not GUI/crash recovery/Windows11");
         }
         finally { Directory.Delete(temp, true); } // Only owned disposable test fixture.

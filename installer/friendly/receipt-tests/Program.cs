@@ -167,6 +167,23 @@ internal static class ReceiptTests
             Bootstrap.Remove(restored);
             Assert(!Directory.Exists(root) && !File.Exists(state), "recovered receipt removes only owned tree; no state file write");
             Console.WriteLine("PASS receipt codec nested owned roundtrip Verify/Remove; no persistence or DPAPI evidence");
+            var partial = Fixture(root);
+            byte[] partialBytes = (byte[])Call("TestEncode", partial, state);
+            File.Delete(Path.Combine(root, "nested", "file.txt"));
+            Refuse(() => Call("TestDecode", partialBytes, root, state), "ordinary decode with a missing file");
+            var survivors = (Bootstrap.Receipt)Call("TestDecodeRemaining", partialBytes, root, state);
+            Bootstrap.Verify(survivors);
+            Refuse(() => Call("TestDecodeRemaining", partialBytes, root + "-other", state), "remaining root replay");
+            Refuse(() => Call("TestDecodeRemaining", partialBytes, root, state + "-other"), "remaining state replay");
+            Refuse(() => Call("TestDecodeRemaining", partialBytes.Concat(new byte[] {0}).ToArray(), root, state), "remaining trailing bytes");
+            byte[] badPartial = (byte[])partialBytes.Clone(); badPartial[0] = 2;
+            Refuse(() => Call("TestDecodeRemaining", badPartial, root, state), "remaining wrong schema version");
+            string extra = Path.Combine(root, "nested", "unknown.txt"); File.WriteAllText(extra, "retain");
+            Refuse(() => Call("TestDecodeRemaining", partialBytes, root, state), "remaining unknown content");
+            Assert(File.ReadAllText(extra) == "retain", "remaining decode changed unknown bytes"); File.Delete(extra);
+            Bootstrap.Remove((Bootstrap.Receipt)Call("TestDecodeRemaining", partialBytes, root, state));
+            Assert(!Directory.Exists(root) && !File.Exists(state), "remaining decode writes or incomplete removal");
+            Console.WriteLine("PASS removal-only codec derives original surviving metadata; ordinary missing-file refusal, root/state replay, schema and unknown-content gates; raw test codec NOT DPAPI evidence");
             return 0;
         }
         catch (Exception e) { Console.WriteLine("FAIL " + e); return 1; }

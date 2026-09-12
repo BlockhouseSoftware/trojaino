@@ -16,7 +16,36 @@ namespace Trojaino.Setup
             throw new PlatformNotSupportedException("Setup requires native Windows Framework");
 #endif
         }
+        internal static StateStore.Removal FindRemaining()
+        {
 #if NETFRAMEWORK
+            return FindRemainingCore(DefaultSetupPlan.Resolve());
+#else
+            throw new PlatformNotSupportedException("Setup requires native Windows Framework");
+#endif
+        }
+#if NETFRAMEWORK
+        static StateStore.Removal FindRemainingCore(DefaultSetupPlan folders)
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                throw new PlatformNotSupportedException("Setup requires native Windows Framework");
+            CheckFolder(folders.Profile); CheckFolder(folders.LocalData);
+            string config = Path.Combine(folders.Profile, ".claude"), skills = Path.Combine(config, "skills");
+            IEnumerable<string> skillNames = new string[0];
+            if (OptionalFolder(config) && OptionalFolder(skills)) skillNames = Names(skills);
+            var hints = new Dictionary<string, int>(StringComparer.Ordinal);
+            Collect(Names(folders.LocalData), false, hints); Collect(skillNames, true, hints);
+            if (hints.Count == 0) return null;
+            if (hints.Count != 1) throw new InvalidDataException("More than one Trojaino installation was found. Nothing was changed.");
+            foreach (var hint in hints)
+            {
+                if (hint.Value == 15) return null; // Normal full-pair discovery still authenticates it.
+                if (hint.Value != 3) throw new InvalidDataException("Trojaino setup is incomplete. Existing files were kept; do not install another copy.");
+                string[] roots = folders.WithIdentity(hint.Key).Roots;
+                return StateStore.LoadRemaining(roots[0], roots[4]);
+            }
+            throw new InvalidDataException("Installation hints changed");
+        }
         static PairState.Record FindCore(DefaultSetupPlan folders)
         {
             if (Environment.OSVersion.Platform != PlatformID.Win32NT)
@@ -53,6 +82,7 @@ namespace Trojaino.Setup
             foreach (string entry in Directory.EnumerateFileSystemEntries(folder)) yield return Path.GetFileName(entry);
         }
 #if SETUP_DISCOVERY_TESTS
+        internal static StateStore.Removal TestFindRemaining(DefaultSetupPlan folders) { return FindRemainingCore(folders); }
         internal static PairState.Record TestFind(DefaultSetupPlan folders) { return FindCore(folders); }
 #endif
 #endif

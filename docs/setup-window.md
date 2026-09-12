@@ -43,7 +43,7 @@ are untouched. Existing settings entries are not removed or interpreted as
 universal disablement. The deleted in-place plugin is absent from future discovery;
 already loaded hooks are not unloaded. Other profiles/installations are not checked.
 
-Every operation clears both consents. Unknown content or partial removal refuses
+Every operation clears all consent checkboxes. Unknown content or partial removal refuses
 further Install/Remove until authenticated discovery succeeds. A mid-removal error
 can leave only part of the pair; reopening cannot safely adopt unknown leftovers.
 Removal failures explicitly say to keep all Claude Code sessions closed, that
@@ -54,7 +54,33 @@ succeeds, the plugin is retired, runtime deletion fails with IOException. It the
 checks retained runtime bytes/state, disabled actions, and a refused reopen with
 identical survivor inventory, native identities and hashes. This is a real locked-file
 failure, not simulated crash recovery; native execution must pass at the reviewed SHA.
-Automatic partial-removal recovery remains unfinished; this is not crash recovery.
+The current Finish removal implementation handles only one exact default identity
+with runtime plus protected runtime-state remaining, plugin and plugin-state absent,
+and every original runtime directory still present. It authenticates both DPAPI
+layers and location/schema bindings, copies only original surviving file metadata,
+rejects every unknown/replaced/changed entry, and verifies the entire state container
+before deletion. Normal Open/Load/Verify still refuse missing files. No missing file
+is recreated, no disk ownership is adopted, and the original receipt is not mutated.
+A separate unchecked closed-session consent is bound to the displayed runtime root;
+each click reauthenticates, and full/absent/different/ambiguous state requires recheck.
+The UI never grants Install/ordinary Remove/activation from a recoverable remainder.
+Native GREEN at the exact reviewed SHA is still required for this new path.
+
+The companion native test deterministically retires one known approved-runtime fixture
+file after the real lock failure, so the missing-file branch is reached before recovery.
+It tests unknown content in BOTH runtime and runtime-state after consent, requiring
+whole survivor inventory/identity/hash preservation before retry. Additional native
+fixtures require refusal of a second authentic identity and of stale consent when
+only a different authentic remainder is discoverable. A production-symbol test
+checks that recovery starts disabled and unchecked. These added tests still require
+actual native execution; portable schema results do not qualify DPAPI or UI behavior.
+Shared parents, settings and unrelated skills are compared by original identities
+and exact hashes.
+
+Missing directories, state-only leftovers, partial plugin removal, unknown or corrupt
+state and all other incomplete combinations remain refused. This is not general
+crash recovery, repair, or proof of the historical cause of the remaining files.
+Further recovery cases remain engineering work.
 
 The window refuses ordinary close while a worker is active and explains that the
 person must wait. It does not claim cancellation during the synchronous commit,
@@ -81,7 +107,7 @@ production-symbol harness constructs without showing the Form, proving test root
 factories absent and initial consent/install/removal state without touching normal profile
 settings. Neither is visual/DPI/keyboard or Windows11 acceptance.
 
-Next: native executable qualification and a distributable installer build path;
-effective Claude enable/verify/disable and retained-output recovery; full independent
+Next: qualify the new recovery journey natively and produce a distributable installer;
+effective Claude enable/verify/disable and other retained-output recovery; full independent
 first-download journey and final QA. Windows11 ordinary-account/SmartScreen and
 real authenticated Claude evidence remain mandatory, as does release approval.

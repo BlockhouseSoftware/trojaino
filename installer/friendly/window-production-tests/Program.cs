@@ -26,6 +26,8 @@ internal static class WindowProductionTests
             Assert(!form.Controls.Find("install", true).Single().Enabled, "production install enabled before discovery");
             Assert(form.Controls.Find("remove", true).Length == 1 && form.Controls.Find("removalConsent", true).Length == 1, "production removal controls missing");
             Assert(!form.Controls.Find("remove", true).Single().Enabled && !form.Controls.Find("removalConsent", true).Single().Enabled && !((CheckBox)form.Controls.Find("removalConsent", true).Single()).Checked, "production removal enabled before discovery/consent");
+            Assert(form.Controls.Find("finishRemoval", true).Length == 1 && form.Controls.Find("finishRemovalConsent", true).Length == 1, "production recovery controls missing");
+            Assert(!form.Controls.Find("finishRemoval", true).Single().Enabled && !form.Controls.Find("finishRemovalConsent", true).Single().Enabled && !((CheckBox)form.Controls.Find("finishRemovalConsent", true).Single()).Checked, "production recovery enabled before authentication/consent");
             // Do not Show: this build has real OS-folder authority, not fixture roots.
         }
         Console.WriteLine("PASS native production-symbol window construction: no fixture/raw operation seams, unchecked consent and install disabled before discovery; normal profile NOT queried or changed; not user journey");

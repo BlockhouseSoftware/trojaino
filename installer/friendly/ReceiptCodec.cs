@@ -99,6 +99,15 @@ namespace Trojaino.Setup
         }
         static Bootstrap.Receipt Decode(byte[] bytes, string root, string state)
         {
+            Bootstrap.Receipt receipt = Parse(bytes, root, state);
+            Bootstrap.Verify(receipt);
+            return receipt;
+        }
+        static Bootstrap.Receipt DecodeRemaining(byte[] bytes, string root, string state)
+        { return Bootstrap.Remaining(Parse(bytes, root, state)); }
+        // Private schema parser; unchecked ownership never leaves this codec.
+        static Bootstrap.Receipt Parse(byte[] bytes, string root, string state)
+        {
             Locations(root, state);
             Require(bytes != null && bytes.Length > 0 && bytes.Length <= MaxPlain, "Receipt plaintext budget exceeded");
             using (var memory = new MemoryStream(bytes, false))
@@ -122,7 +131,6 @@ namespace Trojaino.Setup
                 }
                 Require(memory.Position == memory.Length, "Trailing receipt data");
                 Schema(receipt);
-                Bootstrap.Verify(receipt);
                 return receipt;
             }
         }
@@ -155,8 +163,21 @@ namespace Trojaino.Setup
             throw new PlatformNotSupportedException("Receipt protection requires native Windows Framework");
 #endif
         }
+        internal static Bootstrap.Receipt OpenRemaining(byte[] sealedBytes, string root, string state)
+        {
+#if NETFRAMEWORK
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT) throw new PlatformNotSupportedException("Receipt protection requires native Windows Framework");
+            Require(sealedBytes != null && sealedBytes.Length > 0 && sealedBytes.Length <= 2 * MaxPlain, "Protected receipt budget exceeded");
+            byte[] plain = System.Security.Cryptography.ProtectedData.Unprotect(sealedBytes, Utf8.GetBytes("Trojaino.Setup.OwnershipReceipt.v1"), System.Security.Cryptography.DataProtectionScope.CurrentUser);
+            try { return DecodeRemaining(plain, root, state); }
+            finally { Array.Clear(plain, 0, plain.Length); }
+#else
+            throw new PlatformNotSupportedException("Receipt protection requires native Windows Framework");
+#endif
+        }
 #if RECEIPT_TESTS
         internal static byte[] TestEncode(Bootstrap.Receipt receipt, string state) { return Encode(receipt, state); }
+        internal static Bootstrap.Receipt TestDecodeRemaining(byte[] bytes, string root, string state) { return DecodeRemaining(bytes, root, state); }
         internal static Bootstrap.Receipt TestDecode(byte[] bytes, string root, string state) { return Decode(bytes, root, state); }
 #endif
     }
