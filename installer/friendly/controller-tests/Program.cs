@@ -120,6 +120,32 @@ internal static class ControllerTests
                 Assert(roots.All(r => !Directory.Exists(r)), "late cancellation returns valid ownership receipt");
             }
             Console.WriteLine("PASS pre-stage/pre-helper cancellation and documented synchronous commit cutoff");
+            foreach (int stateRole in new[] {4,5})
+            foreach (string point in new[] {"before", "partial", "after"})
+            foreach (bool unknown in new[] {false,true})
+            {
+                var original = new IOException("state-fault"); Exception failure = null; int reached = 0;
+                StateStore.Fault = (phase, target) => {
+                    if (phase == point && target == Path.Combine(roots[stateRole], "receipt.bin")) {
+                        reached++;
+                        if (unknown) File.WriteAllText(Path.Combine(roots[stateRole], "unknown"), "retain state");
+                        throw original;
+                    }
+                };
+                try { SetupController.TestInstall(roots, "trojaino-local-controller-test", CancellationToken.None, (s,f,n,w,t) => Inert(f), null); }
+                catch (Exception e) { failure = e; }
+                finally { StateStore.Fault = null; }
+                Assert(reached == 1, "actual inner save phase exercised");
+                Assert(object.ReferenceEquals(failure, original) || (failure is AggregateException && ((AggregateException)failure).Flatten().InnerExceptions.Contains(original)), "inner save original retained");
+                foreach (int role in new[] {0,1,2,3, stateRole == 4 ? 5 : 4}) Assert(!Directory.Exists(roots[role]), "known components/other state cleaned after inner failure");
+                if (unknown) {
+                    Assert(File.ReadAllText(Path.Combine(roots[stateRole], "unknown")) == "retain state", "unknown partial state retained");
+                    Assert(File.Exists(Path.Combine(roots[stateRole], "receipt.bin")), "owned partial receipt retained alongside unknown state");
+                    Directory.Delete(roots[stateRole], true); // Fixture teardown, never production adoption.
+                }
+                else Assert(!Directory.Exists(roots[stateRole]), "failed owned state cleaned");
+            }
+            Console.WriteLine("PASS both inner state saves at before/partial/after writes; known rollback, unknown partial state retained, original errors conserved");
             return 0;
         }
         catch (Exception e) { Console.WriteLine("FAIL " + e); return 1; }

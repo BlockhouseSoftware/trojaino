@@ -99,7 +99,8 @@ jobs:
             '"' + $_ + '"'
           } | Set-Content -LiteralPath $resourceRsp -Encoding utf8
           $compilerEvidence = [ordered]@{compiler=$compiler; version=(Get-Item -LiteralPath $compiler).VersionInfo.FileVersion; arguments=$resourceArgs} | ConvertTo-Json -Compress
-          Write-Output ('::notice title=Native compiler inputs::' + $compilerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Keep compiler detail in the log; reserve bounded check annotations for results.
+          Write-Output ('Native compiler inputs: ' + $compilerEvidence)
           $compiled = & $compiler '/noconfig' ('@' + $resourceRsp) 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native Framework production-symbol compilation failed: ' + ($compiled -join "`n")) }
           $resourceResult = & $resourceExe 2>&1
