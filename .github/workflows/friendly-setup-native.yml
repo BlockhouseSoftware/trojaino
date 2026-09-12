@@ -60,8 +60,9 @@ jobs:
           $sourcePin = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
           # Git is a hosted developer tool, never the end-user runtime authority.
           $git = (Get-Command git -CommandType Application).Source
-          & $python -I -S scripts/audit_setup_source.py --source $source --source-sha256 $sourcePin --repo $env:GITHUB_WORKSPACE --source-commit $env:GITHUB_SHA --git $git --layout source-layout-v2
-          if ($LASTEXITCODE -ne 0) { throw 'Source does not match exact Git commit' }
+          $auditOutput = & $python -I -S scripts/audit_setup_source.py --source $source --source-sha256 $sourcePin --repo $env:GITHUB_WORKSPACE --source-commit $env:GITHUB_SHA --git $git --layout source-layout-v2 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Source does not match exact Git commit: ' + ($auditOutput -join "`n")) }
+          Write-Output $auditOutput
           $payload = Join-Path $work 'payload.zip'
           & $python -I -S scripts/build_windows_setup_payload.py --runtime $runtime --source $source --source-sha256 $sourcePin --source-commit $env:GITHUB_SHA --output $payload
           if ($LASTEXITCODE -ne 0) { throw 'Payload build failed' }
