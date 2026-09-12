@@ -86,15 +86,16 @@ jobs:
           $runtimeInfo = @(Get-ChildItem -LiteralPath $references -Recurse -File -Filter 'System.Runtime.InteropServices.RuntimeInformation.dll')
           if ($runtimeInfo.Count -ne 1) { throw 'Framework RuntimeInformation reference missing or ambiguous' }
           $refArgs += '/reference:' + $runtimeInfo[0].FullName
-          $common = @('/nologo', '/noconfig', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/resource:' + $payload + ',Trojaino.Setup.Payload')) + $refArgs + @('installer/friendly/Bootstrap.cs', 'installer/friendly/WindowsPreflight.cs', 'installer/friendly/StagedPayload.cs', $generated)
+          $sources = @('installer\friendly\Bootstrap.cs', 'installer\friendly\WindowsPreflight.cs', 'installer\friendly\StagedPayload.cs') | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
+          $common = @('/nologo', '/noconfig', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/resource:' + $payload + ',Trojaino.Setup.Payload')) + $refArgs + $sources + @($generated)
           $resourceExe = Join-Path $work 'ResourceTests.exe'
-          $compiled = & $compiler @common ('/out:' + $resourceExe) 'installer/friendly/resource-tests/Program.cs' 2>&1
+          $compiled = & $compiler @common ('/out:' + $resourceExe) (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\resource-tests\Program.cs') 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native Framework production-symbol compilation failed: ' + ($compiled -join "`n")) }
           $resourceResult = & $resourceExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native real-resource lifecycle tests failed: ' + ($resourceResult -join "`n")) }
           Write-Output $resourceResult
           $faultExe = Join-Path $work 'TransactionTests.exe'
-          $compiled = & $compiler @common '/define:BOOTSTRAP_TESTS' ('/out:' + $faultExe) 'installer/friendly/transaction-tests/Program.cs' 2>&1
+          $compiled = & $compiler @common '/define:BOOTSTRAP_TESTS' ('/out:' + $faultExe) (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\transaction-tests\Program.cs') 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native Framework fault harness compilation failed: ' + ($compiled -join "`n")) }
           $faultResult = & $faultExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native transaction fault tests failed: ' + ($faultResult -join "`n")) }
