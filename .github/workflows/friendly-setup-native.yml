@@ -117,4 +117,45 @@ jobs:
           $faultResult = & $faultExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native transaction fault tests failed: ' + ($faultResult -join "`n")) }
           Write-Output $faultResult
-          Write-Output "PASS native Framework staging SHA=$env:GITHUB_SHA payload=$payloadPin; bundled runtime NOT EXECUTED; no GUI qualification"
+          # Negative compiled artifact: unchanged pins, one corrupted resource byte.
+          # Separate output preserves the good production-symbol test executable.
+          $tamperPayload = Join-Path $work 'tampered-payload.zip'
+          $tamperBytes = [System.IO.File]::ReadAllBytes($payload)
+          $tamperBytes[0] = $tamperBytes[0] -bxor 1
+          [System.IO.File]::WriteAllBytes($tamperPayload, $tamperBytes)
+          $tamperExe = Join-Path $work 'TamperTests.exe'
+          $tamperArgs = $resourceArgs | ForEach-Object {
+            if ($_.StartsWith('/resource:')) { '/resource:' + $tamperPayload + ',Trojaino.Setup.Payload' }
+            elseif ($_.StartsWith('/out:')) { '/out:' + $tamperExe }
+            else { $_ }
+          }
+          $tamperRsp = Join-Path $work 'tamper.rsp'
+          $tamperArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $tamperRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $tamperRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native tamper harness compilation failed: ' + ($compiled -join "`n")) }
+          $tamperResult = & $tamperExe '--expect-tamper' 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native changed-resource rejection failed: ' + ($tamperResult -join "`n")) }
+          Write-Output $tamperResult
+          $evidence = [ordered]@{sha=$env:GITHUB_SHA; payload=$payloadPin; resource=$resourceResult; faults=$faultResult; tamper=$tamperResult} | ConvertTo-Json -Depth 4 -Compress
+          Write-Output ('::notice title=Native staging results::' + $evidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          Write-Output "PASS native Framework staging SHA=$env:GITHUB_SHA payload=$payloadPin; staging harness does not execute bundled runtime"
+          # Separate developer feasibility test, not an installer: explicit approved
+          # runtime execution after compiled receipt verification, no candidates.
+          $serializerRef = Join-Path $references 'System.Web.Extensions.dll'
+          if (-not (Test-Path -LiteralPath $serializerRef -PathType Leaf)) { throw 'Framework JSON test reference missing' }
+          $preparationExe = Join-Path $work 'PreparationTests.exe'
+          $preparationArgs = $common + @(('/reference:' + $serializerRef), ('/out:' + $preparationExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\preparation-tests\Program.cs'))
+          $preparationRsp = Join-Path $work 'preparation.rsp'
+          $preparationArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $preparationRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $preparationRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native preparation test compilation failed: ' + ($compiled -join "`n")) }
+          $preparationResult = & $preparationExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native preparation test failed: ' + ($preparationResult -join "`n")) }
+          $preparationEvidence = [ordered]@{sha=$env:GITHUB_SHA; payload=$payloadPin; preparation=$preparationResult; qualification='approved runtime executed; no candidate execution; no GUI or Claude activation'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native preparation results::' + $preparationEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
