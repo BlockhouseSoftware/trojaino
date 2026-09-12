@@ -104,8 +104,7 @@ internal static class PreparationTests
                 catch (OperationCanceledException) { }
             }
             Bootstrap.Verify(scratchReceipt);
-            Bootstrap.Remove(scratchReceipt);
-            Console.WriteLine("PASS production Render: exact independent output, invalid identity/private scratch overlap/unknown scratch/cancellation refused; private empty scratch Verify/Remove");
+            Console.WriteLine("PASS production Render: exact independent output, invalid identity/private scratch overlap/unknown scratch/cancellation refused; private empty scratch verified");
             Assert(!Directory.Exists(final), "plan must not publish final plugin");
             StagedPayload.Verify(pair); // -B must leave every authenticated input byte unchanged.
             var files = new Dictionary<string, byte[]>(StringComparer.Ordinal);
@@ -128,12 +127,17 @@ internal static class PreparationTests
             string expectedBinding = "_EXPECTED_BINDING = ('" + Path.Combine(final, "scripts", "preflight.py").Replace("\\", "\\\\") + "', '" + python.Replace("\\", "\\\\") + "')";
             var bindings = entryText.Split('\n').Where(line => line.StartsWith("_EXPECTED_BINDING = ", StringComparison.Ordinal)).ToArray();
             Assert(bindings.Length == 1 && bindings[0] == expectedBinding, "exact sealed entry and interpreter binding");
-            // Authenticated transformation result, test-only publication at disposable final path.
-            pins.Add("MANIFEST.sha256.json", Bootstrap.Hash(files["MANIFEST.sha256.json"]));
-            var installed = Bootstrap.Install(plan, Bootstrap.Hash(plan), pins, final);
+            // Production entry point must render/authenticate internally; no raw ZIP API.
+            var installed = TrustedPreparation.Install(pair, final, name, scratchReceipt, System.Threading.CancellationToken.None);
             foreach (var file in files)
                 Assert(File.ReadAllBytes(Path.Combine(final, file.Key)).SequenceEqual(file.Value), "exact final prepared bytes");
+            try { TrustedPreparation.Install(pair, final, name, scratchReceipt, System.Threading.CancellationToken.None); throw new Exception("existing final accepted"); }
+            catch (InvalidDataException) { }
+            foreach (var file in files)
+                Assert(File.ReadAllBytes(Path.Combine(final, file.Key)).SequenceEqual(file.Value), "every existing final byte preserved");
             Bootstrap.Verify(installed); Bootstrap.Remove(installed);
+            Bootstrap.Verify(scratchReceipt); Bootstrap.Remove(scratchReceipt);
+            Console.WriteLine("PASS production Install: authenticated render, exact prepared publication, existing destination preservation, private scratch and final Verify/Remove; no activation");
             StagedPayload.Remove(pair);
             Assert(!Directory.Exists(final) && !Directory.Exists(runtime) && !Directory.Exists(source), "owned native preparation trees removed");
             Console.WriteLine("PASS approved CPython3.14.7 native --plan: " + files.Count + " rendered files, all digests and final bytes, disabled identity, literal hooks, Verify/Remove; approved runtime EXECUTED, no candidate execution or Claude activation");

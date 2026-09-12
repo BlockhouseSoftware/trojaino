@@ -279,6 +279,34 @@ self-reported manifest. Complete output validation/publication, durable lifecycl
 friendly GUI and Windows11 first-download acceptance remain unfinished. Existing
 inert Marketplace/separate local-plugin lifecycle and all protection gates remain.
 
+## Authenticated final publication (iteration 8)
+
+`TrustedPreparation.Install` now calls Render internally, checks cancellation and
+input receipts again, and passes authenticated bytes only to a private publisher.
+No production caller can supply a plan ZIP, hashes or executable to this method.
+The exact eight reviewed personal-plugin members are required; recomputed digests
+must match the helper's exact canonical local manifest encoding. The manifest is
+an integrity consistency check, never the trust anchor. Compressed16MiB, each8MiB
+and aggregate16MiB expanded budgets are enforced. Bootstrap independently repeats
+archive/type/path/hash validation before exclusive private writes and returns a
+verified in-memory receipt. Partial write failure uses its existing guarded
+rollback; unknown content is retained with original and cleanup errors.
+
+Cancellation currently gates rendering and entry into final publication; final
+bounded validation/write is synchronous, not a cancellable or crash-safe commit.
+This slice does not remove staged runtime/source/scratch, persist receipts, enable
+hooks or change settings. The controller must retain the bound runtime for the
+plugin lifetime; it is not disposable staging after publication. A whole-setup
+transaction and persistent safe lifecycle are still unfinished.
+
+Portable injected inert-output tests cover exact bytes, inventory/manifest/type/
+budget refusals, existing-byte preservation, partial write rollback and unknown
+content retention. TestPublish exists only under PREPARATION_TESTS. Real native
+harness now calls production Install and compares every final byte against the
+independently generated approved-helper output; exact-SHA CI remains pending for
+this new code. Prior658318c native Server2025 Render/process/scratch passed, not
+Windows11/GUI/authenticated Claude. No ready installer is claimed.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

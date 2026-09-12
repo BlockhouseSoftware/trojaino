@@ -156,6 +156,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native bounded process tests failed: ' + ($processResult -join "`n")) }
           $processEvidence = [ordered]@{sha=$env:GITHUB_SHA; process=$processResult} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native process results::' + $processEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Test-only inert output and write-fault injection; never production authority.
+          $publicationExe = Join-Path $work 'PublicationTests.exe'
+          $publicationArgs = $common + @('/define:PREPARATION_TESTS;BOOTSTRAP_TESTS', ('/out:' + $publicationExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\publication-tests\Program.cs'))
+          $publicationRsp = Join-Path $work 'publication.rsp'
+          $publicationArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $publicationRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $publicationRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native publication test compilation failed: ' + ($compiled -join "`n")) }
+          $publicationResult = & $publicationExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native publication tests failed: ' + ($publicationResult -join "`n")) }
+          $publicationEvidence = [ordered]@{sha=$env:GITHUB_SHA; publication=$publicationResult} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native publication results::' + $publicationEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
           # Separate developer feasibility test, not an installer: explicit approved
           # runtime execution after compiled receipt verification, no candidates.
           $serializerRef = Join-Path $references 'System.Web.Extensions.dll'

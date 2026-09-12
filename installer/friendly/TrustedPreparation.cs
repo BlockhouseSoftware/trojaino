@@ -3,6 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -74,6 +77,55 @@ namespace Trojaino.Setup
             Require(plan.Length > 0, "Empty preparation output");
             return plan; // No parsing, publication, activation or removal in this component.
         }
+
+        internal static Bootstrap.Receipt Install(StagedPayload staged, string final, string name, Bootstrap.Receipt scratch, CancellationToken cancellation)
+        {
+            // No caller-supplied archive, hash, executable or manifest is accepted.
+            byte[] plan = Render(staged, final, name, scratch, cancellation);
+            cancellation.ThrowIfCancellationRequested();
+            StagedPayload.Verify(staged);
+            Bootstrap.Verify(scratch);
+            return Publish(plan, final);
+        }
+
+        // Only authenticated transformation output reaches this private writer.
+        static Bootstrap.Receipt Publish(byte[] plan, string final)
+        {
+            Require(plan != null && plan.Length > 0 && plan.Length <= 16 * 1024 * 1024, "Preparation archive budget exceeded");
+            var pins = new Dictionary<string, string>(StringComparer.Ordinal);
+            byte[] manifest = null;
+            var expected = new HashSet<string>(new[] {
+                ".claude-plugin/plugin.json", "LICENSE", "MANIFEST.sha256.json", "README.md",
+                "hooks/hooks.json", "scripts/hook.sh", "scripts/preflight.py", "skills/scan/SKILL.md"
+            }, StringComparer.Ordinal);
+            using (var memory = new MemoryStream(plan, false))
+            using (var zip = new ZipArchive(memory, ZipArchiveMode.Read))
+            {
+                Require(zip.Entries.Count == expected.Count, "Preparation inventory mismatch");
+                long total = 0;
+                foreach (var entry in zip.Entries)
+                {
+                    Require(expected.Remove(entry.FullName), "Unknown or duplicate preparation member");
+                    Require(entry.Length >= 0 && entry.Length <= 8 * 1024 * 1024 && (total += entry.Length) <= 16 * 1024 * 1024, "Preparation expanded budget exceeded");
+                    using (var input = entry.Open())
+                    {
+                        byte[] bytes = ReadOutput(input, (int)entry.Length);
+                        Require(bytes.Length == entry.Length, "Preparation member length mismatch");
+                        pins.Add(entry.FullName, Bootstrap.Hash(bytes));
+                        if (entry.FullName == "MANIFEST.sha256.json") manifest = bytes;
+                    }
+                }
+            }
+            // Local helper's exact deterministic format; never deserialize as authority.
+            string canonical = "{\n" + string.Join(",\n", pins.Where(p => p.Key != "MANIFEST.sha256.json")
+                .OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => "  \"" + p.Key + "\": \"" + p.Value + "\"")) + "\n}\n";
+            Require(manifest != null && manifest.SequenceEqual(Encoding.UTF8.GetBytes(canonical)), "Preparation manifest mismatch");
+            return Bootstrap.Install(plan, Bootstrap.Hash(plan), pins, final);
+        }
+#if PREPARATION_TESTS
+        internal static Bootstrap.Receipt TestPublish(byte[] plan, string final)
+        { return Publish(plan, final); }
+#endif
 
         static byte[] ReadOutput(Stream input, int limit)
         {
