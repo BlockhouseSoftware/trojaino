@@ -87,15 +87,28 @@ jobs:
           if ($runtimeInfo.Count -ne 1) { throw 'Framework RuntimeInformation reference missing or ambiguous' }
           $refArgs += '/reference:' + $runtimeInfo[0].FullName
           $sources = @('installer\friendly\Bootstrap.cs', 'installer\friendly\WindowsPreflight.cs', 'installer\friendly\StagedPayload.cs') | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
-          $common = @('/nologo', '/noconfig', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/resource:' + $payload + ',Trojaino.Setup.Payload')) + $refArgs + $sources + @($generated)
+          $common = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/resource:' + $payload + ',Trojaino.Setup.Payload')) + $refArgs + $sources + @($generated)
           $resourceExe = Join-Path $work 'ResourceTests.exe'
-          $compiled = & $compiler @common ('/out:' + $resourceExe) (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\resource-tests\Program.cs') 2>&1
+          # Documented csc response file avoids native-shell argument splitting.
+          $resourceArgs = $common + @(('/out:' + $resourceExe), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\resource-tests\Program.cs'))
+          $resourceRsp = Join-Path $work 'resource.rsp'
+          $resourceArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $resourceRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $resourceRsp) 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native Framework production-symbol compilation failed: ' + ($compiled -join "`n")) }
           $resourceResult = & $resourceExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native real-resource lifecycle tests failed: ' + ($resourceResult -join "`n")) }
           Write-Output $resourceResult
           $faultExe = Join-Path $work 'TransactionTests.exe'
-          $compiled = & $compiler @common '/define:BOOTSTRAP_TESTS' ('/out:' + $faultExe) (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\transaction-tests\Program.cs') 2>&1
+          $faultArgs = $common + @('/define:BOOTSTRAP_TESTS', ('/out:' + $faultExe), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\transaction-tests\Program.cs'))
+          $faultRsp = Join-Path $work 'fault.rsp'
+          $faultArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $faultRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $faultRsp) 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native Framework fault harness compilation failed: ' + ($compiled -join "`n")) }
           $faultResult = & $faultExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native transaction fault tests failed: ' + ($faultResult -join "`n")) }
