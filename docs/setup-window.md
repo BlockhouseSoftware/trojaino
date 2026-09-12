@@ -46,7 +46,14 @@ already loaded hooks are not unloaded. Other profiles/installations are not chec
 Every operation clears both consents. Unknown content or partial removal refuses
 further Install/Remove until authenticated discovery succeeds. A mid-removal error
 can leave only part of the pair; reopening cannot safely adopt unknown leftovers.
-The failure screen preserves details rather than suggesting manual folder deletion.
+Removal failures explicitly say to keep all Claude Code sessions closed, that
+removal may have stopped partway and some files may remain. The failure screen
+preserves the original error and details rather than suggesting manual folder deletion.
+The native harness locks the approved runtime file with read sharing: verification
+succeeds, the plugin is retired, runtime deletion fails with IOException. It then
+checks retained runtime bytes/state, disabled actions, and a refused reopen with
+identical survivor inventory, native identities and hashes. This is a real locked-file
+failure, not simulated crash recovery; native execution must pass at the reviewed SHA.
 Automatic partial-removal recovery remains unfinished; this is not crash recovery.
 
 The window refuses ordinary close while a worker is active and explains that the

@@ -145,7 +145,7 @@ namespace Trojaino.Setup
         {
             absent = false; installed = false;
             status.Text = "Setup could not finish safely. Existing or incomplete files may remain. No protection has been confirmed.";
-            details.Text = "Do not delete or move setup folders to retry. Close and reopen setup, or use Recheck files. If the problem remains, keep these details for support; another copy will not be installed over unknown files.\r\n\r\n" + error.ToString();
+            details.Text = (operation == Operation.Remove ? "Keep all Claude Code sessions closed. Removal may have stopped partway and some files may remain.\r\n\r\n" : "") + "Do not delete or move setup folders to retry. Close and reopen setup, or use Recheck files. If the problem remains, keep these details for support; another copy will not be installed over unknown files.\r\n\r\n" + error.ToString();
         }
         void EndBusy()
         {

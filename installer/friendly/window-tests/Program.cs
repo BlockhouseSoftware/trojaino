@@ -189,6 +189,7 @@ internal static class WindowTests
                 recovery.Close();
             }
             Assert(recoveryDetails.Contains("Keep all Claude Code sessions closed") && recoveryDetails.Contains("partway") && recoveryDetails.Contains("Do not delete or move"), "partial removal lacks specific closed-session and retained-output recovery guidance");
+            Console.WriteLine("PASS native locked-runtime partial removal: plugin retired before IOException, runtime bytes/state retained, actions refused, reopened survivor inventory/identity/hashes unchanged, explicit closed-session/partway guidance; NOT automatic recovery");
             journeyFinished = true;
             Console.WriteLine("PASS native actual WinForms controls: unchecked/revoked consent zero writes, real approved default setup, busy close retained, authenticated reopen; explicit consented UI removal, stale unknown-state refusal, all four owned trees removed, shared parents/settings/unrelated skills retained; protection never claimed; NOT Windows11/visual/keyboard/Claude qualification");
         }
