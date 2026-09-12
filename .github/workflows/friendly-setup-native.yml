@@ -319,5 +319,24 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' plan tests failed: ' + ($planResult -join "`n")) }
             $planResults += $planResult
           }
-          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; qualification='internal transaction, actual approved helper and DPAPI persistence; read-only default-profile plan; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          # Transient shared-parent creation. Native harness injects only test OS-folder
+          # plans; production SharedParents entry has no raw-operation/fault seam.
+          $parentResults = @()
+          foreach ($kind in @('faults', 'native')) {
+            $parentExe = Join-Path $work ($kind + '-ParentTests.exe')
+            $testPath = if ($kind -eq 'faults') { 'installer\friendly\parents-tests\Program.cs' } else { 'installer\friendly\parents-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'faults') { '/define:NETFRAMEWORK;SETUP_PARENTS_TESTS' } else { '/define:NETFRAMEWORK;SETUP_PLAN_TESTS' }
+            $parentArgs = $common + @($symbols, ('/out:' + $parentExe)) + $planSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\SharedParents.cs'), (Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $parentRsp = Join-Path $work ($kind + '-parent.rsp')
+            $parentArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $parentRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $parentRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' parent compilation failed: ' + ($compiled -join "`n")) }
+            $parentResult = & $parentExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' parent tests failed: ' + ($parentResult -join "`n")) }
+            $parentResults += $parentResult
+          }
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; qualification='internal transaction, actual approved helper and DPAPI persistence; default-profile plan and transient shared parents; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))

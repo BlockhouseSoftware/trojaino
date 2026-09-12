@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings><Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors><EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <DefineConstants>$(DefineConstants);SETUP_PARENTS_TESTS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Bootstrap.cs" Link="Bootstrap.cs" />
+    <Compile Include="../WindowsPreflight.cs" Link="WindowsPreflight.cs" />
+    <Compile Include="../SetupLocations.cs" Link="SetupLocations.cs" />
+    <Compile Include="../DefaultSetupPlan.cs" Link="DefaultSetupPlan.cs" />
+    <Compile Include="../SharedParents.cs" Link="SharedParents.cs" Condition="Exists('../SharedParents.cs')" />
+    <Compile Include="$(GeneratedPayload)" Link="ApprovedPayload.g.cs" />
+    <EmbeddedResource Include="$(PayloadArchive)" LogicalName="Trojaino.Setup.Payload" />
+  </ItemGroup>
+</Project>
