@@ -126,12 +126,24 @@ jobs:
             if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
             '"' + $_ + '"'
           } | Set-Content -LiteralPath $preferenceRsp -Encoding utf8
-          $preferenceCompile = & $compiler ('@' + $preferenceRsp) 2>&1
+          $preferenceCompile = & $compiler /noconfig ('@' + $preferenceRsp) 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native preference compilation failed: ' + ($preferenceCompile -join "`n")) }
           Write-Output $preferenceCompile
           $preferenceResult = @(& $preferenceExe 2>&1)
           if ($LASTEXITCODE -ne 0) { throw ('Native preference tests failed: ' + ($preferenceResult -join "`n")) }
-          $handoffEvidence = [ordered]@{sha=$env:GITHUB_SHA; handoff=$handoffResult; preference=$preferenceResult; qualification='source retirement and pure document edit only; no settings IO or activation'} | ConvertTo-Json -Compress
+          $lockExe = Join-Path $work 'SettingsLockTests.exe'
+          $lockArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/out:' + $lockExe)) + $refArgs + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\Bootstrap.cs'), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\WindowsPreflight.cs'), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\settings-lock-tests\Program.cs'))
+          $lockRsp = Join-Path $work 'settings-lock.rsp'
+          $lockArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $lockRsp -Encoding utf8
+          $lockCompile = & $compiler /noconfig ('@' + $lockRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native settings lock compilation failed: ' + ($lockCompile -join "`n")) }
+          Write-Output $lockCompile
+          $lockResult = @(& $lockExe 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw ('Native settings lock tests failed: ' + ($lockResult -join "`n")) }
+          $handoffEvidence = [ordered]@{sha=$env:GITHUB_SHA; handoff=$handoffResult; preference=$preferenceResult; settingsLock=$lockResult; qualification='source retirement, pure document edit and native lock primitives only; no settings transaction or activation'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native handoff results::' + $handoffEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
           # Read-only six-role controller preflight; no installer or activation.
           $locationsExe = Join-Path $work 'LocationsTests.exe'
