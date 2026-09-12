@@ -62,6 +62,17 @@ internal static class DefaultTests
             Assert(refused && !Directory.Exists(config) && File.ReadAllText(roots[5]) == "retain" && Directory.GetFileSystemEntries(local).Length == 1, "last-role conflict wrote parents or changed prior");
             File.Delete(roots[5]);
             Assert(Discover(plan) == null && !Directory.Exists(config), "discovery wrote optional parents");
+            File.WriteAllText(config, "keep config file"); byte[] configBytes = File.ReadAllBytes(config); bool configFileRefused = false;
+            try { Discover(plan); } catch (InvalidDataException) { configFileRefused = true; }
+            Assert(configFileRefused && File.ReadAllBytes(config).SequenceEqual(configBytes), "config file accepted/changed");
+            File.Delete(config); Directory.CreateDirectory(config);
+            string skillsFolder = Path.Combine(config, "skills");
+            Assert(Discover(plan) == null && !Directory.Exists(skillsFolder), "missing skills incorrectly created");
+            File.WriteAllText(skillsFolder, "keep skills file"); byte[] skillsBytes = File.ReadAllBytes(skillsFolder); bool skillsFileRefused = false;
+            try { Discover(plan); } catch (InvalidDataException) { skillsFileRefused = true; }
+            Assert(skillsFileRefused && File.ReadAllBytes(skillsFolder).SequenceEqual(skillsBytes), "skills file accepted/changed");
+            File.Delete(skillsFolder); Directory.Delete(config);
+            Console.WriteLine("PASS native discovery missing .claude/missing skills zero writes; file at either optional folder refused with exact bytes retained");
             var pair = Install(plan, CancellationToken.None); PairState.Verify(pair);
             var reopened = Discover(DefaultSetupPlan.TestCreate(root, local, null, Guid.NewGuid().ToString("N")));
             Assert(reopened.Runtime.Component.Root == roots[0], "rediscovery invented a new installation");

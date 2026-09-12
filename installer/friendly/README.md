@@ -24,9 +24,11 @@ callers in the same process. Receipts are intentionally not serializable and are
 not a persistent uninstaller; do not reconstruct one from an untrusted manifest.
 
 The target GUI architecture uses Windows 11's OS-provided .NET Framework 4.8.
-The current core has only been compiled/executed with .NET 10 on macOS. Native
-Framework compilation, Win32 ACL/NTFS identity tests, and Windows 11 usability
-remain gates. `WindowsPreflight.cs` is now wired before the first directory
+Native Framework Server CI now exercises staging, real approved-runtime setup,
+DPAPI ownership persistence and fresh-process removal. Those backend checks are
+not Windows 11, SmartScreen, GUI or authenticated Claude acceptance. The portable
+.NET 10 harnesses on macOS provide additional regression evidence, not native
+qualification. `WindowsPreflight.cs` is wired before the first directory
 creation: native AMD64 via IsWow64Process2, Fixed+NTFS, literal Windows spelling,
 reserved devices, full member-path budgets, non-reparse ancestors, long-name and
 final-handle parent equality. It refuses missing/failed probes without fallback.
@@ -35,6 +37,14 @@ The future GUI must select the approved known-folder destination; this component
 is not a general caller-selected extractor. The user chooses Install, not a path.
 macOS identity code uses Darwin's stat64 ABI, not Linux. The approved threat
 boundary excludes hostile same-user/admin/compromised-OS races; safeguards remain.
+
+## Reopening an installation
+
+`DefaultSetupDiscovery.Find()` selects existing default-profile identity hints,
+then authenticates the exact persisted pair before returning it. It performs no
+writes, runtime execution or cleanup. See [rediscovery](../../docs/setup-rediscovery.md)
+for bounded enumeration, incomplete-state refusal and native test scope. The
+friendly window and effective Claude lifecycle integration are still unfinished.
 
 ## Developer-only verification
 

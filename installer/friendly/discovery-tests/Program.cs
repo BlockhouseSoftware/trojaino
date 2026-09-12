@@ -24,6 +24,15 @@ internal static class DiscoveryTests
     }
     static IEnumerable<string> Many(int count)
     { for (int i = 0; i < count; i++) yield return "unrelated-" + i; }
+    static int observed;
+    static IEnumerable<string> GuardedInfinite()
+    {
+        while (true)
+        {
+            if (++observed > 4097) throw new Exception("enumerated past overflow boundary");
+            yield return "unrelated";
+        }
+    }
     static IEnumerable<string> Throws()
     { yield return "unrelated"; throw new UnauthorizedAccessException("fixture access failure"); }
     static int Main()
@@ -49,6 +58,9 @@ internal static class DiscoveryTests
         Refuse(complete, new[] {plugin[0], "trojaino-local-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"});
         Assert(Select(Many(4096), Many(4096)) == null, "exact enumeration budget rejected");
         Refuse(Many(4097), new string[0]); Refuse(new string[0], Many(4097));
+        observed = 0; Refuse(GuardedInfinite(), new string[0]); Assert(observed == 4097, "local overflow read count");
+        observed = 0; Refuse(new string[0], GuardedInfinite()); Assert(observed == 4097, "skills overflow read count");
+        Console.WriteLine("PASS both lazy infinite sources stop on the 4097th name, never read the 4098th");
         bool access = false;
         try { Select(Throws(), new string[0]); } catch (UnauthorizedAccessException) { access = true; }
         Assert(access, "enumeration failure incorrectly became absence");

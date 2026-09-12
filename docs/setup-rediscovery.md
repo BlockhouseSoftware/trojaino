@@ -1,8 +1,9 @@
 # Existing-install rediscovery
 
 `DefaultSetupDiscovery.Find()` is read-only and has no caller path or loader inputs.
-It uses the native default-profile plan, scans at most 4096 top-level names in each
-of LocalApplicationData and the personal skills directory, and reconstructs the
+It uses the native default-profile plan, classifies up to 4096 top-level names in each
+of LocalApplicationData and the personal skills directory (reading one extra name
+only to detect overflow), and reconstructs the
 same six-role layout for an existing exact lowercase 32-hex identity. It never
 reads interpreter candidates or executes files during discovery.
 
