@@ -119,6 +119,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native handoff tests failed: ' + ($handoffResult -join "`n")) }
           $handoffEvidence = [ordered]@{sha=$env:GITHUB_SHA; handoff=$handoffResult; qualification='source retirement only; runtime not executed; no controller or GUI'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native handoff results::' + $handoffEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Read-only six-role controller preflight; no installer or activation.
+          $locationsExe = Join-Path $work 'LocationsTests.exe'
+          $locationsArgs = $common + @('/define:NETFRAMEWORK', ('/out:' + $locationsExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\SetupLocations.cs'), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\locations-tests\Program.cs'))
+          $locationsRsp = Join-Path $work 'locations.rsp'
+          $locationsArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $locationsRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $locationsRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native locations compilation failed: ' + ($compiled -join "`n")) }
+          $locationsResult = & $locationsExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native locations tests failed: ' + ($locationsResult -join "`n")) }
+          $locationsEvidence = [ordered]@{sha=$env:GITHUB_SHA; locations=$locationsResult; qualification='read-only all-role preflight only; no setup transaction or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native locations results::' + $locationsEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
           $faultExe = Join-Path $work 'TransactionTests.exe'
           $faultArgs = $common + @('/define:BOOTSTRAP_TESTS', ('/out:' + $faultExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\transaction-tests\Program.cs'))
           $faultRsp = Join-Path $work 'fault.rsp'

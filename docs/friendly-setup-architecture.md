@@ -434,6 +434,28 @@ whole controller or crash recovery is introduced. Portable tests compare EVERY
 runtime byte after retirement and prove original receipt Verify/Remove; native
 Framework exact-SHA evidence remains a separate gate.
 
+## Six-role controller prewrite gate (iteration13)
+
+SetupLocations.Check is a read-only prerequisite, NOT the controller transaction.
+It refuses unsupported runtimes before input/filesystem probes, snapshots supplied
+root strings, and jointly checks six roles: runtime, source, scratch, final plugin,
+runtime state and plugin state. Pure Windows layout checks enforce literal spelling,
+all directed role equality/ancestry refusal, exact staging sibling parents and a
+matching personal-plugin basename. Runtime/source path budgets use fresh compiled
+inventory arrays generated from approved archives, not a worst-case guessed length
+or a caller-supplied manifest. Plugin and state checks include all reviewed output
+names and receipt.bin respectively. Compiled metadata is not extraction authority;
+the unchanged Bootstrap still verifies archive hashes and each member byte.
+
+Native Check requires all existing supported nonreparse parents and all absent
+destinations before returning. It never creates directories or adopts ownership.
+Access/probe errors propagate; only actual not-found attribute results count as
+absent. Return is not a reservation: the future controller must still use exclusive
+owned creation and preserve the existing transaction/failure rules. No GUI, consent,
+settings/activation, runtime execution or whole setup success is added here.
+Portable boundary/inventory tests and exact non-Framework refusal are separate from
+native Framework tests and Windows11/first-download acceptance.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

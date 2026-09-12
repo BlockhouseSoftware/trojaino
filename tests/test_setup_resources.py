@@ -38,6 +38,10 @@ class SetupResourcesTests(unittest.TestCase):
                 self.assertIn(value, generated)
             self.assertIn('StageRuntime(string destination)', generated)
             self.assertIn('StageSource(string destination)', generated)
+            self.assertIn('RuntimeMembers()', generated)
+            self.assertIn('SourceMembers()', generated)
+            self.assertIn('return new[] {"LICENSE.txt", "python.exe"};', generated)
+            self.assertIn('return new[] {"scripts/prepare.py"};', generated)
             self.assertIn('GetManifestResourceStream', generated)
             self.assertNotIn('not trusted for hashes', generated)
             for data, pin, source_pin, revision in [

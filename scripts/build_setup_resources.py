@@ -39,6 +39,11 @@ def render(payload, payload_sha256, source_sha256, source_commit):
             raise ValueError('native stager path budget exceeded')
         rows = ',\n'.join('                {"' + key + '", "' + hashlib.sha256(data).hexdigest() + '"}'
                          for key, data in sorted(files.items()))
+        members = ', '.join('"' + key + '"' for key in sorted(files))
+        methods.append('''        // Fresh path-budget metadata, never caller-supplied extraction authority.
+        internal static string[] %sMembers()
+        { return new[] {%s}; }
+''' % (label, members))
         methods.append('''        internal static Bootstrap.Receipt Stage%s(string destination)
         {
             return Bootstrap.Install(ReadArchive("%s"), "%s",
