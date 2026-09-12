@@ -413,8 +413,23 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native launcher compilation failed: ' + ($compiled -join "`n")) }
           $launcherResult = & $launcherExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native launcher tests failed: ' + ($launcherResult -join "`n")) }
-          # Test-first production artifact gate: no normal-profile launch.
+          # Build production-symbol GUI artifact; never launch normal-profile Main here.
           $setupExe = Join-Path $work 'TrojainoSetup.exe'
+          $linkedExe = Join-Path $work 'TrojainoSetup-linked-negative.exe'
+          $setupSources = $defaultSources + @($windowSource, $launcherSource)
+          foreach ($kind in @('embedded', 'linked-negative')) {
+            $output = if ($kind -eq 'embedded') { $setupExe } else { $linkedExe }
+            $setupCommon = @($common | Where-Object { $_ -notlike '/target:*' -and $_ -notlike '/resource:*' })
+            $resourceArg = if ($kind -eq 'embedded') { '/resource:' + $payload + ',Trojaino.Setup.Payload' } else { '/linkresource:' + $payload + ',Trojaino.Setup.Payload' }
+            $setupArgs = $setupCommon + @('/target:winexe', '/define:NETFRAMEWORK', '/main:Trojaino.Setup.SetupProgram', ('/out:' + $output), $resourceArg, ('/win32manifest:' + (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\setup.manifest')), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $setupSources
+            $setupRsp = Join-Path $work ($kind + '-setup.rsp')
+            $setupArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $setupRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $setupRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' setup compilation failed: ' + ($compiled -join "`n")) }
+          }
           $executableTestExe = Join-Path $work 'ExecutableTests.exe'
           $executableArgs = $common + @(('/out:' + $executableTestExe), ('/reference:' + (Join-Path $references 'System.Xml.dll')), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\executable-tests\Program.cs'))
           $executableRsp = Join-Path $work 'executable-tests.rsp'
@@ -426,5 +441,21 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native executable test compilation failed: ' + ($compiled -join "`n")) }
           $executableResult = & $executableTestExe $setupExe $payload $references $runtimeInfo[0].FullName 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native executable artifact tests failed: ' + ($executableResult -join "`n")) }
+          $linkedResult = & $executableTestExe $linkedExe $payload $references $runtimeInfo[0].FullName 2>&1
+          if ($LASTEXITCODE -eq 0 -or -not (($linkedResult -join "`n").Contains('ASSERT: payload must be embedded, not linked'))) { throw ('Linked-resource negative did not fail for embedding: ' + ($linkedResult -join "`n")) }
+          $restoredResult = & $executableTestExe $setupExe $payload $references $runtimeInfo[0].FullName 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Good production executable recheck failed: ' + ($restoredResult -join "`n")) }
+          $executableResult = @($executableResult) + @('PASS actual linked-resource negative artifact rejected for nonembedded payload, even with approved linked bytes present; good production executable retained and rechecked')
           $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; window=$windowResult; launcher=$launcherResult; executable=$executableResult; qualification='native window event tests and approved helper/controller/DPAPI composition; no visual/keyboard/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
-          Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # GitHub truncates each annotation message at 4096 characters. Preserve
+          # every result losslessly within the existing ten-annotation budget.
+          $evidenceBytes = [Text.Encoding]::UTF8.GetBytes($controllerEvidence)
+          $buffer = [IO.MemoryStream]::new()
+          try {
+            $gzip = [IO.Compression.GZipStream]::new($buffer, [IO.Compression.CompressionMode]::Compress, $true)
+            try { $gzip.Write($evidenceBytes, 0, $evidenceBytes.Length) } finally { $gzip.Dispose() }
+            $encoded = [Convert]::ToBase64String($buffer.ToArray())
+          } finally { $buffer.Dispose() }
+          $notice = [ordered]@{sha=$env:GITHUB_SHA; encoding='gzip-base64'; data=$encoded} | ConvertTo-Json -Compress
+          if ($notice.Length -gt 3900) { throw 'Controller evidence exceeds annotation budget; full output must not be silently truncated' }
+          Write-Output ('::notice title=Native controller results::' + $notice)

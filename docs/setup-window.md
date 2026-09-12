@@ -1,7 +1,17 @@
 # Native setup window (intermediate engineering slice)
 
-`SetupWindow` is a real Framework WinForms window, not yet a distributable setup
-executable or complete installer. It is explicitly labeled a development preview.
+`SetupWindow` is a real Framework WinForms window, opened by the zero-argument STA
+`SetupProgram`. The launcher holds a Global, Windows-account-SID-specific mutex
+through the window lifetime; another copy refuses before discovery. An abandoned
+mutex never confers filesystem ownership: normal authenticated rediscovery still
+runs. This is same-account coordination, not process-crash recovery.
+
+The native build compiles a production-symbol x64 GUI executable with the exact
+approved payload embedded and an `asInvoker`, `uiAccess=false` manifest. The native
+metadata harness checks that actual executable without running its normal-profile
+entry, and rejects a separate linked-payload negative artifact. Build output is
+engineering-only, not published or a qualified independently downloadable installer.
+The window is explicitly labeled a development preview.
 It has no Enable, Disable or Remove buttons until their effective integration is
 implemented and tested. Do not send it to an independent installer tester yet.
 
@@ -23,8 +33,8 @@ atomic rollback. Read-only details are local; no automatic upload occurs.
 
 The window refuses ordinary close while a worker is active and explains that the
 person must wait. It does not claim cancellation during the synchronous commit,
-process-kill resistance, Windows shutdown prevention, crash recovery, or a whole
-application single-instance guard. Those are not properties of a Form alone.
+process-kill resistance, Windows shutdown prevention or crash recovery. The
+application guard belongs to `SetupProgram`, not to a Form constructed in isolation.
 
 Native Windows Server Framework tests execute actual controls and handlers in
 isolated OS-folder fixtures: unchecked/revoked consent and initial zero writes;
@@ -34,7 +44,7 @@ production-symbol harness constructs without showing the Form, proving test root
 factories absent and initial consent/install state without touching normal profile
 settings. Neither is visual/DPI/keyboard or Windows11 acceptance.
 
-Next: guarded STA production executable with embedded approved payload; effective
-Claude enable/verify/disable/remove and retained-output recovery; full independent
+Next: native executable qualification and a distributable installer build path;
+effective Claude enable/verify/disable/remove and retained-output recovery; full independent
 first-download journey and final QA. Windows11 ordinary-account/SmartScreen and
 real authenticated Claude evidence remain mandatory, as does release approval.
