@@ -369,5 +369,21 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw ('Native discovery tests failed: ' + ($discoveryResult -join "`n")) }
             $discoveryResults += $discoveryResult
           }
-          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; qualification='default plan, transient shared parents and actual approved helper/controller/DPAPI composition; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          # Real native window handlers in isolated OS-folder fixtures; no normal settings.
+          # Reflection allows the test-first commit to fail for the missing window.
+          $windowExe = Join-Path $work 'WindowTests.exe'
+          $windowSources = $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\window-tests\Program.cs'))
+          $windowSource = Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\SetupWindow.cs'
+          if (Test-Path -LiteralPath $windowSource) { $windowSources += $windowSource }
+          $windowArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS;SETUP_WINDOW_TESTS', ('/out:' + $windowExe), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $windowSources
+          $windowRsp = Join-Path $work 'window.rsp'
+          $windowArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $windowRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $windowRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native window test compilation failed: ' + ($compiled -join "`n")) }
+          $windowResult = & $windowExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native window tests failed: ' + ($windowResult -join "`n")) }
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; window=$windowResult; qualification='native window event tests and approved helper/controller/DPAPI composition; no visual/keyboard/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
