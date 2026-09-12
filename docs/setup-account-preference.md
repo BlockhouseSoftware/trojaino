@@ -21,10 +21,40 @@ identity from fresh authenticated discovery and explicit displayed consent.
 Portable RED/GREEN and independent differential review are recorded in
 `/Users/kaba/trojaino-pilot-evidence/continuous09-document-review.json`. Native
 Framework compilation at `70e2f0d` failed because the new compiler invocation read
-machine csc.rsp in addition to explicit pinned references. `/noconfig` correction
-and native lock qualification are separate pending evidence, not a native PASS.
+machine csc.rsp in addition to explicit pinned references. The reviewed `/noconfig`
+correction at `62c217ab65eb2be6a3b70931b243c3b771585e5f` compiled and ran the
+actual native Framework document tests and real self-child settings-lock negatives.
+The exact native handoff annotation was decoded and checked in
+`/Users/kaba/trojaino-pilot-evidence/continuous09-native-document-lock-decoded.json`.
+It proves lossless bounded edits and exclusive-handle refusal of child write/rename
+and our own path replacement, preserving both test file identities and bytes.
+The overall native job remains intentionally RED at the missing account-enable
+controls; later full transaction assertions did not run. Native Windows Server
+primitive evidence is not settings publication, journal recovery, GUI activation
+or Windows11 acceptance.
 
-## Transaction design selected for native testing, not implemented
+## Transaction experiment — not yet connected to the window
+
+`AccountPreferenceTransaction` now has an unfinished existing-file implementation
+and an isolated native fixture harness. It retains account/installation handles,
+protects exact original and intended settings in a separate immutable recovery
+record before any target mutation, and edits through one exclusive target handle.
+It never automatically restores, removes recovery records, or deletes settings.
+A pending record blocks the next actual mutation. Missing settings and guided
+recovery resolution are not implemented; no Enable control calls this code yet.
+
+The initial missing-type RED and portable platform-refusal compile are recorded
+in `continuous10-transaction-red.txt` and
+`continuous10-transaction-portable-corrected.txt`. These are NOT native transaction
+GREEN. Early independent review `continuous10-transaction-early-review.json`
+permits isolated testing but found a discarded newly-created recovery-root receipt.
+The new native regression substitutes that root between creation and guard
+acquisition. Until actual RED, correction and GREEN are observed, this known
+ownership-handoff defect remains open. Temporal journal/target failure tests are
+also newly added and unexecuted on Windows. No native or complete UX claim follows
+from test source, compilation, or a prospective checkpoint push.
+
+## Transaction design selected for native testing
 
 Compare then ReplaceFile is not an atomic conditional update: a concurrent Claude
 save can occur between comparison and publication. A retained deny-delete handle
@@ -45,8 +75,8 @@ target handle. File settings remain user data, never installer-owned deletion
 objects. The installer mutex does not coordinate other applications; native share
 exclusion and fresh acquisition are required.
 
-This direction is not yet a writer or journal implementation. Native acquisition,
-write ordering, temporal fault tests, protected journal discovery, fresh-process
+This direction is an unfinished writer experiment, not a qualified transaction.
+Native acquisition, write ordering, temporal fault tests, protected journal discovery, fresh-process
 recovery and a real window transaction are required. Absent settings needs a
 separate no-replace creation path, never an overwrite fallback. Native primitive
 sharing tests alone prove neither publication nor journal durability.

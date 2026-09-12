@@ -366,7 +366,7 @@ jobs:
           # Composition starts with missing shared parents and runs the real approved
           # helper/controller. Only default-plan fixture input is compiled into tests.
           $defaultExe = Join-Path $work 'DefaultTests.exe'
-          $defaultSources = $controllerSources + @('DefaultSetupPlan.cs', 'DefaultSetupDiscovery.cs', 'SharedParents.cs', 'DefaultSetup.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) })
+          $defaultSources = $controllerSources + @('AccountPreferenceDocument.cs', 'AccountPreferenceTransaction.cs', 'DefaultSetupPlan.cs', 'DefaultSetupDiscovery.cs', 'SharedParents.cs', 'DefaultSetup.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) })
           $defaultArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS', ('/out:' + $defaultExe), ('/reference:' + $securityRef), ('/reference:' + $serializerRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\default-tests\Program.cs'))
           $defaultRsp = Join-Path $work 'default.rsp'
           $defaultArgs | ForEach-Object {
@@ -394,6 +394,18 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw ('Native discovery tests failed: ' + ($discoveryResult -join "`n")) }
             $discoveryResults += $discoveryResult
           }
+          # Real journaled existing-account edit in isolated approved setup fixtures.
+          $accountExe = Join-Path $work 'AccountTransactionTests.exe'
+          $accountArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS;ACCOUNT_TRANSACTION_TESTS', ('/out:' + $accountExe), ('/reference:' + $securityRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\account-transaction-tests\Program.cs'))
+          $accountRsp = Join-Path $work 'account-transaction.rsp'
+          $accountArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $accountRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $accountRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native account transaction compilation failed: ' + ($compiled -join "`n")) }
+          $accountResult = @(& $accountExe 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw ('Native account transaction tests failed: ' + ($accountResult -join "`n")) }
           # Real native window handlers in isolated OS-folder fixtures; no normal settings.
           # Reflection allows the test-first commit to fail for the missing window.
           $windowExe = Join-Path $work 'WindowTests.exe'
@@ -409,7 +421,7 @@ jobs:
           $compiled = & $compiler '/noconfig' ('@' + $windowRsp) 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native window test compilation failed: ' + ($compiled -join "`n")) }
           $windowResult = & $windowExe 2>&1
-          if ($LASTEXITCODE -ne 0) { throw ('Native window tests failed: ' + ($windowResult -join "`n")) }
+          if ($LASTEXITCODE -ne 0) { throw ('Native window tests failed: ' + ($windowResult -join "`n") + "`nPrior account fixture results (not UI/recovery acceptance): " + ($accountResult -join "`n")) }
           $windowProductionExe = Join-Path $work 'WindowProductionTests.exe'
           $windowProductionArgs = $common + @('/define:NETFRAMEWORK', ('/out:' + $windowProductionExe), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $defaultSources + @($windowSource, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\window-production-tests\Program.cs'))
           $windowProductionRsp = Join-Path $work 'window-production.rsp'
@@ -471,7 +483,7 @@ jobs:
           $restoredResult = & $executableTestExe $setupExe $payload $references $runtimeInfo[0].FullName 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Good production executable recheck failed: ' + ($restoredResult -join "`n")) }
           $executableResult = @($executableResult) + @('PASS actual linked-resource negative artifact rejected for nonembedded payload, even with approved linked bytes present; good production executable retained and rechecked')
-          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; window=$windowResult; launcher=$launcherResult; executable=$executableResult; qualification='native window event tests and approved helper/controller/DPAPI composition; no visual/keyboard/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; accountTransaction=$accountResult; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; window=$windowResult; launcher=$launcherResult; executable=$executableResult; qualification='native window event tests and approved helper/controller/DPAPI composition; no visual/keyboard/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
           # GitHub truncates each annotation message at 4096 characters. Preserve
           # every result losslessly within the existing ten-annotation budget.
           $evidenceBytes = [Text.Encoding]::UTF8.GetBytes($controllerEvidence)
