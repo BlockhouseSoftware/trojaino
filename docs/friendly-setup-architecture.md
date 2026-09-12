@@ -339,6 +339,41 @@ Exclusive private state-file creation, safe receipt-file removal, persistence
 failure/crash semantics, whole controller and friendly lifecycle remain unfinished.
 DPAPI output alone must not be called durable ownership-safe uninstall.
 
+## Persistent single-component state (iteration 10)
+
+StateStore now writes a NEW private state directory and exclusively created
+receipt.bin for one already verified component receipt. The outer Framework
+CurrentUser DPAPI envelope binds exact state directory text, actual new directory
+and file native identities, and the inner ReceiptCodec protected receipt. No
+self-file hash is persisted inside itself: authenticated object identities plus
+cryptographic contents and exact one-file inventory are the state authority.
+Loaded ciphertext hash/length are recomputed only to verify those authenticated
+objects still contain the bytes read; arbitrary disk inventory is never adopted.
+
+Load bounds ciphertext before DPAPI, parses only after authentication, checks
+version/strict UTF8/string/inner-length/trailing-data budgets and literal location,
+then verifies both component and state inventories/identities/bytes. Store performs
+real Load readback before success. Existing state is refused, not overwritten.
+Write failures use a live ownership receipt whose partial bytes come only from the
+owned file handle. Original write plus snapshot and guarded-cleanup failures are
+retained. Unknown/replaced/unreadable state refuses cleanup and retains content;
+the component is never removed because saving its state failed.
+
+Remove verifies both complete trees before deleting the component, then the state.
+This is NOT atomic or crash-recoverable: partial deletion may leave state referring
+to a partially missing component; profile/DPAPI loss also blocks automatic removal.
+No recovery fallback adopts files or weakens integrity. These are unfinished UX
+and multi-component controller requirements, not qualified uninstall behavior.
+No settings/activation/GUI or independently usable artifact is supplied here.
+
+Separate test-symbol builds expose only inert plaintext codec and fault injection;
+production symbols refuse off native Windows Framework. Portable roundtrip,
+replacement/move/unknown/budget/schema and partial-write rollback tests do not prove
+DPAPI. Native harness compiles production symbols, writes real DPAPI state and
+launches its own reviewed test EXE to Load/Remove in a fresh process; exact-SHA
+native result is required before claiming execution. Even that is WindowsServer
+component evidence, not Windows11 ordinary-account/first-download/GUI qualification.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in

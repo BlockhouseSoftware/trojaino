@@ -221,7 +221,7 @@ namespace Trojaino.Setup
             foreach (var path in receipt.Hashes.Keys) File.Delete(path);
             foreach (var path in receipt.Identities.Keys.Where(p => !receipt.Hashes.ContainsKey(p)).OrderByDescending(p => p.Length)) Directory.Delete(path, false);
         }
-        static string Identity(string path)
+        internal static string Identity(string path)
         {
             Require((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0, "Reparse object refused");
             if (Environment.OSVersion.Platform == PlatformID.Win32NT)

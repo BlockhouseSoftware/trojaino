@@ -210,3 +210,24 @@ jobs:
           }
           $receiptEvidence = [ordered]@{sha=$env:GITHUB_SHA; receipt=$receiptResults; qualification='Framework DPAPI component only; no state-file persistence or GUI'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native receipt results::' + $receiptEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Persistent single-component state: distinct test-only and real DPAPI builds.
+          $stateSources = $receiptSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\StateStore.cs'))
+          $stateResults = @()
+          foreach ($kind in @('schema', 'production')) {
+            $stateExe = Join-Path $work ($kind + '-StateTests.exe')
+            $testPath = if ($kind -eq 'schema') { 'installer\friendly\state-tests\Program.cs' } else { 'installer\friendly\state-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'schema') { '/define:NETFRAMEWORK;RECEIPT_TESTS;STATE_STORE_TESTS' } else { '/define:NETFRAMEWORK' }
+            $stateArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', $symbols, ('/out:' + $stateExe), ('/reference:' + $securityRef)) + $refArgs + $stateSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $stateRsp = Join-Path $work ($kind + '-state.rsp')
+            $stateArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $stateRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $stateRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' state compilation failed: ' + ($compiled -join "`n")) }
+            $stateResult = & $stateExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' state tests failed: ' + ($stateResult -join "`n")) }
+            $stateResults += $stateResult
+          }
+          $stateEvidence = [ordered]@{sha=$env:GITHUB_SHA; state=$stateResults; qualification='single-component state with fresh-process DPAPI reload/removal; no whole installer or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native state results::' + $stateEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
