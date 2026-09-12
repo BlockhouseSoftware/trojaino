@@ -171,7 +171,7 @@ namespace Trojaino.Setup
                 {
                     absent = false; installed = false; remainderRoot = remainder.Root;
                     status.Text = "Setup could not confirm a complete installation. Verified remaining local files can be removed with your consent.";
-                    details.Text = "Keep all Claude Code sessions closed. The plugin is absent; the remaining runtime files and protected ownership records were verified. Finish removal deletes only these verified remaining files. It does not repair or activate an installation, change Claude settings, or stop running sessions. Other incomplete states may still need support.";
+                    details.Text = "Keep all Claude Code sessions closed. The plugin is absent; the remaining runtime files and protected ownership records were verified. Finish removal deletes only these verified remaining files. Shared folders and other skills stay unchanged. It does not repair or activate an installation, change Claude settings, or stop running sessions. Other incomplete states may still need support.\r\n\r\nRuntime files selected for removal:\r\n" + remainder.Root + "\r\n\r\nProtected ownership records selected for removal:\r\n" + remainder.StateRoot;
                 }
                 if (operation == Operation.Remove || operation == Operation.FinishRemoval)
                 {

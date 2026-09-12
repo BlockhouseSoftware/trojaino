@@ -244,6 +244,20 @@ internal static class WindowTests
                 StateStore.LoadRemaining(secondPlan.Roots[0], secondPlan.Roots[4]).Remove();
                 Control<Button>(finish, "refresh").PerformClick(); Idle(finish);
                 Assert(agreement.Enabled && !agreement.Checked && !action.Enabled, "identity-switch refusal failed to reset consent");
+                foreach (bool fullPair in new[] {false, true})
+                {
+                    agreement.Checked = true;
+                    Assert(!Control<Button>(finish, "install").Enabled && !Control<Button>(finish, "remove").Enabled, "recovery consent enabled ordinary actions");
+                    if (fullPair) second = DefaultSetup.Install(secondPlan, CancellationToken.None);
+                    Directory.Move(plan.Roots[0], heldRuntime); Directory.Move(plan.Roots[4], heldState);
+                    string[] staleSnapshot = Snapshot(root);
+                    action.PerformClick(); Idle(finish);
+                    Assert(Control<TextBox>(finish, "details").Text.Contains("no longer eligible") && !agreement.Checked && !action.Enabled && Snapshot(root).SequenceEqual(staleSnapshot), "stale full/absent recovery changed files or dispatched another operation");
+                    Directory.Move(heldRuntime, plan.Roots[0]); Directory.Move(heldState, plan.Roots[4]);
+                    if (fullPair) PairState.Remove(second);
+                    Control<Button>(finish, "refresh").PerformClick(); Idle(finish);
+                    Assert(agreement.Enabled && !agreement.Checked && !action.Enabled, "stale full/absent recovery did not require fresh consent");
+                }
                 string[] unrelated = new[] {Path.Combine(root, ".claude"), Path.Combine(root, ".claude", "skills"), Path.Combine(root, ".claude", "settings.json"), Path.Combine(root, ".claude", "skills", "unrelated.txt")};
                 string[] unrelatedBefore = Snapshot(root).Where(line => unrelated.Any(path => line.StartsWith(path + "|", StringComparison.Ordinal))).ToArray();
                 agreement.Checked = true; action.PerformClick();

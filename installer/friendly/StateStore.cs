@@ -190,6 +190,7 @@ namespace Trojaino.Setup
             readonly Record record;
             internal Removal(Record record) { this.record = record; }
             internal string Root { get { return record.Component.Root; } }
+            internal string StateRoot { get { return record.State.Root; } }
             internal void Remove() { StateStore.Remove(record); }
         }
         static Bootstrap.Receipt OpenRemainingComponent(byte[] bytes, string root, string path)

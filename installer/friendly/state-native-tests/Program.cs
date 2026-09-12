@@ -21,6 +21,11 @@ class Program
         }
         throw new Exception("Unsafe production state operation accepted");
     }
+    static string[] Snapshot(string root)
+    {
+        return new[] { root }.Concat(Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories)).OrderBy(p => p, StringComparer.Ordinal).Select(p =>
+            p + "|" + Bootstrap.Identity(p) + "|" + (Directory.Exists(p) ? "directory" : Bootstrap.Hash(File.ReadAllBytes(p)))).ToArray();
+    }
     static void Main(string[] args)
     {
         Check(typeof(StateStore).GetField("Fault", BindingFlags.NonPublic | BindingFlags.Static) == null, "Test fault leaked");
@@ -52,10 +57,13 @@ class Program
             using (var memory = new MemoryStream())
             {
                 using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, true))
-                using (var output = zip.CreateEntry("nested/owned.bin").Open()) output.Write(content, 0, content.Length);
+                {
+                    using (var output = zip.CreateEntry("nested/owned.bin").Open()) output.Write(content, 0, content.Length);
+                    using (var output = zip.CreateEntry("keeper.bin").Open()) output.Write(content, 0, content.Length);
+                }
                 archive = memory.ToArray();
             }
-            var component = Bootstrap.Install(archive, Bootstrap.Hash(archive), new Dictionary<string, string> { { "nested/owned.bin", Bootstrap.Hash(content) } }, root);
+            var component = Bootstrap.Install(archive, Bootstrap.Hash(archive), new Dictionary<string, string> { { "nested/owned.bin", Bootstrap.Hash(content) }, { "keeper.bin", Bootstrap.Hash(content) } }, root);
             string tooLongState = Path.Combine(temp, "boundary").PadRight(248 - 1 - "receipt.bin".Length, 'a');
             Refuse(() => StateStore.Store(component, tooLongState), "Installed member exceeds");
             Check(!Directory.Exists(tooLongState), "State member budget refused after creation");
@@ -98,16 +106,40 @@ class Program
                 Check(child.ExitCode == 0, "Native state child failed");
             }
             Check(!Directory.Exists(root) && !Directory.Exists(state), "Fresh-process persistent removal failed");
-            component = Bootstrap.Install(archive, Bootstrap.Hash(archive), new Dictionary<string, string> { { "nested/owned.bin", Bootstrap.Hash(content) } }, root);
+            component = Bootstrap.Install(archive, Bootstrap.Hash(archive), new Dictionary<string, string> { { "nested/owned.bin", Bootstrap.Hash(content) }, { "keeper.bin", Bootstrap.Hash(content) } }, root);
             StateStore.Store(component, state); cipher = File.ReadAllBytes(file);
             File.Delete(installed);
             Refuse(() => StateStore.Load(root, state), "Missing installed content");
             var remainder = StateStore.LoadRemaining(root, state);
+            string survivor = Path.Combine(root, "keeper.bin");
+            File.WriteAllBytes(survivor, new byte[] { 9 });
+            string[] beforeRefusal = Snapshot(temp);
+            Refuse(() => StateStore.LoadRemaining(root, state), "Installed length changed");
+            Check(Snapshot(temp).SequenceEqual(beforeRefusal), "Changed-length refusal altered inventory/identities/bytes");
+            File.WriteAllBytes(survivor, content);
+            string heldStateDirectory = Path.Combine(temp, "held-state-directory");
+            Directory.Move(state, heldStateDirectory); Directory.CreateDirectory(state);
+            File.Move(Path.Combine(heldStateDirectory, "receipt.bin"), file);
+            beforeRefusal = Snapshot(temp);
+            Refuse(() => StateStore.LoadRemaining(root, state), "Installed object replaced");
+            Check(Snapshot(temp).SequenceEqual(beforeRefusal), "Replaced state directory refusal altered inventory/identities/bytes");
+            File.Move(file, Path.Combine(heldStateDirectory, "receipt.bin")); Directory.Delete(state); Directory.Move(heldStateDirectory, state);
+            string heldComponent = Path.Combine(temp, "held-component"); Directory.Move(root, heldComponent);
+            beforeRefusal = Snapshot(temp);
+            Refuse(() => StateStore.LoadRemaining(root, state));
+            Check(Snapshot(temp).SequenceEqual(beforeRefusal), "Missing root refusal altered inventory/identities/bytes");
+            Directory.Move(heldComponent, root);
+            beforeRefusal = Snapshot(temp);
+            using (var locked = new FileStream(survivor, FileMode.Open, FileAccess.Read, FileShare.None))
+                Refuse(() => StateStore.LoadRemaining(root, state));
+            Check(Snapshot(temp).SequenceEqual(beforeRefusal), "Read-sharing access refusal altered inventory/identities/bytes");
             foreach (string unknownRoot in new[] { root, state })
             {
                 string unknown = Path.Combine(unknownRoot, "unknown"); File.WriteAllBytes(unknown, content);
+                beforeRefusal = Snapshot(temp);
                 Refuse(() => StateStore.LoadRemaining(root, state));
                 Refuse(() => remainder.Remove());
+                Check(Snapshot(temp).SequenceEqual(beforeRefusal), "Unknown-content recovery refusal altered complete inventory/identities/bytes");
                 Check(Directory.Exists(Path.Combine(root, "nested")) && File.ReadAllBytes(unknown).SequenceEqual(content) && File.ReadAllBytes(file).SequenceEqual(cipher), "Recovery predelete refusal altered survivor/state");
                 File.Delete(unknown);
             }
