@@ -1,0 +1,250 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+
+internal static class Tests
+{
+    static string Hash(byte[] data) { using (var h = SHA256.Create()) return BitConverter.ToString(h.ComputeHash(data)).Replace("-", "").ToLowerInvariant(); }
+    static void Assert(bool ok, string message) { if (!ok) throw new Exception("ASSERT: " + message); }
+    static object Call(string method, params object[] args)
+    {
+        var type = Assembly.GetExecutingAssembly().GetType("Trojaino.Setup.Bootstrap");
+        Assert(type != null, "native bootstrap behavior is missing");
+        try { return type.GetMethod(method).Invoke(null, args); }
+        catch (TargetInvocationException e) { throw e.InnerException; }
+    }
+    static byte[] Zip(Dictionary<string, byte[]> files, int attributes = 0x1800000)
+    {
+        using (var memory = new MemoryStream())
+        {
+            using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, true))
+                foreach (var file in files)
+                {
+                    var entry = zip.CreateEntry(file.Key);
+                    entry.ExternalAttributes = attributes;
+                    using (var output = entry.Open()) output.Write(file.Value, 0, file.Value.Length);
+                }
+            return memory.ToArray();
+        }
+    }
+    static void FreshPinnedInstall()
+    {
+        var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            var destination = Path.Combine(parent, "runtime");
+            var files = new Dictionary<string, byte[]> {
+                {"python.exe", Encoding.UTF8.GetBytes("not executable; must only be copied")},
+                {"Lib/license.txt", Encoding.UTF8.GetBytes("vendor bytes")},
+                {"python314._pth", Encoding.UTF8.GetBytes("python314.zip\n.\n")}
+            };
+            var data = Zip(files);
+            var pins = files.ToDictionary(f => f.Key, f => Hash(f.Value));
+            var tampered = (byte[])data.Clone(); tampered[0] ^= 1;
+            try { Call("Install", tampered, Hash(data), pins, destination); throw new Exception("ASSERT: tampered archive accepted"); }
+            catch (InvalidDataException) { }
+            Assert(!Directory.Exists(destination), "digest rejection before writing");
+            var receipt = Call("Install", data, Hash(data), pins, destination);
+            Assert(receipt != null, "ownership receipt returned");
+            Assert(Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Length == files.Count, "exact installed inventory");
+            foreach (var file in files) Assert(File.ReadAllBytes(Path.Combine(destination, file.Key)).SequenceEqual(file.Value), "vendor bytes preserved: " + file.Key);
+            Assert(!File.Exists(Path.Combine(parent, "settings.json")), "no settings activation");
+        }
+        finally { Directory.Delete(parent, true); } // Only the test's own disposable tree.
+    }
+    static void OwnedRemoval()
+    {
+        var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            var destination = Path.Combine(parent, "runtime");
+            var files = new Dictionary<string, byte[]> { {"Lib/a.txt", new byte[] {1,2,3}}, {"b.txt", new byte[] {4}} };
+            var data = Zip(files);
+            var pins = files.ToDictionary(f => f.Key, f => Hash(f.Value));
+            var receipt = Call("Install", data, Hash(data), pins, destination);
+            Assert(receipt.GetType().Name == "Receipt", "install must return real ownership receipt");
+            Call("Verify", receipt);
+            File.WriteAllText(Path.Combine(destination, "unknown.txt"), "keep me");
+            try { Call("Remove", receipt); throw new Exception("ASSERT: unknown content deleted"); } catch (InvalidDataException) { }
+            Assert(File.Exists(Path.Combine(destination, "Lib/a.txt")), "refusal before any deletion");
+            File.Delete(Path.Combine(destination, "unknown.txt"));
+            var moved = destination + "-moved";
+            Directory.Move(destination, moved);
+            Directory.CreateDirectory(destination);
+            Directory.CreateDirectory(Path.Combine(destination, "Lib"));
+            foreach (var f in files) File.WriteAllBytes(Path.Combine(destination, f.Key), f.Value);
+            try { Call("Remove", receipt); throw new Exception("ASSERT: substituted identical tree deleted"); } catch (InvalidDataException) { }
+            Assert(File.Exists(Path.Combine(destination, "b.txt")), "substituted bytes preserved");
+            Directory.Delete(destination, true);
+            Directory.Move(moved, destination);
+            Call("Remove", receipt);
+            Assert(!Directory.Exists(destination), "verified owned tree removed");
+        }
+        finally { Directory.Delete(parent, true); }
+    }
+    static void FailedWriteRollsBackOnlyOwnedTree()
+    {
+        var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            File.WriteAllText(Path.Combine(parent, "unrelated.txt"), "keep");
+            var destination = Path.Combine(parent, "runtime");
+            var files = new Dictionary<string, byte[]> { {"a.txt", new byte[] {1,2,3}}, {"Lib/b.txt", new byte[] {4}} };
+            var data = Zip(files); var pins = files.ToDictionary(f => f.Key, f => Hash(f.Value));
+            Trojaino.Setup.Bootstrap.AfterWrite = path => { throw new IOException("injected disk failure"); };
+            try { Call("Install", data, Hash(data), pins, destination); throw new Exception("ASSERT: fault not exercised"); }
+            catch (IOException e) { Assert(e.Message == "injected disk failure", "original failure reported"); }
+            Assert(!Directory.Exists(destination), "failed installation must rollback owned directory");
+            Assert(File.ReadAllText(Path.Combine(parent, "unrelated.txt")) == "keep", "unrelated bytes preserved");
+        }
+        finally { Trojaino.Setup.Bootstrap.AfterWrite = null; Directory.Delete(parent, true); }
+    }
+    static void PartialWriteRollsBack()
+    {
+        var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            var destination = Path.Combine(parent, "runtime");
+            var files = new Dictionary<string, byte[]> { {"a.txt", new byte[] {1,2,3}} };
+            var data = Zip(files); var pins = files.ToDictionary(f => f.Key, f => Hash(f.Value));
+            bool fired = false;
+            Trojaino.Setup.Bootstrap.DuringWrite = path => { fired = true; throw new IOException("partial disk failure"); };
+            Exception failure = null;
+            try { Call("Install", data, Hash(data), pins, destination); } catch (Exception e) { failure = e; }
+            Assert(fired && failure != null, "partial write fault exercised");
+            Assert(!Directory.Exists(destination), "partial file and owned directory must rollback");
+            Assert(failure is IOException && failure.Message == "partial disk failure", "original failure preserved");
+        }
+        finally { Trojaino.Setup.Bootstrap.DuringWrite = null; Directory.Delete(parent, true); }
+    }
+    static void RejectSpecialMetadataBeforeWriting()
+    {
+        var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            var files = new Dictionary<string, byte[]> { {"a.txt", new byte[] {1}} };
+            foreach (int attributes in new int[] { 0x1800400, 0x1800010, 0x1800008, unchecked((int)0xa0000000) })
+            {
+                var destination = Path.Combine(parent, "runtime"); var data = Zip(files, attributes);
+                var pins = files.ToDictionary(f => f.Key, f => Hash(f.Value));
+                bool rejected = false;
+                try { Call("Install", data, Hash(data), pins, destination); } catch (InvalidDataException) { rejected = true; }
+                Assert(rejected && !Directory.Exists(destination), "special member metadata rejected before writing: " + attributes);
+            }
+        }
+        finally { Directory.Delete(parent, true); }
+    }
+    static void RejectUnsafeArchives()
+    {
+        var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            var cases = new List<Dictionary<string, byte[]>>();
+            foreach (string name in new[] {"../escape", "a/../../escape", "C:/evil", "a:stream", "CON.txt", "a./b", "a\\b", "/abs", "a/", "a//b", "é.txt", new string('a', 121)})
+                cases.Add(new Dictionary<string, byte[]> { {name, new byte[] {1}} });
+            cases.Add(new Dictionary<string, byte[]> { {"Lib/a", new byte[] {1}}, {"lib/b", new byte[] {2}} });
+            cases.Add(new Dictionary<string, byte[]> { {"a", new byte[] {1}}, {"a/b", new byte[] {2}} });
+            cases.Add(new Dictionary<string, byte[]> { {"huge", new byte[32 * 1024 * 1024 + 1]} });
+            foreach (var files in cases)
+            {
+                var destination = Path.Combine(parent, "runtime"); var data = Zip(files);
+                bool denied = false;
+                try { Call("Install", data, Hash(data), files.ToDictionary(f => f.Key, f => Hash(f.Value)), destination); }
+                catch (InvalidDataException) { denied = true; }
+                Assert(denied && !Directory.Exists(destination), "unsafe archive refused before write: " + files.First().Key);
+            }
+            Console.WriteLine("Negative archive fixtures: " + cases.Count);
+        }
+        finally { Directory.Delete(parent, true); }
+    }
+    static void ExistingAndLinkedDestinationsPreserved()
+    {
+        var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            var destination = Path.Combine(parent, "runtime"); Directory.CreateDirectory(destination);
+            File.WriteAllText(Path.Combine(destination, "keep.txt"), "original");
+            var files = new Dictionary<string, byte[]> { {"a.txt", new byte[] {1}} }; var data = Zip(files);
+            bool denied = false;
+            try { Call("Install", data, Hash(data), files.ToDictionary(f => f.Key, f => Hash(f.Value)), destination); }
+            catch (System.ComponentModel.Win32Exception) { denied = true; }
+            Assert(denied && Directory.GetFiles(destination).Length == 1 && File.ReadAllText(Path.Combine(destination, "keep.txt")) == "original", "existing destination bytes preserved");
+            var link = Path.Combine(parent, "link"); Directory.CreateSymbolicLink(link, destination);
+            denied = false;
+            try { Call("Install", data, Hash(data), files.ToDictionary(f => f.Key, f => Hash(f.Value)), Path.Combine(link, "new")); }
+            catch (InvalidDataException) { denied = true; }
+            Assert(denied && !Directory.Exists(Path.Combine(destination, "new")), "reparse ancestor refused");
+            Directory.Delete(link);
+        }
+        finally { Directory.Delete(parent, true); }
+    }
+    static void ExerciseOfficialRuntime(string path)
+    {
+        // Developer test only. The exact approved archive pin authenticates its inventory first.
+        const string expected = "d297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15";
+        var data = File.ReadAllBytes(path); Assert(Hash(data) == expected, "official runtime pin before parsing");
+        var files = new Dictionary<string, byte[]>();
+        using (var memory = new MemoryStream(data))
+        using (var zip = new ZipArchive(memory, ZipArchiveMode.Read))
+            foreach (var entry in zip.Entries)
+                using (var input = entry.Open())
+                using (var output = new MemoryStream()) { input.CopyTo(output); files.Add(entry.FullName, output.ToArray()); }
+        var destination = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-real-" + Guid.NewGuid().ToString("N"));
+        var receipt = Call("Install", data, expected, files.ToDictionary(f => f.Key, f => Hash(f.Value)), destination);
+        foreach (var file in files) Assert(File.ReadAllBytes(Path.Combine(destination, file.Key)).SequenceEqual(file.Value), "real vendor file match " + file.Key);
+        Call("Verify", receipt); Call("Remove", receipt);
+        Assert(!Directory.Exists(destination), "real runtime owned removal");
+        Console.WriteLine("PASS OfficialRuntime: sha256=" + expected + "; files=" + files.Count + "; all bytes verified; NOT EXECUTED; owned removal verified");
+    }
+    static void ChangedBytesAndRollbackIntruderPreserved()
+    {
+        var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "trojaino-bootstrap-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        try
+        {
+            var destination = Path.Combine(parent, "runtime");
+            var files = new Dictionary<string, byte[]> { {"a.txt", new byte[] {1,2,3}} };
+            var data = Zip(files); var pins = files.ToDictionary(f => f.Key, f => Hash(f.Value));
+            var receipt = Call("Install", data, Hash(data), pins, destination);
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
+                Assert((File.GetUnixFileMode(destination) & (UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute)) == 0, "private macOS root permissions");
+            File.WriteAllBytes(Path.Combine(destination, "a.txt"), new byte[] {4,5,6});
+            bool denied = false;
+            try { Call("Remove", receipt); } catch (InvalidDataException) { denied = true; }
+            Assert(denied && File.ReadAllBytes(Path.Combine(destination, "a.txt")).SequenceEqual(new byte[] {4,5,6}), "same-length changed bytes not removed");
+            File.WriteAllBytes(Path.Combine(destination, "a.txt"), files["a.txt"]);
+            Call("Remove", receipt);
+            Trojaino.Setup.Bootstrap.AfterWrite = path => { File.WriteAllText(Path.Combine(destination, "unknown.txt"), "preserve"); throw new IOException("injected failure plus unexpected content"); };
+            AggregateException failure = null;
+            try { Call("Install", data, Hash(data), pins, destination); } catch (AggregateException e) { failure = e; }
+            Assert(failure != null && failure.InnerExceptions.Count == 2, "cleanup refusal and original failure both reported");
+            Assert(File.ReadAllText(Path.Combine(destination, "unknown.txt")) == "preserve" && File.Exists(Path.Combine(destination, "a.txt")), "rollback refuses entire unknown tree before deleting owned bytes");
+        }
+        finally { Trojaino.Setup.Bootstrap.AfterWrite = null; Directory.Delete(parent, true); }
+    }
+    static int Main(string[] args)
+    {
+        var tests = new Action[] { FreshPinnedInstall, OwnedRemoval, FailedWriteRollsBackOnlyOwnedTree, PartialWriteRollsBack, RejectSpecialMetadataBeforeWriting, RejectUnsafeArchives, ExistingAndLinkedDestinationsPreserved, ChangedBytesAndRollbackIntruderPreserved };
+        int failed = 0;
+        foreach (var test in tests)
+            try { test(); Console.WriteLine("PASS " + test.Method.Name); }
+            catch (Exception e) { failed++; Console.WriteLine("FAIL " + test.Method.Name + ": " + e); }
+        if (args.Length == 1)
+            try { ExerciseOfficialRuntime(args[0]); } catch (Exception e) { failed++; Console.WriteLine("FAIL OfficialRuntime: " + e); }
+        else if (args.Length != 0) { failed++; Console.WriteLine("FAIL unexpected developer test arguments"); }
+        Console.WriteLine("Tests: " + tests.Length + ", failed: " + failed);
+        return failed == 0 ? 0 : 1;
+    }
+}

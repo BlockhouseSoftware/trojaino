@@ -83,6 +83,46 @@ Subsequent slices: native pre-Python bootstrap, final-location transactional
 installation, UI/lifecycle verification, Windows CI at exact SHA, native Windows
 11 first-run and blocked-download UX. Existing 0.1.6 trial artifacts stay intact.
 
+## Native bootstrap decision (iteration 2, before implementation)
+
+Choose a C# Windows GUI on the OS-provided .NET Framework 4.8, not Inno's
+conventional overwrite installer and not a PowerShell launcher. Microsoft's
+system-requirements table lists .NET Framework 4.8 on original Windows 11 and
+4.8.1 on 22H2 and newer. Do not install .NET or elevate if missing. The GUI and
+native Windows build/execution remain unfinished; portable core tests are not
+Windows acceptance.
+
+Sources checked 2026-09-12:
+- https://learn.microsoft.com/en-us/dotnet/framework/get-started/system-requirements
+- https://learn.microsoft.com/en-us/dotnet/api/system.io.compression.ziparchive
+- https://learn.microsoft.com/en-us/dotnet/api/system.io.filemode
+- https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createdirectoryw
+- https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview
+
+.NET single-file self-contained was considered but not selected: it adds another
+bundled runtime and native-library extraction before application code. The OS
+Framework avoids that bootstrap chain. A privately unpacked Microsoft SDK is only
+Mac development tooling, HTTPS/SHA512 pinned, with no PATH/global-config changes.
+It is not part of Sig's installation or evidence of .NET Framework execution.
+
+The native core receives immutable build-authorized archive and file hashes from
+the executable's compiled resources. No caller-facing override, archive manifest,
+PATH runtime or downloaded candidate supplies trust. Validate exact archive hash
+before ZIP parsing, exact safe member inventory/types and bounded decompression,
+then each file's digest before any filesystem side effect. A future build adapter
+must generate these constants from reviewed immutable inputs and verify all bytes.
+
+CreateDirectoryW with a private security descriptor provides exclusive Windows
+root creation; Directory.CreateDirectory alone is unsuitable because it accepts
+existing directories. CreateNew files only. Refuse reparse ancestors. Keep an
+in-memory receipt of created paths/hashes, inspect complete tree before removal,
+never recursive-delete unknown trees. User-scope threat boundary still applies;
+hostile same-user races are excluded, not described as repaired. POSIX exclusive
+mkdir permits exercising the same transaction tests on Mac; it does not certify
+Win32 ACLs, reparse handling or locks. No extraction runs Python. Final-location
+plugin preparation and enablement are separate later operations, not hidden
+side effects of authenticating/staging a runtime.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in
