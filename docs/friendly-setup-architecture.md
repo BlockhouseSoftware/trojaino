@@ -203,6 +203,26 @@ stage, and each unknown-tree rollback refusal. No archive content is executed.
 This is still only staging; final personal-plugin preparation, persistent lifecycle,
 GUI and native Windows qualification remain unfinished.
 
+## Source-byte provenance audit (iteration 4)
+
+`scripts/audit_setup_source.py` is a separate developer-only gate. It authenticates
+an explicitly approved source ZIP before parsing, validates a literal full commit,
+derives exact source inventory from immutable Git tree objects and the versioned
+independent allowlist, then compares EVERY selected blob's size and bytes. Git
+replacement objects are disabled. Symlink/nonregular blobs, missing/extra/altered
+files and a noncanonical derived manifest refuse. Neither archived source nor
+Git source is imported, checked out, filtered or executed. The developer supplies
+an absolute trusted Git executable; it is not end-user runtime discovery.
+
+The preserved source-c038a6c.zip actually matched all47 source files plus its
+derived manifest against c038a6c34399f615a622c8c685f8497d0b5dc237 using source-layout-v1.
+Its SHA256 remains bc3dd90ae6a440f71d9214bf01ea1d90a14500ab1b124a2ac21fb663529e166c.
+Layout-v2 explicitly adds this architecture document for subsequent bundles.
+This closes that specific source-byte provenance gap, not source review, approved
+native execution, payload-signing/distribution or Sig's independent-install goal.
+Existing package metadata still says declared; future build gates must run the
+auditor against their exact source inputs before compiling trust adapters.
+
 ## Worker supervision
 
 Kaba's completed design response is evidence in
