@@ -396,6 +396,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw ('Native production window compilation failed: ' + ($compiled -join "`n")) }
           $windowProductionResult = & $windowProductionExe 2>&1
           if ($LASTEXITCODE -ne 0) { throw ('Native production window tests failed: ' + ($windowProductionResult -join "`n")) }
-          $windowResult += $windowProductionResult
-          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; window=$windowResult; qualification='native window event tests and approved helper/controller/DPAPI composition; no visual/keyboard/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          $windowResult = @($windowResult) + @($windowProductionResult)
+          # Test-first launcher/guard. Missing entry is a reflection assertion,
+          # never permission to invoke a normal-profile setup from the harness.
+          $launcherExe = Join-Path $work 'LauncherTests.exe'
+          $launcherSources = $defaultSources + @($windowSource, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\launcher-tests\Program.cs'))
+          $launcherSource = Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\SetupProgram.cs'
+          if (Test-Path -LiteralPath $launcherSource) { $launcherSources += $launcherSource }
+          $launcherArgs = $common + @('/define:NETFRAMEWORK;SETUP_LAUNCHER_TESTS', '/main:LauncherTests', ('/out:' + $launcherExe), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $launcherSources
+          $launcherRsp = Join-Path $work 'launcher.rsp'
+          $launcherArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $launcherRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $launcherRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native launcher compilation failed: ' + ($compiled -join "`n")) }
+          $launcherResult = & $launcherExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native launcher tests failed: ' + ($launcherResult -join "`n")) }
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; window=$windowResult; launcher=$launcherResult; qualification='native window event tests and approved helper/controller/DPAPI composition; no visual/keyboard/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))

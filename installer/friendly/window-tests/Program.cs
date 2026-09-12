@@ -37,6 +37,7 @@ internal static class WindowTests
         Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
         string root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "ui-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root); string local = Path.Combine(root, "local"); Directory.CreateDirectory(local);
+        bool journeyFinished = false;
         try
         {
             var plan = DefaultSetupPlan.TestCreate(root, local, null, Guid.NewGuid().ToString("N"));
@@ -82,9 +83,16 @@ internal static class WindowTests
                 Assert(Control<TextBox>(stale, "details").ReadOnly && Control<TextBox>(stale, "details").Text.Length > 0, "failure details unavailable");
                 stale.Close(); File.Delete(unknown);
             }
+            journeyFinished = true;
             Console.WriteLine("PASS native actual WinForms controls: unchecked/revoked consent zero writes, real approved default setup, busy close retained, existing authenticated rediscovery, stale hint refusal/exact unknown bytes retained; protection never claimed; NOT Windows11/visual/keyboard/Claude qualification");
         }
-        finally { Directory.Delete(root, true); }
+        finally
+        {
+            // A timed-out/failed UI may still have an active worker/helper. Do not
+            // race it with recursive test cleanup or mask the original failure.
+            if (journeyFinished) Directory.Delete(root, true);
+            else Console.WriteLine("RETAINED failed window-test fixture; helper exit is unconfirmed: " + root);
+        }
         return 0;
     }
 }

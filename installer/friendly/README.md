@@ -44,7 +44,9 @@ boundary excludes hostile same-user/admin/compromised-OS races; safeguards remai
 then authenticates the exact persisted pair before returning it. It performs no
 writes, runtime execution or cleanup. See [rediscovery](../../docs/setup-rediscovery.md)
 for bounded enumeration, incomplete-state refusal and native test scope. The
-friendly window and effective Claude lifecycle integration are still unfinished.
+friendly [consent/setup window](../../docs/setup-window.md) now uses this discovery
+and the real disabled-install controller. A guarded executable, effective Claude
+lifecycle and independent-install qualification remain unfinished.
 
 ## Developer-only verification
 
