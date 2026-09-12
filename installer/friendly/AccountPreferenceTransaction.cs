@@ -290,7 +290,79 @@ namespace Trojaino.Setup
                 throw new AggregateException(mutating ? "Account settings may be incomplete. Protected originals retained; do not delete recovery files." : "Account settings were not written. Any recovery files were retained.", errors);
             return changed;
         }
+        internal enum RecoveryState { Original, Intended, Changed, Replaced, Missing }
+        internal sealed class RecoveryStatus
+        {
+            readonly RecoveryState state;
+            readonly string targetPath, journalPath, identity, originalHash, intendedHash, currentHash;
+            readonly bool enabled;
+            internal RecoveryState State { get { return state; } }
+            internal string TargetPath { get { return targetPath; } }
+            internal string JournalPath { get { return journalPath; } }
+            internal string RecordedIdentity { get { return identity; } }
+            internal bool RecordedEnabled { get { return enabled; } }
+            internal string OriginalSha256 { get { return originalHash; } }
+            internal string IntendedSha256 { get { return intendedHash; } }
+            internal string CurrentSha256 { get { return currentHash; } }
+            internal RecoveryStatus(RecoveryState state, string targetPath, string journalPath, string identity, bool enabled, string originalHash, string intendedHash, string currentHash)
+            {
+                this.state = state; this.targetPath = targetPath; this.journalPath = journalPath; this.identity = identity;
+                this.enabled = enabled; this.originalHash = originalHash; this.intendedHash = intendedHash; this.currentHash = currentHash;
+            }
+        }
+        internal static RecoveryStatus ReadRecoveryStatus()
+        {
+            Platform(); return ReadRecoveryStatusCore(DefaultSetupPlan.Resolve());
+        }
+        static FileStream Reader(string path)
+        {
+            var handle = Open(path, 0x80000000, 1, 3, false); // READ only, share READ, OPEN_EXISTING.
+            try { Identity(handle, path, false); return new FileStream(handle, FileAccess.Read, 1, false); }
+            catch { handle.Dispose(); throw; }
+        }
+        static RecoveryStatus ReadRecoveryStatusCore(DefaultSetupPlan plan)
+        {
+            Platform();
+            string root = RecoveryRoot(plan), path = JournalPath(root), target = Target(plan), parent = Path.GetDirectoryName(target);
+            var guards = new Held(); FileStream record = null, current = null; Journal journal = null; byte[] bytes = null;
+            RecoveryStatus result = null; var errors = new List<Exception>();
+            try
+            {
+                guards.Ancestors(plan.LocalData);
+                if (Present(root))
+                {
+                    WindowsPreflight.Check(root, new[] { "prepared.bin" }); WindowsPreflight.Check(target, new string[0]);
+                    guards.Ancestors(root); guards.Ancestors(parent); Inventory(root);
+                    record = Reader(path);
+                    journal = Decode(Read(record, MaxCipher), target, root, guards.Identities[root], Identity(record.SafeFileHandle, path, false), guards.Identities[parent]);
+                    RecoveryState state = RecoveryState.Missing;
+                    try { current = Reader(target); }
+                    catch (Win32Exception e) { if (e.NativeErrorCode != 2) throw; } // Missing file only; parent remains held and bound.
+                    if (current != null)
+                    {
+                        string currentId = Identity(current.SafeFileHandle, target, false);
+                        bytes = Read(current, MaxDocument);
+                        state = currentId != journal.TargetId ? RecoveryState.Replaced
+                            : bytes.SequenceEqual(journal.Original) ? RecoveryState.Original
+                            : bytes.SequenceEqual(journal.Intended) ? RecoveryState.Intended : RecoveryState.Changed;
+                    }
+                    Inventory(root);
+                    result = new RecoveryStatus(state, target, path, journal.Identity, journal.Enabled,
+                        Bootstrap.Hash(journal.Original), Bootstrap.Hash(journal.Intended), bytes == null ? null : Bootstrap.Hash(bytes));
+                }
+            }
+            catch (Exception error) { errors.Add(error); }
+            finally
+            {
+                foreach (IDisposable item in new IDisposable[] { current, record, guards })
+                    if (item != null) try { item.Dispose(); } catch (Exception close) { errors.Add(close); }
+                Clear(journal); if (bytes != null) Array.Clear(bytes, 0, bytes.Length);
+            }
+            if (errors.Count != 0) throw new AggregateException("Recovery could not be checked safely. Nothing was restored or deleted; existing records retained.", errors);
+            return result; // Snapshot only. Null means absent at this guarded observation, never write authority.
+        }
 #if ACCOUNT_TRANSACTION_TESTS
+        internal static RecoveryStatus TestReadRecoveryStatus(DefaultSetupPlan plan) { return ReadRecoveryStatusCore(plan); }
         internal static bool TestApply(DefaultSetupPlan plan, string identity, bool enabled) { return ApplyCore(plan, identity, enabled); }
         internal static byte[] TestOriginal(DefaultSetupPlan plan)
         {

@@ -16,9 +16,18 @@ internal static class AccountTransactionTests
         try { return method.Invoke(null, args); }
         catch (TargetInvocationException e) { throw e.InnerException; }
     }
-    static int Main()
+    static int Main(string[] args)
     {
         var type = Assembly.GetExecutingAssembly().GetType("Trojaino.Setup.AccountPreferenceTransaction");
+        if (args.Length != 0)
+        {
+            Assert(args.Length == 3 && args[0] == "--read-status", "unexpected fixture child arguments");
+            var childPlan = DefaultSetupPlan.TestCreate(args[1], args[2], null, Guid.NewGuid().ToString("N"));
+            object status = Invoke(type, "TestReadRecoveryStatus", childPlan);
+            Func<string, object> field = name => status.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(status, null);
+            Console.WriteLine(field("State") + "|" + field("OriginalSha256") + "|" + field("CurrentSha256"));
+            return 0;
+        }
         Assert(type != null, "authenticated journaled account preference transaction is missing");
         Assert(type.GetField("Fault", BindingFlags.Static | BindingFlags.NonPublic) != null && type.GetField("TargetWrites", BindingFlags.Static | BindingFlags.NonPublic) != null, "account transaction temporal fault observation is missing");
         if (Environment.OSVersion.Platform != PlatformID.Win32NT)
@@ -27,7 +36,11 @@ internal static class AccountTransactionTests
             try { Invoke(type, "Apply", "unused", true); }
             catch (PlatformNotSupportedException) { refused = true; }
             Assert(refused, "production transaction did not refuse non-Windows before discovery");
-            Console.WriteLine("PASS production account transaction platform refusal; NOT native evidence"); return 0;
+            refused = false;
+            try { Invoke(type, "ReadRecoveryStatus"); }
+            catch (PlatformNotSupportedException) { refused = true; }
+            Assert(refused, "production recovery reader did not refuse non-Windows before discovery");
+            Console.WriteLine("PASS production account transaction and recovery reader platform refusal; NOT native evidence"); return 0;
         }
         string root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "account-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -126,14 +139,64 @@ internal static class AccountTransactionTests
             var readStatus = type.GetMethod("TestReadRecoveryStatus", BindingFlags.Static | BindingFlags.NonPublic);
             Assert(readStatus != null, "authenticated read-only account recovery status is missing");
             string[] beforeStatus = Snapshot(root);
-            object recoveryStatus = Invoke(type, "TestReadRecoveryStatus", plan);
+            object recoveryStatus;
+            using (var readOnlyTarget = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var readOnlyJournal = new FileStream(Path.Combine(recoveryRoot, "prepared.bin"), FileMode.Open, FileAccess.Read, FileShare.Read))
+                recoveryStatus = Invoke(type, "TestReadRecoveryStatus", plan);
             Assert(recoveryStatus != null, "persisted account recovery was reported absent after uninstall");
-            Func<string, object> value = name => recoveryStatus.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(recoveryStatus, null);
-            Assert((string)value("State") == "Intended" && (string)value("TargetPath") == path
+            Func<string, object> value = name => {
+                var property = recoveryStatus.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert(property != null && property.GetSetMethod(true) == null, "recovery snapshot property missing or mutable: " + name);
+                return property.GetValue(recoveryStatus, null);
+            };
+            Assert(value("State").ToString() == "Intended" && (string)value("TargetPath") == path
                 && (string)value("RecordedIdentity") == identity && (string)value("OriginalSha256") == Bootstrap.Hash(original)
                 && (string)value("CurrentSha256") == Bootstrap.Hash(expected), "recovery snapshot lost authenticated history or current version");
             Assert(Snapshot(root).SequenceEqual(beforeStatus), "read-only recovery status changed account or journal data");
+            Action<string> checkState = state => {
+                string[] snapshot = Snapshot(root);
+                recoveryStatus = Invoke(type, "TestReadRecoveryStatus", plan);
+                Assert(value("State").ToString() == state && (string)value("OriginalSha256") == Bootstrap.Hash(original), "wrong recovery classification: " + state);
+                Assert(Snapshot(root).SequenceEqual(snapshot), "recovery classification changed files: " + state);
+            };
+            File.WriteAllBytes(path, utf8.GetBytes("{ordinary later edit"));
+            Assert(Bootstrap.Identity(path) == nativeId, "ordinary edit fixture replaced target"); checkState("Changed");
+            File.WriteAllBytes(path, original); checkState("Original");
+            File.WriteAllBytes(path, expected); checkState("Intended");
+            string heldOriginal = path + ".fixture-original";
+            File.Move(path, heldOriginal); File.WriteAllBytes(path, expected);
+            Assert(Bootstrap.Identity(path) != nativeId, "replacement fixture reused original identity"); checkState("Replaced");
+            File.Delete(path); checkState("Missing"); // Remove only the newly-created fixture replacement.
+            File.Move(heldOriginal, path); checkState("Intended");
+            string unknownRecovery = Path.Combine(recoveryRoot, "unknown.fixture");
+            File.WriteAllText(unknownRecovery, "unowned sentinel"); string[] withUnknown = Snapshot(root);
+            bool unknownRefused = false;
+            try { Invoke(type, "TestReadRecoveryStatus", plan); }
+            catch (AggregateException e) { unknownRefused = e.Flatten().InnerExceptions.Any(x => x is InvalidDataException && x.Message.Contains("Unknown or incomplete")); }
+            Assert(unknownRefused && Snapshot(root).SequenceEqual(withUnknown), "recovery status adopted or changed unknown record");
+            File.Delete(unknownRecovery); // Exact fixture-created sentinel only.
+            string[] beforeChild = Snapshot(root);
+            Assert(root.IndexOf('"') < 0 && local.IndexOf('"') < 0, "unsafe fixture command quoting");
+            var childStart = new System.Diagnostics.ProcessStartInfo {
+                FileName = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName,
+                Arguments = "--read-status \"" + root + "\" \"" + local + "\"",
+                UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true
+            };
+            using (var child = System.Diagnostics.Process.Start(childStart))
+            {
+                var stdout = child.StandardOutput.ReadToEndAsync(); var stderr = child.StandardError.ReadToEndAsync();
+                if (!child.WaitForExit(30000))
+                {
+                    child.Kill(); Assert(child.WaitForExit(5000), "reader child exit unconfirmed; retain fixture");
+                    throw new Exception("reader child timeout; retain fixture");
+                }
+                Assert(System.Threading.Tasks.Task.WaitAll(new System.Threading.Tasks.Task[] { stdout, stderr }, 5000), "reader child streams incomplete; retain fixture");
+                Assert(child.ExitCode == 0 && stderr.Result.Length == 0
+                    && stdout.Result.Trim() == "Intended|" + Bootstrap.Hash(original) + "|" + Bootstrap.Hash(expected), "fresh-process recovery snapshot failed: " + stderr.Result);
+            }
+            Assert(Snapshot(root).SequenceEqual(beforeChild), "fresh-process recovery status changed persisted data");
             passed = true;
+            Console.WriteLine("PASS native read-only recovery after uninstall: immutable Intended/Original/Changed/Replaced/Missing snapshots, compatible shared-read handles, unknown-record refusal, fresh-process fixed-folder rediscovery, unchanged inventories and IDs; no restore or UI qualification");
             Console.WriteLine("PASS native existing false-to-true journaled lexical edit, unchanged settings ID, authenticated exact original, stale consent refusal, zero-write no-op and second-mutation refusal; original survives uninstall");
         }
         finally

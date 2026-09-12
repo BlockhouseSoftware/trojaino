@@ -61,9 +61,10 @@ account-enable UI controls. These boundary exceptions are not physical I/O failu
 A separate native test at `0c89759bc162cc569cfaf62b3fb6222812d725d1` then failed
 `ASSERT: partial fault did not preserve a genuinely changed incomplete target`.
 Only after that RED, the test-symbol injection was corrected to write through the
-first differing byte, retaining the original suffix. Its native GREEN is pending;
-production whole-write semantics are unchanged. No complete recovery or UX claim
-follows from test source or compilation.
+first differing byte, retaining the original suffix. Native `52a3d2fbd5bdce7eda06eb50a1ea2fb2492f23d4`
+passed that exact changed-partial assertion plus the full account transaction
+suite; the job still fails at the missing account-enable UI. Production whole-write
+semantics are unchanged. No complete recovery or UX claim follows.
 
 ## Transaction design selected for native testing
 
@@ -123,6 +124,34 @@ verified.” Project/local/managed preferences can override user preferences. Us
 false is not universal disable and does not unload existing hooks. Real fresh
 Claude enable/scan/disable/re-enable/remove, Windows11 ordinary-account visual and
 keyboard use, first-download/SmartScreen and release approval remain separate gates.
+
+## Read-only recovery status experiment
+
+Native `ff26873b7bb9e3dc7444856d5be498c02c7e889d` actually failed
+`ASSERT: authenticated read-only account recovery status is missing` after the
+real transaction and uninstall. The new reader was authored after this RED.
+It independently resolves fixed account paths, authenticates the existing journal,
+and returns immutable historical identity/preference and version-hash metadata.
+Dedicated read-only, shared-read handles pin the record and current target while
+classifying Original, Intended, Changed, Replaced or Missing. A different native
+file identity wins over equal bytes. Only absent recovery root yields null;
+unknown, partial, unsafe, inaccessible or invalid records refuse without cleanup.
+No plaintext settings, mutable byte arrays or deletion receipts are returned.
+
+The reader does not depend on a current installation and performs no restore,
+acknowledgement, settings creation or journal removal. Errors retain primary and
+close diagnostics; snapshots are not future write authority. Null/Unavailable
+presentation, version lengths, typed issue guidance and actual window integration
+are not implemented by this bounded reader. Existing-file transaction no-op and
+second-mutation refusal rules are unchanged.
+
+Native followup tests require shared-read compatibility, immutable properties,
+all five classifications, same-byte replacement, unknown record preservation and
+a self-child receiving only fixture OS folders after uninstall. Their new native
+execution is pending; portable compile/platform refusal is not GREEN for DPAPI.
+Remaining negatives include corruption/replay/alias/ACL/size/cleanup failures and
+read-path temporal instrumentation. Friendly recovery display and fresh version-
+bound consent/restoration remain engineering, not a user configuration chore.
 
 Detailed read-only design reviews, including required native fault and recovery
 cases, are `continuous09-settings-design-review.json` and
