@@ -300,5 +300,24 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' controller tests failed: ' + ($controllerResult -join "`n")) }
             $controllerResults += $controllerResult
           }
-          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; qualification='internal transaction, actual approved helper and DPAPI persistence; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          # Read-only default-profile plan. Append to controller notice to stay within ten annotations.
+          $planSources = @('Bootstrap.cs', 'WindowsPreflight.cs', 'SetupLocations.cs', 'DefaultSetupPlan.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) }) + @($generated)
+          $planResults = @()
+          foreach ($kind in @('pure', 'production')) {
+            $planExe = Join-Path $work ($kind + '-PlanTests.exe')
+            $testPath = if ($kind -eq 'pure') { 'installer\friendly\plan-tests\Program.cs' } else { 'installer\friendly\plan-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'pure') { '/define:NETFRAMEWORK;SETUP_PLAN_TESTS' } else { '/define:NETFRAMEWORK' }
+            $planArgs = $common + @($symbols, ('/out:' + $planExe)) + $planSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $planRsp = Join-Path $work ($kind + '-plan.rsp')
+            $planArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $planRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $planRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' plan compilation failed: ' + ($compiled -join "`n")) }
+            $planResult = & $planExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' plan tests failed: ' + ($planResult -join "`n")) }
+            $planResults += $planResult
+          }
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; plan=$planResults; qualification='internal transaction, actual approved helper and DPAPI persistence; read-only default-profile plan; no GUI/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
           Write-Output ('::notice title=Native controller results::' + $controllerEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
