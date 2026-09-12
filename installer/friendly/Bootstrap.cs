@@ -133,7 +133,9 @@ namespace Trojaino.Setup
                     parent = Path.Combine(parent, part);
                     if (directories.Add(parent)) { CreatePrivate(parent); receipt.Identities.Add(parent, Identity(parent)); }
                 }
-                var target = Path.Combine(destination, file.Key);
+                // ZIP member '/' is archive syntax, not a native separator.
+                // The validated components above already built the literal parent.
+                var target = Path.Combine(parent, parts[parts.Length - 1]);
                 using (var output = new FileStream(target, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
                 {
                     receipt.Identities.Add(target, Identity(target));
