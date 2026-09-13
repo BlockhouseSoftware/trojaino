@@ -10,6 +10,8 @@ namespace Trojaino.Setup
     internal sealed class SetupWindow : Form
     {
         readonly CheckBox consent = new CheckBox();
+        readonly CheckBox enableConsent = new CheckBox();
+        readonly Button enable = new Button();
         readonly CheckBox removalConsent = new CheckBox();
         readonly CheckBox finishRemovalConsent = new CheckBox();
         readonly Button finishRemoval = new Button();
@@ -41,9 +43,9 @@ namespace Trojaino.Setup
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(720, 740); MinimumSize = new Size(660, 690);
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20), ColumnCount = 1, RowCount = 8 };
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20), ColumnCount = 1, RowCount = 9 };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            for (int i = 0; i < 6; i++) layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            for (int i = 0; i < 7; i++) layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.Controls.Add(new Label { Text = "Set up Trojaino for this Windows account", AutoSize = true, Margin = new Padding(0, 0, 0, 12) }, 0, 0);
@@ -56,22 +58,29 @@ namespace Trojaino.Setup
             consent.AutoSize = true; consent.MaximumSize = new Size(610, 0); consent.Checked = false; consent.Enabled = false; consent.TabIndex = 0;
             consent.CheckedChanged += delegate { install.Enabled = !busy && absent && consent.Checked; };
             layout.Controls.Add(consent, 0, 2);
+            enableConsent.Name = "enableConsent"; enableConsent.Text = "I understand that enabling Trojaino changes this account's Claude settings.";
+            enableConsent.AutoSize = true; enableConsent.MaximumSize = new Size(610, 0); enableConsent.Checked = false; enableConsent.Enabled = false; enableConsent.TabIndex = 1;
+            enableConsent.CheckedChanged += delegate { enable.Enabled = !busy && installed && enableConsent.Checked; };
+            enable.Name = "enable"; enable.Text = "Enable account"; enable.AutoSize = true; enable.Enabled = false; enable.TabIndex = 2;
+            var accountChoices = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+            accountChoices.Controls.Add(enableConsent); accountChoices.Controls.Add(enable);
+            layout.Controls.Add(accountChoices, 0, 3);
             removalConsent.Name = "removalConsent"; removalConsent.Text = "I have closed all Claude Code sessions and want to remove this separate local plugin and its bundled runtime. The marketplace copy and Claude settings stay unchanged.";
-            removalConsent.AutoSize = true; removalConsent.MaximumSize = new Size(610, 0); removalConsent.Checked = false; removalConsent.Enabled = false; removalConsent.TabIndex = 1;
+            removalConsent.AutoSize = true; removalConsent.MaximumSize = new Size(610, 0); removalConsent.Checked = false; removalConsent.Enabled = false; removalConsent.TabIndex = 3;
             removalConsent.CheckedChanged += delegate { remove.Enabled = !busy && installed && removalConsent.Checked; };
             finishRemovalConsent.Name = "finishRemovalConsent"; finishRemovalConsent.Text = "I have closed all Claude Code sessions and want to remove the verified remaining local files. Claude settings and the marketplace copy stay unchanged.";
-            finishRemovalConsent.AutoSize = true; finishRemovalConsent.MaximumSize = new Size(610, 0); finishRemovalConsent.Enabled = false; finishRemovalConsent.Visible = false;
+            finishRemovalConsent.AutoSize = true; finishRemovalConsent.MaximumSize = new Size(610, 0); finishRemovalConsent.Enabled = false; finishRemovalConsent.Visible = false; finishRemovalConsent.TabIndex = 4;
             finishRemovalConsent.CheckedChanged += delegate { finishRemoval.Enabled = !busy && remainderRoot != null && finishRemovalConsent.Checked; };
             var removalChoices = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false };
             removalChoices.Controls.Add(removalConsent); removalChoices.Controls.Add(finishRemovalConsent);
-            layout.Controls.Add(removalChoices, 0, 3);
+            layout.Controls.Add(removalChoices, 0, 4);
             status.Name = "status"; status.Text = "Checking for an existing installation…";
             status.AutoSize = true; status.MaximumSize = new Size(610, 0); status.Margin = new Padding(0, 14, 0, 14);
-            layout.Controls.Add(status, 0, 4);
-            layout.Controls.Add(new Label { Text = "Details (read-only; no passwords are requested)", AutoSize = true }, 0, 5);
+            layout.Controls.Add(status, 0, 5);
+            layout.Controls.Add(new Label { Text = "Details (read-only; no passwords are requested)", AutoSize = true }, 0, 6);
             details.Name = "details"; details.ReadOnly = true; details.Multiline = true; details.ScrollBars = ScrollBars.Both;
             details.WordWrap = true; details.Dock = DockStyle.Fill; details.TabIndex = 2;
-            layout.Controls.Add(details, 0, 6);
+            layout.Controls.Add(details, 0, 7);
             var buttons = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 14, 0, 0) };
             install.Name = "install"; install.Text = "&Install disabled"; install.AutoSize = true; install.Enabled = false; install.TabIndex = 0;
             refresh.Name = "refresh"; refresh.Text = "&Recheck files"; refresh.AutoSize = true; refresh.Enabled = false; refresh.TabIndex = 1;
@@ -79,9 +88,16 @@ namespace Trojaino.Setup
             close.Name = "close"; close.Text = "&Close"; close.AutoSize = true; close.TabIndex = 3;
             finishRemoval.Name = "finishRemoval"; finishRemoval.Text = "&Finish removal"; finishRemoval.AutoSize = true; finishRemoval.Enabled = false; finishRemoval.Visible = false;
             buttons.Controls.Add(finishRemoval);
-            buttons.Controls.Add(install); buttons.Controls.Add(refresh); buttons.Controls.Add(remove); buttons.Controls.Add(close); layout.Controls.Add(buttons, 0, 7);
+            buttons.Controls.Add(install); buttons.Controls.Add(refresh); buttons.Controls.Add(remove); buttons.Controls.Add(close); layout.Controls.Add(buttons, 0, 8);
             Controls.Add(layout);
             install.Click += delegate { if (!busy && absent && consent.Checked) Begin(Operation.Install); };
+            enable.Click += delegate {
+                if (!busy && installed && enableConsent.Checked)
+                {
+                    status.Text = "Account enablement is not available in this development preview. No Claude settings were changed.";
+                    enableConsent.Checked = false;
+                }
+            };
             remove.Click += delegate { if (!busy && installed && removalConsent.Checked) Begin(Operation.Remove); };
             finishRemoval.Click += delegate { if (!busy && remainderRoot != null && finishRemovalConsent.Checked) Begin(Operation.FinishRemoval); };
             refresh.Click += delegate { if (!busy) Begin(Operation.Check); };
@@ -120,8 +136,9 @@ namespace Trojaino.Setup
             string selectedRoot = remainderRoot; remainderRoot = null;
             busy = true; absent = false; installed = false; operation = requested;
             finishRemoval.Enabled = false; finishRemovalConsent.Enabled = false; finishRemovalConsent.Checked = false;
-            install.Enabled = false; consent.Enabled = false; remove.Enabled = false; removalConsent.Enabled = false; refresh.Enabled = false; close.Enabled = false;
+            install.Enabled = false; consent.Enabled = false; enable.Enabled = false; enableConsent.Enabled = false; remove.Enabled = false; removalConsent.Enabled = false; refresh.Enabled = false; close.Enabled = false;
             consent.Checked = false; removalConsent.Checked = false;
+            enableConsent.Checked = false;
             status.Text = requested == Operation.Install ? "Installing disabled files. Please wait; do not close setup or shut down Windows." : requested == Operation.Remove ? "Rechecking ownership and removing local files. Please wait; keep Claude Code closed." : "Checking installation files. This does not check Claude protection.";
             details.Clear();
             if (requested == Operation.FinishRemoval) status.Text = "Rechecking ownership and removing verified remaining files. Keep all Claude Code sessions closed.";
@@ -193,6 +210,7 @@ namespace Trojaino.Setup
         {
             busy = false; refresh.Enabled = true; close.Enabled = true;
             consent.Enabled = absent; install.Enabled = absent && consent.Checked;
+            enableConsent.Enabled = installed; enable.Enabled = installed && enableConsent.Checked;
             removalConsent.Enabled = installed; remove.Enabled = installed && removalConsent.Checked;
             finishRemovalConsent.Visible = remainderRoot != null; finishRemoval.Visible = remainderRoot != null;
             removalConsent.Visible = remainderRoot == null;
