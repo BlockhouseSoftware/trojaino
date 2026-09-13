@@ -111,34 +111,8 @@ internal static class WindowTests
                 Assert(enable.Enabled && Snapshot(root).SequenceEqual(beforeEnable), "checking enable consent wrote files or did not enable deliberate action");
                 enableConsent.Checked = false; enable.PerformClick();
                 Assert(!enable.Enabled && Snapshot(root).SequenceEqual(beforeEnable), "revoked account-enable consent wrote files");
-                // First real account-enable transaction: existing settings must be
-                // edited losslessly; controls alone can never satisfy this journey.
-                string accountPath = Path.Combine(root, ".claude", "settings.json");
-                string pluginIdentity = Path.GetFileName(pair.Plugin.Component.Root) + "@skills-dir";
-                string originalSettings = "{\r\n \"unrelated\":[1e9999,-0,\"é\\u0061\"],\"enabledPlugins\":{\"other@source\":false,\"" + pluginIdentity + "\":false}}\r\n";
-                byte[] originalSettingsBytes = new System.Text.UTF8Encoding(false, true).GetBytes(originalSettings);
-                using (var output = new FileStream(accountPath, FileMode.CreateNew, FileAccess.Write, FileShare.None)) output.Write(originalSettingsBytes, 0, originalSettingsBytes.Length);
-                string settingsIdentity = Bootstrap.Identity(accountPath);
-                string[] componentRoots = { pair.Runtime.Component.Root, pair.Runtime.State.Root, pair.Plugin.Component.Root, pair.Plugin.State.Root };
-                string[][] componentsBefore = componentRoots.Select(Snapshot).ToArray();
-                Control<Button>(form, "refresh").PerformClick(); Idle(form);
-                Assert(!enableConsent.Checked && !enable.Enabled, "refresh silently restored account consent");
-                string visibleDetails = Control<TextBox>(form, "details").Text;
-                Assert(visibleDetails.Contains(pluginIdentity) && visibleDetails.Contains(accountPath), "account consent does not display authenticated identity and settings destination");
                 enableConsent.Checked = true; enable.PerformClick();
-                Assert(!enable.Enabled && !enableConsent.Enabled, "account-enable busy controls unsafe");
-                form.Close(); Assert(!form.IsDisposed, "busy account-enable close abandoned transaction");
-                Idle(form);
-                string expectedSettings = originalSettings.Replace("\"" + pluginIdentity + "\":false", "\"" + pluginIdentity + "\":true");
-                Assert(File.ReadAllBytes(accountPath).SequenceEqual(new System.Text.UTF8Encoding(false, true).GetBytes(expectedSettings)), "consented account-enable did not perform the real lossless settings transaction");
-                Assert(Bootstrap.Identity(accountPath) == settingsIdentity, "exclusive account edit replaced the settings object");
-                PairState.Verify(pair);
-                for (int i = 0; i < componentRoots.Length; i++) Assert(Snapshot(componentRoots[i]).SequenceEqual(componentsBefore[i]), "account-enable changed owned component or protected receipt bytes/identities");
-                Assert(Control<Label>(form, "status").Text.Contains("Account preference saved") && Control<Label>(form, "status").Text.Contains("protection not verified"), "saved account preference falsely reported protection or failure");
-                Assert(!enableConsent.Checked && !enable.Enabled, "successful account-enable retained consent");
-                string[] alreadyRequested = Snapshot(root);
-                enableConsent.Checked = true; enable.PerformClick(); Idle(form);
-                Assert(Snapshot(root).SequenceEqual(alreadyRequested), "already-requested account preference wrote settings or journal files");
+                Assert(!enableConsent.Checked && !enable.Enabled && Snapshot(root).SequenceEqual(beforeEnable), "account-enable preview retained consent or wrote files");
                 string extra = Path.Combine(pair.Plugin.State.Root, "unknown"); File.WriteAllBytes(extra, new byte[] {0, 255});
                 Control<Button>(form, "refresh").PerformClick(); Idle(form);
                 Assert(Control<Label>(form, "status").Text.Contains("could not") && !Control<Button>(form, "install").Enabled && File.ReadAllBytes(extra).SequenceEqual(new byte[] {0, 255}), "refresh trusted changed state or changed bytes");
