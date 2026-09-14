@@ -97,6 +97,7 @@ internal static class WindowTests
                 Idle(form);
                 Assert(Control<Label>(form, "status").Text.Contains("activation has not been checked"), "file installation misreported protection or failed");
                 Assert(!Control<Button>(form, "install").Enabled, "installed copy permits duplicate install");
+                Assert(Control<TextBox>(form, "details").Text.Contains("Account settings recovery: none"), "installed status omitted absent account recovery classification");
                 var pair = DefaultSetupDiscovery.TestFind(plan); Assert(pair != null, "UI did not call actual default setup"); PairState.Verify(pair);
                 Assert(System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(Path.Combine(pair.Plugin.Component.Root, ".claude-plugin", "plugin.json")), "\\\"defaultEnabled\\\"\\s*:\\s*false"), "prepared plugin not disabled");
                 Assert(form.Controls.Find("enableConsent", true).Length == 1 && form.Controls.Find("enable", true).Length == 1, "separate account-enable consent controls are missing");
