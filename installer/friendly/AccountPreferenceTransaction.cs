@@ -312,7 +312,11 @@ namespace Trojaino.Setup
         }
         internal static RecoveryStatus ReadRecoveryStatus()
         {
-            Platform(); return ReadRecoveryStatusCore(DefaultSetupPlan.Resolve());
+            Platform(); return ReadRecoveryStatusForPlan(DefaultSetupPlan.Resolve());
+        }
+        internal static RecoveryStatus ReadRecoveryStatusForPlan(DefaultSetupPlan plan)
+        {
+            return ReadRecoveryStatusCore(plan);
         }
         static FileStream Reader(string path)
         {

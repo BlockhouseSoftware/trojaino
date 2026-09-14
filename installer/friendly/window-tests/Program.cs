@@ -38,6 +38,17 @@ internal static class WindowTests
         }
         Application.DoEvents();
     }
+    static void RecoveryLabels()
+    {
+        Assert(SetupWindow.FormatRecoveryStatus(null).Contains("Account settings recovery: none"), "absent account recovery label missing");
+        foreach (AccountPreferenceTransaction.RecoveryState state in Enum.GetValues(typeof(AccountPreferenceTransaction.RecoveryState)))
+        {
+            var status = new AccountPreferenceTransaction.RecoveryStatus(state, "settings.json", "prepared.bin", "plugin@skills-dir", true, "original", "intended", "current");
+            string rendered = SetupWindow.FormatRecoveryStatus(status);
+            Assert(rendered.Contains("Account settings recovery: " + state), "recovery classification not rendered: " + state);
+            Assert(rendered.Contains("No settings contents, passwords, or tokens are displayed") && !rendered.Contains("original settings bytes"), "recovery display lacks plaintext-safety boundary: " + state);
+        }
+    }
     [STAThread]
     static int Main()
     {
@@ -51,7 +62,7 @@ internal static class WindowTests
         {
             var handle = dispatch.Handle;
             dispatch.BeginInvoke((Action)delegate {
-                try { Journey(); Journey(); }
+                try { RecoveryLabels(); Journey(); Journey(); }
                 catch (Exception error) { failure = error; }
                 finally { context.ExitThread(); }
             });

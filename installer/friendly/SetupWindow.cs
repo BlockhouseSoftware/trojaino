@@ -26,6 +26,7 @@ namespace Trojaino.Setup
         bool absent;
         bool installed;
         string remainderRoot;
+        AccountPreferenceTransaction.RecoveryStatus accountRecovery;
         enum Operation { Check, Install, Remove, FinishRemoval }
         sealed class Request { internal Operation Operation; internal string Root; }
         Operation operation;
@@ -130,11 +131,49 @@ namespace Trojaino.Setup
 #endif
             return DefaultSetupPlan.Resolve();
         }
+        AccountPreferenceTransaction.RecoveryStatus ReadAccountStatus()
+        {
+#if SETUP_WINDOW_TESTS
+            return AccountPreferenceTransaction.ReadRecoveryStatusForPlan(Plan());
+#else
+            return AccountPreferenceTransaction.ReadRecoveryStatus();
+#endif
+        }
+        static string RecoveryName(AccountPreferenceTransaction.RecoveryState state)
+        {
+            switch (state)
+            {
+                case AccountPreferenceTransaction.RecoveryState.Original: return "Original — the recorded original settings remain current.";
+                case AccountPreferenceTransaction.RecoveryState.Intended: return "Intended — the recorded preference change is present.";
+                case AccountPreferenceTransaction.RecoveryState.Changed: return "Changed — the current settings differ from both recorded versions.";
+                case AccountPreferenceTransaction.RecoveryState.Replaced: return "Replaced — the settings file identity changed.";
+                case AccountPreferenceTransaction.RecoveryState.Missing: return "Missing — the recorded settings file is not present.";
+                default: throw new InvalidOperationException("Unknown account recovery state");
+            }
+        }
+        internal static string FormatRecoveryStatus(AccountPreferenceTransaction.RecoveryStatus recovery)
+        {
+            if (recovery == null) return "Account settings recovery: none — no pending account settings change was found.";
+            return "Account settings recovery: " + RecoveryName(recovery.State) + "\r\n"
+                + "Authenticated settings path: " + recovery.TargetPath + "\r\n"
+                + "Authenticated recovery record: " + recovery.JournalPath + "\r\n"
+                + "Recorded plugin identity: " + recovery.RecordedIdentity + "\r\n"
+                + "Recorded preference: " + (recovery.RecordedEnabled ? "enabled" : "disabled") + "\r\n"
+                + "Original SHA-256: " + recovery.OriginalSha256 + "\r\n"
+                + "Intended SHA-256: " + recovery.IntendedSha256 + "\r\n"
+                + "Current SHA-256: " + (recovery.CurrentSha256 ?? "not available") + "\r\n"
+                + "No settings contents, passwords, or tokens are displayed. Review the recovery state before any account change.";
+        }
+        static string RecoverySummary(AccountPreferenceTransaction.RecoveryStatus recovery)
+        {
+            return recovery == null ? "none" : RecoveryName(recovery.State).Split(new[] {' '}, 2)[0];
+        }
         void Begin(Operation requested)
         {
             if (busy) return;
             string selectedRoot = remainderRoot; remainderRoot = null;
             busy = true; absent = false; installed = false; operation = requested;
+            accountRecovery = null;
             finishRemoval.Enabled = false; finishRemovalConsent.Enabled = false; finishRemovalConsent.Checked = false;
             install.Enabled = false; consent.Enabled = false; enable.Enabled = false; enableConsent.Enabled = false; remove.Enabled = false; removalConsent.Enabled = false; refresh.Enabled = false; close.Enabled = false;
             consent.Checked = false; removalConsent.Checked = false;
@@ -171,7 +210,12 @@ namespace Trojaino.Setup
                 found = Find();
                 if (found != null) throw new InvalidOperationException("Removal did not establish installation absence. Keep Claude Code closed and retain these details.");
             }
-            e.Result = found;
+            e.Result = new Observation { Installation = found, Recovery = ReadAccountStatus() };
+        }
+        sealed class Observation
+        {
+            internal PairState.Record Installation;
+            internal AccountPreferenceTransaction.RecoveryStatus Recovery;
         }
         void Finished(object sender, RunWorkerCompletedEventArgs e)
         {
@@ -179,10 +223,13 @@ namespace Trojaino.Setup
             else if (e.Cancelled) ShowFailure(new OperationCanceledException("Setup did not return a verified result."));
             else
             {
-                absent = e.Result == null;
-                installed = !absent;
-                status.Text = absent ? "No existing installation was found. Review the consent above to install disabled files." : "Installation files verified. Claude activation has not been checked.";
-                details.Text = absent ? "No setup files were written by this check. Close this window to leave setup unchanged." : "The local installation matched its authenticated ownership records. This is a file check only, not proof that Claude is using Trojaino. Enablement and effective protection need separate verification.";
+                var observation = e.Result as Observation;
+                var found = observation == null ? null : observation.Installation;
+                accountRecovery = observation == null ? null : observation.Recovery;
+                absent = found == null && accountRecovery == null;
+                installed = found != null;
+                status.Text = found == null ? (accountRecovery == null ? "No existing installation was found. Review the consent above to install disabled files." : "No complete installation was found. Account settings recovery: " + RecoverySummary(accountRecovery) + ". Review recovery before another account change.") : "Installation files verified. Account settings recovery: " + RecoverySummary(accountRecovery) + ". Claude activation has not been checked.";
+                details.Text = found == null ? (accountRecovery == null ? "No setup files were written by this check. Close this window to leave setup unchanged.\r\n\r\n" + FormatRecoveryStatus(null) : "No complete installation was found. The authenticated account recovery record is retained and no action is enabled.\r\n\r\n" + FormatRecoveryStatus(accountRecovery)) : "The local installation matched its authenticated ownership records. This is a file check only, not proof that Claude is using Trojaino. Enablement and effective protection need separate verification.\r\n\r\n" + FormatRecoveryStatus(accountRecovery);
                 var remainder = e.Result as StateStore.Removal;
                 if (remainder != null)
                 {
