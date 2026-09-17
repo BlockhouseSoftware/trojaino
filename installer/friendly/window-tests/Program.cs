@@ -107,6 +107,8 @@ internal static class WindowTests
                 enable.PerformClick();
                 Assert(Snapshot(root).SequenceEqual(beforeEnable), "unconsented account-enable wrote files");
                 Assert(enableConsent.Text.Contains("account") && enableConsent.Text.Contains("settings"), "account-enable consent lacks explicit account-settings scope");
+                string explanationText = Control<Label>(form, "explanation").Text;
+                Assert(explanationText.Contains("existing-settings") || explanationText.Contains("Enable for this account") || !explanationText.Contains("not available yet"), "setup text falsely claimed Claude activation unavailable despite Enable being present for authenticated existing-settings transaction");
                 enableConsent.Checked = true;
                 Assert(enable.Enabled && Snapshot(root).SequenceEqual(beforeEnable), "checking enable consent wrote files or did not enable deliberate action");
                 enableConsent.Checked = false; enable.PerformClick();
