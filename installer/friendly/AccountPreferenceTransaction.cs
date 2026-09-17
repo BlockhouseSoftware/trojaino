@@ -204,7 +204,7 @@ namespace Trojaino.Setup
         }
         static PairState.Record Find(DefaultSetupPlan plan)
         {
-#if ACCOUNT_TRANSACTION_TESTS && NETFRAMEWORK
+#if (ACCOUNT_TRANSACTION_TESTS || SETUP_WINDOW_TESTS) && NETFRAMEWORK
             return DefaultSetupDiscovery.TestFind(plan);
 #else
             return DefaultSetupDiscovery.Find();
@@ -361,7 +361,7 @@ namespace Trojaino.Setup
             if (errors.Count != 0) throw new AggregateException("Recovery could not be checked safely. Nothing was restored or deleted; existing records retained.", errors);
             return result; // Snapshot only. Null means absent at this guarded observation, never write authority.
         }
-#if ACCOUNT_TRANSACTION_TESTS
+#if ACCOUNT_TRANSACTION_TESTS || SETUP_WINDOW_TESTS
         internal static RecoveryStatus TestReadRecoveryStatus(DefaultSetupPlan plan) { return ReadRecoveryStatusCore(plan); }
         internal static bool TestApply(DefaultSetupPlan plan, string identity, bool enabled) { return ApplyCore(plan, identity, enabled); }
         internal static byte[] TestOriginal(DefaultSetupPlan plan)
