@@ -191,10 +191,17 @@ internal static class WindowTests
             using (var stale = Open(plan))
             {
                 Idle(stale);
+                // The earlier authenticated account-enable journey deliberately retains its
+                // protected original under LocalData.  Stale-install refusal must preserve
+                // that known recovery record as well as this new unknown file.
+                string[] localBeforeUnknown = Snapshot(local);
                 string unknown = Path.Combine(local, "trj-unknown"); byte[] bytes = new byte[] {0, 255, 10}; File.WriteAllBytes(unknown, bytes);
                 Control<CheckBox>(stale, "consent").Checked = true; Control<Button>(stale, "install").PerformClick(); Idle(stale);
                 Assert(Control<Label>(stale, "status").Text.Contains("could not") && !Control<Button>(stale, "install").Enabled, "stale discovery authorized another installation");
-                Assert(Directory.GetFileSystemEntries(local).Length == 1 && File.ReadAllBytes(unknown).SequenceEqual(bytes), "stale refusal wrote/deleted unknown files");
+                string[] localAfterRefusal = Snapshot(local);
+                Assert(localAfterRefusal.Length == localBeforeUnknown.Length + 1
+                    && localAfterRefusal.Where(p => !p.StartsWith(unknown + "|", StringComparison.Ordinal)).SequenceEqual(localBeforeUnknown)
+                    && File.ReadAllBytes(unknown).SequenceEqual(bytes), "stale refusal wrote/deleted unknown or retained recovery files");
                 Assert(Control<TextBox>(stale, "details").ReadOnly && Control<TextBox>(stale, "details").Text.Length > 0, "failure details unavailable");
                 stale.Close(); File.Delete(unknown);
             }
