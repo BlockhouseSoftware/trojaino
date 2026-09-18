@@ -28,6 +28,8 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -37,6 +39,20 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Run release-profile self-scan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          python -m trojaino scan . --profile release --json > "$RUNNER_TEMP/trojaino-release.json"
-          python -c 'import json, os, pathlib; report=json.loads(pathlib.Path(os.environ["RUNNER_TEMP"], "trojaino-release.json").read_text()); assert report["verdict"] == "NO CRITICAL RISKS FOUND"; assert {"verdict", "findings", "capabilities"} <= report.keys()'
+          if python -m trojaino scan . --profile release --json > "$RUNNER_TEMP/trojaino-release.json"; then
+            scan_rc=0
+          else
+            scan_rc=$?
+          fi
+          if [ "$scan_rc" -ne 0 ] && [ "$scan_rc" -ne 2 ]; then
+            exit "$scan_rc"
+          fi
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}"; then
+            echo "unable to establish a trusted base revision" >&2
+            exit 1
+          fi
+          args=(--report "$RUNNER_TEMP/trojaino-release.json" --baseline .github/release-self-scan-baseline.json --root . --changed-from "$BASE_SHA")
+          python scripts/check_release_self_scan.py "${args[@]}"

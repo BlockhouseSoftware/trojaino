@@ -8,8 +8,8 @@ from pathlib import Path
 from trojaino.models import PreflightEstimate, ScanIssue
 
 TEXT_EXTENSIONS = {
-    "", ".cjs", ".conf", ".css", ".env", ".html", ".js", ".json", ".jsx",
-    ".lock", ".md", ".mjs", ".py", ".sh", ".toml", ".ts", ".tsx", ".txt",
+    "", ".cjs", ".conf", ".cs", ".csproj", ".css", ".env", ".html", ".iss", ".js", ".json", ".jsx",
+    ".lock", ".manifest", ".md", ".mjs", ".py", ".sh", ".toml", ".ts", ".tsx", ".txt",
     ".yaml", ".yml", ".dockerfile",
 }
 TEXT_FILENAMES = {
