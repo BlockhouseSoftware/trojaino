@@ -97,7 +97,7 @@
     },
     {
       "file": "installer/friendly/SetupLocations.cs",
-      "sha256": "4e5cfe3a8e541b713742dc35694c1b107151b9c62b7edf712a4e07097532cb7f"
+      "sha256": "96ee5e460e20f306789c17bb4e179de202305f5208c7b5a6932bdb8613db73f7"
     },
     {
       "file": "installer/friendly/SetupProgram.cs",
@@ -121,7 +121,7 @@
     },
     {
       "file": "installer/friendly/TrustedPreparation.cs",
-      "sha256": "b6cf58ab73b4a3f1a949ea80f0861653654a5224fb9a44738274ba137f65f664"
+      "sha256": "c08bc11c709d52bcd6a909192d5469f511ec5951262e32598e1fd433db2d9ab1"
     },
     {
       "file": "installer/friendly/WindowsPreflight.cs",
@@ -269,7 +269,7 @@
     },
     {
       "file": "installer/friendly/publication-tests/Program.cs",
-      "sha256": "c5866a9e35caa1b105c573867eb754f71a722d91077c9dcbbaf7b70f049026fa"
+      "sha256": "a7fad0715aad57d6431eef4530f4dc5d1132f51fb6f3cd13ca019c2300dd2926"
     },
     {
       "file": "installer/friendly/publication-tests/Publication.Tests.csproj",
@@ -361,15 +361,11 @@
     },
     {
       "file": "plugins/trojaino/README.md",
-      "sha256": "c92204dbf0001053b342806aed4bd8a1d793dd5f68f1519eaf1106dec0ad5191"
+      "sha256": "6423d54a6feeed5d9e7d979ed495ce7b71cdcf7df56a155f112e0d9d2dc1bc7c"
     },
     {
       "file": "plugins/trojaino/hooks/hooks.json",
       "sha256": "78922a784ee78e9e50587e93628cd3b9d4dfbe49087adc4514e6781cea38cbb9"
-    },
-    {
-      "file": "plugins/trojaino/scripts/hook.sh",
-      "sha256": "bfd5971dbcf419807049c8436a7540c79e2312022e2927a73a10a64f4ee85a15"
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
