@@ -132,6 +132,9 @@ SHELL_TOOL_RE = re.compile(r'\\bexec\\b')
         self.assertIn('"$scan_rc" -ne 2', workflow)
         self.assertIn("scripts/check_release_self_scan.py", workflow)
         self.assertIn(".github/release-self-scan-baseline.json", workflow)
+        self.assertIn("if: github.event_name == 'pull_request'", workflow)
+        self.assertIn("github.event.pull_request.base.sha", workflow)
+        self.assertNotIn("github.event.before", workflow)
         self.assertIn("unable to establish a trusted base revision", workflow)
 
     def test_self_scan_baseline_rejects_shipped_source_symlinks(self):
