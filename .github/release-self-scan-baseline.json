@@ -421,7 +421,7 @@
     },
     {
       "file": "scripts/build_windows_setup_payload.py",
-      "sha256": "b6c2108208a26757cd1e3b24c4acb1480a4450785b6ad5e09ea0173ecc79fbbe"
+      "sha256": "67b51421c6f80f69995eddb581531982836a3f7edb5ce9ebee867bdd639ea979"
     },
     {
       "file": "scripts/check_release_self_scan.py",
