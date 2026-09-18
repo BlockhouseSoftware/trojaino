@@ -16,7 +16,7 @@ CLI = PLUGIN / 'scripts/preflight.py'
 class PluginWorkflowTests(unittest.TestCase):
     def test_binding_replacement_accepts_crlf_sealed_entry(self):
         helper = runpy.run_path(str(ROOT / 'scripts/prepare_preflight_plugin.py'))
-        entry = CLI.read_bytes().replace(b'\n', b'\r\n')
+        entry = CLI.read_bytes().replace(b'\r\n', b'\n').replace(b'\r', b'\n').replace(b'\n', b'\r\n')
 
         prepared = helper['bind_sealed_entry'](entry, ('C:/prepared/preflight.py', 'C:/Python/python.exe'))
 

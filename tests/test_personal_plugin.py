@@ -44,7 +44,7 @@ class PersonalPluginTests(unittest.TestCase):
                 self.assertNotIn('/trojaino:scan', text)
                 self.assertNotIn('../../docs/', text)
             hashes = json.loads((destination / 'MANIFEST.sha256.json').read_text())
-            actual = {str(p.relative_to(destination)): hashlib.sha256(p.read_bytes()).hexdigest()
+            actual = {p.relative_to(destination).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                       for p in destination.rglob('*') if p.is_file() and p.name != 'MANIFEST.sha256.json'}
             self.assertEqual(hashes, actual)
 

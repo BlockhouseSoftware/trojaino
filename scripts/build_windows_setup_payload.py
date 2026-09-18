@@ -51,7 +51,7 @@ def _archive_files(data):
                 raise ValueError('unsupported archive compression')
             name = entry.filename
             parts = name.split('/')
-            if entry.orig_filename != name or any(
+            if chr(92) in name or entry.orig_filename != name or any(
                 not re.fullmatch(r'[A-Za-z0-9_.-]{1,240}', part)
                 or part in ('.', '..') or part.endswith('.')
                 or part.split('.')[0].upper() in RESERVED for part in parts

@@ -164,7 +164,8 @@ class SealedRuntimeTests(unittest.TestCase):
                 input=json.dumps({'hook_event_name': 'SessionStart'}),
                 text=True, capture_output=True, timeout=25)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn(str(entry), result.stdout)
+            context = json.loads(result.stdout)['hookSpecificOutput']['additionalContext']
+            self.assertIn(str(entry), context)
             self.assertNotIn('<sealed>', result.stdout)
 
 if __name__ == '__main__':
