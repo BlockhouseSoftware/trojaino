@@ -361,7 +361,7 @@
     },
     {
       "file": "plugins/trojaino/README.md",
-      "sha256": "d53603371f90aecfe9030fe6c22b15912ad03134ac0a4b8f4b82cf06d2d09674"
+      "sha256": "c92204dbf0001053b342806aed4bd8a1d793dd5f68f1519eaf1106dec0ad5191"
     },
     {
       "file": "plugins/trojaino/hooks/hooks.json",
@@ -377,7 +377,7 @@
     },
     {
       "file": "plugins/trojaino/skills/scan/SKILL.md",
-      "sha256": "4b365e15b6ba025763f39b9658bb9072c6912b33a2ef5627eb4cde509fd3bc61"
+      "sha256": "ad9e91210bdac77386d6938894316efebf56d74e81b9659ba05fc626087fe69f"
     },
     {
       "file": "pyproject.toml",

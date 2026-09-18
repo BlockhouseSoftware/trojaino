@@ -4,6 +4,23 @@
 
 This plugin connects the existing local Trojaino scanner to a controlled Claude Code intake session. When asked to try a new MCP server, plugin, or app, Claude can invoke the scan skill automatically. A synchronous hook rejects execution and activation outside the narrow helper workflow. A separate launcher rechecks a receipt before starting supported source.
 
+## Before this plugin does anything
+
+Installing this plugin from a marketplace gives you **no protection**. The copy you
+just installed ships with no hooks registered, on purpose: a working hook has to
+contain the literal absolute path of one specific trusted Python interpreter on
+your machine, and no published package can know that path.
+
+Protection comes from a second, prepared copy that you create explicitly:
+
+- **Windows 11** — follow the [Windows quick start](../../docs/windows-quick-start.md).
+- **macOS and Linux** — follow [prepared personal plugin](../../docs/personal-plugin-delivery.md),
+  which walks through running `scripts/prepare_preflight_plugin.py` with an
+  absolute Python 3.11+ path and a new destination under your Claude skills directory.
+
+Until you have done that, `/trojaino:scan` will correctly refuse to run and the
+marketplace copy will sit disabled and inert.
+
 The intended sequence is **stage → scan → report to Claude → separately requested launch**. The scanner and hook never execute the candidate. A passing scan does not override Claude permissions or certify safety.
 
 ## Requirements and tested scope
