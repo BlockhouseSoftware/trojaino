@@ -92,13 +92,29 @@ class SourceAuditTests(unittest.TestCase):
             self.assertEqual(result_v2['source_files'], len(files))
             with self.assertRaisesRegex(ValueError, 'Git'):
                 audit(data_v2, hashlib.sha256(data_v2).hexdigest(), root, second, git, 'source-layout-v1')
+            # v3 drops the retired root catalog and legacy trial guide for the renamed checklist.
+            files_v3 = {k: v for k, v in files.items()
+                        if k not in ('.claude-plugin/marketplace.json', 'docs/sig-windows-trial.md')}
+            files_v3['docs/windows-trial-checklist.md'] = b'trial checklist\n'
+            (root / 'docs/windows-trial-checklist.md').write_bytes(files_v3['docs/windows-trial-checklist.md'])
+            command('rm', '-q', '.claude-plugin/marketplace.json', 'docs/sig-windows-trial.md')
+            command('add', 'docs/windows-trial-checklist.md')
+            command('-c', 'user.name=Source Audit Test', '-c', 'user.email=audit@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'layout v3')
+            third = command('rev-parse', 'HEAD').decode().strip()
+            data_v3 = packed(files_v3)
+            result_v3 = audit(data_v3, hashlib.sha256(data_v3).hexdigest(), root, third, git, 'source-layout-v3')
+            self.assertEqual(result_v3['source_files'], len(files_v3))
+            with self.assertRaisesRegex(ValueError, 'Git'):
+                audit(data_v3, hashlib.sha256(data_v3).hexdigest(), root, third, git, 'source-layout-v2')
+            with self.assertRaisesRegex(ValueError, 'Git'):
+                audit(data_v2, hashlib.sha256(data_v2).hexdigest(), root, third, git, 'source-layout-v3')
             # A Git symlink blob must be refused even with identical packaged bytes.
-            oid = command('rev-parse', second + ':trojaino/__init__.py').decode().strip()
+            oid = command('rev-parse', third + ':trojaino/__init__.py').decode().strip()
             command('update-index', '--cacheinfo', '120000,' + oid + ',trojaino/__init__.py')
             command('-c', 'user.name=Source Audit Test', '-c', 'user.email=audit@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'symlink fixture')
             symlink_commit = command('rev-parse', 'HEAD').decode().strip()
             with self.assertRaisesRegex(ValueError, 'regular'):
-                audit(data_v2, hashlib.sha256(data_v2).hexdigest(), root, symlink_commit, git, 'source-layout-v2')
+                audit(data_v3, hashlib.sha256(data_v3).hexdigest(), root, symlink_commit, git, 'source-layout-v3')
             for malformed in (commit.upper(), commit[:7], '--help', commit + '\n'):
                 with self.assertRaisesRegex(ValueError, 'literal'):
                     audit(data, hashlib.sha256(data).hexdigest(), root, malformed, git, 'source-layout-v1')

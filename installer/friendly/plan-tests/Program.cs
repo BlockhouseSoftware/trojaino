@@ -29,8 +29,8 @@ internal static class PlanTests
     static int Main()
     {
         const string id = "0123456789abcdef0123456789abcdef";
-        const string profile = @"C:\Users\Sig Å";
-        const string local = @"D:\Local Data\Sig Å";
+        const string profile = @"C:\Users\Ada Å";
+        const string local = @"D:\Local Data\Ada Å";
         var plan = Create(profile, local, null, id);
         string name = "trojaino-local-" + id;
         Assert((string)Property(plan, "Name") == name, "exact fresh identity");
@@ -40,7 +40,7 @@ internal static class PlanTests
         roots[0] = "mutated";
         Assert(((string[])Property(plan, "Roots")).SequenceEqual(expected), "plan roots leaked mutable state");
         Console.WriteLine("PASS read-only Unicode known-folder mapping, exact identity and immutable six-root snapshot; no native APIs/writes");
-        foreach (string bad in new[] {null, "", "relative", @"\\server\share", @"C:\x\..\user", @"C:\Users\Sig\", "C:\\Users\\Sig\n", @"C:\NUL", @"C:\" + new string('a', 230)})
+        foreach (string bad in new[] {null, "", "relative", @"\\server\share", @"C:\x\..\user", @"C:\Users\Ada\", "C:\\Users\\Ada\n", @"C:\NUL", @"C:\" + new string('a', 230)})
         {
             Refuse(bad, local, null, id); Refuse(profile, bad, null, id);
         }

@@ -55,9 +55,13 @@ jobs:
             echo "unable to establish a trusted base revision" >&2
             exit 1
           fi
-          if ! git show "$BASE_SHA:.github/release-self-scan-baseline.json" > "$RUNNER_TEMP/trojaino-release-base-baseline.json"; then
-            echo "unable to read the trusted base self-scan baseline" >&2
-            exit 1
+          args=(--report "$RUNNER_TEMP/trojaino-release.json" --baseline .github/release-self-scan-baseline.json --root . --changed-from "$BASE_SHA")
+          # A base without a baseline (the first PR that introduces one) gets no corrective-refresh allowance.
+          if git cat-file -e "$BASE_SHA:.github/release-self-scan-baseline.json" 2>/dev/null; then
+            if ! git show "$BASE_SHA:.github/release-self-scan-baseline.json" > "$RUNNER_TEMP/trojaino-release-base-baseline.json"; then
+              echo "unable to read the trusted base self-scan baseline" >&2
+              exit 1
+            fi
+            args+=(--base-baseline "$RUNNER_TEMP/trojaino-release-base-baseline.json")
           fi
-          args=(--report "$RUNNER_TEMP/trojaino-release.json" --baseline .github/release-self-scan-baseline.json --base-baseline "$RUNNER_TEMP/trojaino-release-base-baseline.json" --root . --changed-from "$BASE_SHA")
           python scripts/check_release_self_scan.py "${args[@]}"

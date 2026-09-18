@@ -1,9 +1,9 @@
-# Internal setup transaction — iteration14
+# Internal setup transaction
 
-This is developer component work, NOT an independently usable installer for Sig.
-No GUI, consent/known-folder resolver, settings activation or Windows11 qualification
-is supplied. Earlier friendly-setup architecture decisions remain binding; this
-slice implements the previously missing composition only.
+This is developer component work, NOT an independently usable installer.
+The GUI, consent/known-folder resolver and settings activation are separate
+components; Windows 11 qualification is a separate gate. The decisions in
+[friendly-setup-architecture.md](friendly-setup-architecture.md) remain binding.
 
 SetupController.Install snapshots six caller roots once, uses SetupLocations.Check
 before writes and exclusively stages compiled approved runtime/source. It captures

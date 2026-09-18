@@ -120,7 +120,7 @@ internal static class LocationsTests
     }
     static int Main()
     {
-        var roots = Good(@"C:\Users\Sig Å\AppData\Local\Trojaino");
+        var roots = Good(@"C:\Users\Ada Å\AppData\Local\Trojaino");
         Layout(roots, "trojaino-local-trial");
         for (int i = 0; i < roots.Length; i++)
             for (int j = 0; j < roots.Length; j++)

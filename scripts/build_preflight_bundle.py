@@ -23,8 +23,7 @@ def build(output):
                     if p.is_file() and '__pycache__' not in p.parts
                     and p.suffix in {'.py', '.sh', '.json', '.md'})
     files += [ROOT / name for name in (
-        '.claude-plugin/marketplace.json',
-        'docs/windows-preflight.md', 'docs/sig-windows-trial.md',
+        'docs/windows-preflight.md', 'docs/windows-trial-checklist.md',
         'docs/marketplace-lifecycle.md', 'docs/marketplace-requirements.md',
         'docs/marketplace-runtime-architecture.md', 'docs/personal-plugin-delivery.md',
         'docs/friendly-setup-architecture.md')]

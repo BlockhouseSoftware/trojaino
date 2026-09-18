@@ -1,4 +1,4 @@
-# Trojaino v0.1.6
+# Trojaino v0.2.0
 
 **Trojaino: Local Trust Scanner**
 
@@ -18,7 +18,7 @@ It never says software is "safe" or "certified secure."
 
 The [Claude Code preflight pilot](plugins/trojaino/README.md) adds a model-invocable scan skill, synchronous execution guard, and receipt-checking source launcher. It runs as an explicitly loaded **inspection session**, not a global antivirus or universal install interceptor. The pilot has local macOS coverage and an experimental [native Windows 11 implementation](docs/windows-preflight.md). Authenticated Windows 11 Claude desktop validation remains required before rollout.
 
-For a supervised first test, use [Sig’s step-by-step guide](docs/SIG_QUICK_START.md). It includes direct GitHub downloads and plain-English setup instructions. These experimental plugin files are separate from the standalone Windows installer below. The existing scanner and its machine-report contract are unchanged.
+For a supervised first test on Windows, use the [Windows quick start](docs/windows-quick-start.md). It uses release downloads and plain-English setup instructions. These experimental plugin files are separate from the standalone Windows installer below. The existing scanner and its machine-report contract are unchanged.
 
 ## Repository scope
 
@@ -121,7 +121,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 
 ## Limitations
 
-Trojaino v0.1.6 is an alpha deterministic scanner:
+Trojaino v0.2.0 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.

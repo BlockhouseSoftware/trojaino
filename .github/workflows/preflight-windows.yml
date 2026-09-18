@@ -3,7 +3,7 @@ name: Native Windows preflight
 on:
   workflow_dispatch:
   push:
-    branches: ["feat/windows-native-preflight"]
+    branches: ["main"]
   pull_request:
     paths:
       - "trojaino/**"
@@ -14,12 +14,12 @@ on:
       - "scripts/sealed_runtime_bootstrap.py"
       - "scripts/write_prepared_tree.py"
       - "docs/windows-preflight.md"
-      - "docs/sig-windows-trial.md"
+      - "docs/windows-trial-checklist.md"
+      - "docs/windows-quick-start.md"
       - "docs/personal-plugin-delivery.md"
       - "docs/marketplace-lifecycle.md"
       - "docs/marketplace-requirements.md"
       - "docs/marketplace-runtime-architecture.md"
-      - ".claude-plugin/**"
       - "README.md"
       - "tests/**"
       - "requirements/test.txt"

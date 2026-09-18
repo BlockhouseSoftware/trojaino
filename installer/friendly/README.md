@@ -1,7 +1,7 @@
 # Native setup staging core — engineering only
 
 This directory is not an independently usable installer. Do not send its test
-binary, source, or SDK instructions to Sig. A real development-preview WinForms
+binary, source, or SDK instructions to end users. A real development-preview WinForms
 window and production-symbol x64 WinExe build now exist; neither has completed
 the independent first-download/Windows11/Claude acceptance journey.
 

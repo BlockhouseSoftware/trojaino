@@ -13,13 +13,21 @@ import runpy
 import subprocess
 
 _HELPER = runpy.run_path(str(Path(__file__).with_name('build_windows_setup_payload.py')))
-FIXED = frozenset(('LICENSE', 'README.md', 'pyproject.toml', 'scripts/build_preflight_bundle.py',
-                  'scripts/prepare_preflight_plugin.py', 'scripts/write_prepared_tree.py',
-                  'scripts/build_sealed_runtime.py', 'scripts/sealed_runtime_bootstrap.py',
-                  '.claude-plugin/marketplace.json', 'docs/windows-preflight.md',
-                  'docs/sig-windows-trial.md', 'docs/marketplace-lifecycle.md',
-                  'docs/marketplace-requirements.md', 'docs/marketplace-runtime-architecture.md',
-                  'docs/personal-plugin-delivery.md'))
+_COMMON = ('LICENSE', 'README.md', 'pyproject.toml', 'scripts/build_preflight_bundle.py',
+           'scripts/prepare_preflight_plugin.py', 'scripts/write_prepared_tree.py',
+           'scripts/build_sealed_runtime.py', 'scripts/sealed_runtime_bootstrap.py',
+           'docs/windows-preflight.md', 'docs/marketplace-lifecycle.md',
+           'docs/marketplace-requirements.md', 'docs/marketplace-runtime-architecture.md',
+           'docs/personal-plugin-delivery.md')
+# Historical layouts stay frozen so archives built from earlier commits still audit.
+LAYOUTS = {
+    'source-layout-v1': frozenset(_COMMON + ('.claude-plugin/marketplace.json', 'docs/sig-windows-trial.md')),
+    'source-layout-v2': frozenset(_COMMON + ('.claude-plugin/marketplace.json', 'docs/sig-windows-trial.md',
+                                             'docs/friendly-setup-architecture.md')),
+    'source-layout-v3': frozenset(_COMMON + ('docs/windows-trial-checklist.md',
+                                             'docs/friendly-setup-architecture.md')),
+}
+FIXED = LAYOUTS['source-layout-v3']
 
 
 def audit(data, source_sha256, repo, source_commit, git, layout):
@@ -27,7 +35,7 @@ def audit(data, source_sha256, repo, source_commit, git, layout):
         raise ValueError('literal lowercase full source commit required')
     if not re.fullmatch(r'[0-9a-f]{64}', source_sha256):
         raise ValueError('literal lowercase SHA256 required')
-    if layout not in ('source-layout-v1', 'source-layout-v2'):
+    if layout not in LAYOUTS:
         raise ValueError('explicit supported source layout required')
     if not Path(git).is_absolute() or not Path(git).is_file():
         raise ValueError('absolute developer Git executable required')
@@ -45,8 +53,7 @@ def audit(data, source_sha256, repo, source_commit, git, layout):
         mode, kind, oid = metadata.decode('ascii').split()
         name = path.decode('utf-8')
         entries[name] = (mode, kind, oid)
-    fixed = FIXED | ({'docs/friendly-setup-architecture.md'} if layout == 'source-layout-v2' else set())
-    selected = set(fixed)
+    selected = set(LAYOUTS[layout])
     for name in entries:
         path = PurePosixPath(name)
         if (name.startswith('trojaino/') and path.suffix == '.py'
@@ -83,7 +90,7 @@ if __name__ == '__main__':
     parser.add_argument('--repo', type=Path, required=True)
     parser.add_argument('--source-commit', required=True)
     parser.add_argument('--git', type=Path, required=True)
-    parser.add_argument('--layout', choices=('source-layout-v1', 'source-layout-v2'), required=True)
+    parser.add_argument('--layout', choices=tuple(LAYOUTS), required=True)
     args = parser.parse_args()
     print(json.dumps(audit(_HELPER['read_archive'](args.source), args.source_sha256, args.repo,
                            args.source_commit, args.git, args.layout), sort_keys=True))

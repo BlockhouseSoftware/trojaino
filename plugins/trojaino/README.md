@@ -1,4 +1,4 @@
-# Trojaino for Claude Code — preflight pilot 0.1.0
+# Trojaino for Claude Code — preflight pilot 0.2.0
 
 **Experimental, repository-local inspection mode. Not a universal execution firewall.**
 

@@ -310,10 +310,10 @@ internal static class Tests
             try { method.Invoke(null, new object[] {path, members}); }
             catch (TargetInvocationException e) { throw e.InnerException; }
         };
-        foreach (string path in new[] { @"C:\Users\Sig\Trojaino", @"D:\Users\Sig Hansen\Trojaino", @"C:\Users\Sigrid Øst\Trojaino" })
+        foreach (string path in new[] { @"C:\Users\Ada\Trojaino", @"D:\Users\Ada Hansen\Trojaino", @"C:\Users\Astrid Øst\Trojaino" })
             validate(path, new[] {"python.exe", "Lib/license.txt"});
         var rejected = new[] { "", @"C:\", @"C:relative", @"\rooted", @"\\server\share\new", @"\\?\C:\new", @"\\.\C:\new",
-            "C:/Users/Sig/new", @"C:\Users\..\new", @"C:\Users\.\new", @"C:\Users\\new", @"C:\Users\new\",
+            "C:/Users/Ada/new", @"C:\Users\..\new", @"C:\Users\.\new", @"C:\Users\\new", @"C:\Users\new\",
             @"C:\Users\new.", @"C:\Users\new ", @"C:\Users\a:stream", @"C:\Users\CON.txt", @"C:\Users\LPT1.log",
             @"C:\Users\COM¹.log", @"C:\Users\CONIN$", @"C:\Users\CONOUT$", @"C:\Users\CON .txt", @"C:\Users\a?b", @"C:\Users\a*b", "C:\\Users\\bad\nname", "C:\\Users\\bad\0name",
             "C:\\" + new string('a', 246) };
@@ -339,7 +339,7 @@ internal static class Tests
         try { validate(@"C:\" + new string('a', 243), new[] {"a"}); } catch (InvalidDataException) { exactBoundaryDenied = true; }
         Assert(exactBoundaryDenied, "248-character expanded path refused");
         bool overBudget = false;
-        try { validate(@"C:\Users\Sig\Trojaino", new[] {new string('a', 240)}); }
+        try { validate(@"C:\Users\Ada\Trojaino", new[] {new string('a', 240)}); }
         catch (InvalidDataException) { overBudget = true; }
         Assert(overBudget, "final expanded member path refused before creating destination");
         Console.WriteLine("Windows lexical negative fixtures: " + rejected.Length + "; portable only");
@@ -382,7 +382,7 @@ internal static class Tests
         if (Environment.OSVersion.Platform != PlatformID.Win32NT)
         {
             bool denied = false;
-            try { method.Invoke(null, new object[] {@"C:\Users\Sig\Trojaino", new[] {"python.exe"}}); }
+            try { method.Invoke(null, new object[] {@"C:\Users\Ada\Trojaino", new[] {"python.exe"}}); }
             catch (TargetInvocationException e) { denied = e.InnerException is PlatformNotSupportedException; }
             Assert(denied, "native probe must not emulate Windows success on another OS");
             Console.WriteLine("SKIP native Win32 execution: non-Windows host; only explicit refusal exercised");

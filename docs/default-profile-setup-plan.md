@@ -20,8 +20,8 @@ Root arrays are defensive copies; no caller folder/identity injection is compile
 into production. Native parent/volume/alias/absence checks remain the controller's
 mandatory prewrite gate; a plan does not perform them or reserve directories.
 
-Missing `.claude/skills` remains an unfinished owned-parent provisioning step.
-Do not tell Sig to create it, copy paths or edit config. Fresh identity generation
+Missing `.claude/skills` is provisioned by the setup flow itself; users are never
+asked to create it, copy paths or edit config. Fresh identity generation
 is not a persistent installation registry, duplicate-install detection or consent.
 The GUI, activation, effective verification, disable/remove controls and recovery
 experience remain unfinished. The current bundle stays default-disabled.

@@ -1,6 +1,9 @@
 # ADR: Sealed marketplace runtime image
 
-Status: implemented locally; user-scope boundary explicitly approved by Jose in Telegram (“Proceed with user-scope and 3.”). Independent review under that approved boundary and native Windows acceptance remain required. See marketplace-requirements.md for the recorded decision; same-user concurrent mutation is excluded, not claimed prevented.
+Status: implemented. Independent review under the user-scope boundary in
+[marketplace-requirements.md](marketplace-requirements.md) and native Windows
+acceptance remain required. Same-user concurrent mutation is excluded from the
+threat model, not claimed prevented.
 
 ## Trust boundary
 
@@ -79,4 +82,4 @@ unit tests; marketplace workers have no disk-import fallback.
 
 Native Windows job containment, pipe behavior, ACLs, path locking and Claude hook
 transport still require actual Windows execution. macOS test results cannot
-qualify these. Release publication, installation and user rollout remain gated.
+qualify these.
