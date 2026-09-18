@@ -19,7 +19,7 @@ The core is still Trojaino's heuristic static scanner. It cannot establish compl
 
 ## Load without changing global Claude settings
 
-Keep the plugin **inside its original full trusted checkout** or the equivalent reviewed source-only bundle layout. The portable builder is `scripts/build_preflight_bundle.py`; see the Windows guide. This pilot intentionally does not support copying the plugin alone, marketplace caching, or installing it from PyPI. There is no official Trojaino PyPI package.
+Keep the plugin **inside its original full trusted checkout** or the equivalent reviewed source-only bundle layout. The portable builder is `scripts/build_preflight_bundle.py`; see the Windows guide. This pilot intentionally does not support copying the plugin alone, marketplace caching, or installing the plugin from PyPI. The published `trojaino` PyPI package is the standalone scanner CLI (`tjscan`); it does not contain this plugin and installing it does not set up inspection mode.
 
 First identify your trusted absolute interpreter and checkout paths. Substitute real paths below; the placeholders are not runnable values:
 
