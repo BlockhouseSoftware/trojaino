@@ -17,7 +17,7 @@ SPEC.loader.exec_module(verify_distribution)
 
 
 class DistributionVerificationTests(unittest.TestCase):
-    version = "0.1.6"
+    version = "0.2.0"
 
     def setUp(self) -> None:
         self.root = Path(tempfile.mkdtemp(prefix="trojaino-distribution-"))

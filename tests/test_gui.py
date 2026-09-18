@@ -14,7 +14,7 @@ class GuiSupportTests(unittest.TestCase):
         return Path(tempfile.mkdtemp(prefix="trojaino-gui-test-"))
 
     def test_default_output_dir_is_a_stable_documents_folder(self):
-        home = self.make_project() / "Sig"
+        home = self.make_project() / "home"
 
         self.assertEqual(
             default_output_dir(home=home),

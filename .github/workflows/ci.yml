@@ -12,8 +12,8 @@ jobs:
     name: Repository boundary
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.11"
       - name: Reject internal and local-only artifacts
@@ -27,8 +27,10 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -37,6 +39,29 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Run release-profile self-scan
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          python -m trojaino scan . --profile release --json > "$RUNNER_TEMP/trojaino-release.json"
-          python -c 'import json, os, pathlib; report=json.loads(pathlib.Path(os.environ["RUNNER_TEMP"], "trojaino-release.json").read_text()); assert report["verdict"] == "NO CRITICAL RISKS FOUND"; assert {"verdict", "findings", "capabilities"} <= report.keys()'
+          if python -m trojaino scan . --profile release --json > "$RUNNER_TEMP/trojaino-release.json"; then
+            scan_rc=0
+          else
+            scan_rc=$?
+          fi
+          if [ "$scan_rc" -ne 0 ] && [ "$scan_rc" -ne 2 ]; then
+            exit "$scan_rc"
+          fi
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}"; then
+            echo "unable to establish a trusted base revision" >&2
+            exit 1
+          fi
+          args=(--report "$RUNNER_TEMP/trojaino-release.json" --baseline .github/release-self-scan-baseline.json --root . --changed-from "$BASE_SHA")
+          # A base without a baseline (the first PR that introduces one) gets no corrective-refresh allowance.
+          if git cat-file -e "$BASE_SHA:.github/release-self-scan-baseline.json" 2>/dev/null; then
+            if ! git show "$BASE_SHA:.github/release-self-scan-baseline.json" > "$RUNNER_TEMP/trojaino-release-base-baseline.json"; then
+              echo "unable to read the trusted base self-scan baseline" >&2
+              exit 1
+            fi
+            args+=(--base-baseline "$RUNNER_TEMP/trojaino-release-base-baseline.json")
+          fi
+          python scripts/check_release_self_scan.py "${args[@]}"

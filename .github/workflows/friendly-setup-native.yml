@@ -1,0 +1,498 @@
+name: Friendly setup native staging
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "installer/friendly/**"
+      - "scripts/audit_setup_source.py"
+      - "scripts/build_setup_resources.py"
+      - "scripts/build_windows_setup_payload.py"
+      - ".github/workflows/friendly-setup-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  framework-staging:
+    # Standard hosted runner in a public repo; no paid/larger runner or artifacts.
+    # Server API evidence only, NOT Windows11 GUI/SmartScreen qualification.
+    runs-on: windows-2025
+    timeout-minutes: 12
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # Source audit compares immutable blob bytes, not Windows CRLF checkout.
+        # Process-scoped Git config only; no global/repository config mutation.
+        env:
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+        with:
+          persist-credentials: false
+      - name: Compile and exercise pinned staging on native Framework
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Public check annotations expose bounded diagnostics without accessing
+          # authenticated logs. Never dump environment variables or credentials.
+          trap {
+            $message = $_.Exception.Message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            if ($message.Length -gt 2000) { $message = $message.Substring(0, 2000) }
+            Write-Output "::error title=Native staging failure::$message"
+            exit 1
+          }
+          $python = Join-Path $env:RUNNER_TOOL_CACHE 'Python/3.14.7/x64/python.exe'
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+          $references = Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies/Microsoft/Framework/.NETFramework/v4.8'
+          foreach ($required in @($python, $compiler, $references)) {
+            if (-not (Test-Path -LiteralPath $required)) { throw "Required installed build tool missing: $required" }
+          }
+          $work = Join-Path $env:RUNNER_TEMP ('friendly-staging-' + [Guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $work | Out-Null
+          Write-Output "Exact test SHA: $env:GITHUB_SHA"
+          Write-Output "Native OS: $([Environment]::OSVersion.VersionString); PowerShell host CLR: $([Environment]::Version); target references: $references"
+          & $python --version
+          if ($LASTEXITCODE -ne 0) { throw 'Cached developer Python unavailable' }
+          $runtime = Join-Path $work 'runtime.zip'
+          Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.14.7/python-3.14.7-embed-amd64.zip' -OutFile $runtime -TimeoutSec 60
+          $runtimePin = 'd297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15'
+          if ((Get-FileHash -LiteralPath $runtime -Algorithm SHA256).Hash.ToLowerInvariant() -cne $runtimePin) { throw 'Official runtime digest mismatch; never execute it' }
+          $source = Join-Path $work 'source.zip'
+          & $python -I -S scripts/build_preflight_bundle.py $source
+          if ($LASTEXITCODE -ne 0) { throw 'Source build failed' }
+          $sourcePin = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
+          # Git is a hosted developer tool, never the end-user runtime authority.
+          $git = Join-Path $env:ProgramFiles 'Git/cmd/git.exe'
+          if (-not (Test-Path -LiteralPath $git -PathType Leaf)) { throw 'Required installed developer Git missing' }
+          $auditOutput = & $python -I -S scripts/audit_setup_source.py --source $source --source-sha256 $sourcePin --repo $env:GITHUB_WORKSPACE --source-commit $env:GITHUB_SHA --git $git --layout source-layout-v3 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Source does not match exact Git commit: ' + ($auditOutput -join "`n")) }
+          Write-Output $auditOutput
+          $payload = Join-Path $work 'payload.zip'
+          & $python -I -S scripts/build_windows_setup_payload.py --runtime $runtime --source $source --source-sha256 $sourcePin --source-commit $env:GITHUB_SHA --output $payload
+          if ($LASTEXITCODE -ne 0) { throw 'Payload build failed' }
+          $payloadPin = (Get-FileHash -LiteralPath $payload -Algorithm SHA256).Hash.ToLowerInvariant()
+          $generated = Join-Path $work 'ApprovedPayload.g.cs'
+          & $python -I -S scripts/build_setup_resources.py --payload $payload --payload-sha256 $payloadPin --source-sha256 $sourcePin --source-commit $env:GITHUB_SHA --output $generated
+          if ($LASTEXITCODE -ne 0) { throw 'Compiled pin generation failed' }
+          $refArgs = @()
+          foreach ($name in @('mscorlib.dll', 'System.dll', 'System.Core.dll', 'System.IO.Compression.dll')) {
+            $file = Join-Path $references $name
+            if (-not (Test-Path -LiteralPath $file)) { throw "Missing approved Framework reference: $name" }
+            $refArgs += '/reference:' + $file
+          }
+          $runtimeInfo = @(Get-ChildItem -LiteralPath $references -Recurse -File -Filter 'System.Runtime.InteropServices.RuntimeInformation.dll')
+          if ($runtimeInfo.Count -ne 1) { throw 'Framework RuntimeInformation reference missing or ambiguous' }
+          $refArgs += '/reference:' + $runtimeInfo[0].FullName
+          $sources = @('installer\friendly\Bootstrap.cs', 'installer\friendly\WindowsPreflight.cs', 'installer\friendly\StagedPayload.cs', 'installer\friendly\TrustedPreparation.cs') | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
+          $common = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/resource:' + $payload + ',Trojaino.Setup.Payload')) + $refArgs
+          $resourceExe = Join-Path $work 'ResourceTests.exe'
+          # Documented csc response file avoids native-shell argument splitting.
+          # Legacy csc starts a new output when /out follows source files.
+          # Keep ALL options before ALL sources for one intended executable.
+          $resourceArgs = $common + @(('/out:' + $resourceExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\resource-tests\Program.cs'))
+          $resourceRsp = Join-Path $work 'resource.rsp'
+          $resourceArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $resourceRsp -Encoding utf8
+          $compilerEvidence = [ordered]@{compiler=$compiler; version=(Get-Item -LiteralPath $compiler).VersionInfo.FileVersion; arguments=$resourceArgs} | ConvertTo-Json -Compress
+          # Keep compiler detail in the log; reserve bounded check annotations for results.
+          Write-Output ('Native compiler inputs: ' + $compilerEvidence)
+          $compiled = & $compiler '/noconfig' ('@' + $resourceRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native Framework production-symbol compilation failed: ' + ($compiled -join "`n")) }
+          $resourceResult = & $resourceExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native real-resource lifecycle tests failed: ' + ($resourceResult -join "`n")) }
+          Write-Output $resourceResult
+          # Runtime lifetime handoff is source retirement only; no runtime execution.
+          $handoffExe = Join-Path $work 'HandoffTests.exe'
+          $handoffArgs = $common + @(('/out:' + $handoffExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\handoff-tests\Program.cs'))
+          $handoffRsp = Join-Path $work 'handoff.rsp'
+          $handoffArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $handoffRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $handoffRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native handoff compilation failed: ' + ($compiled -join "`n")) }
+          $handoffResult = & $handoffExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native handoff tests failed: ' + ($handoffResult -join "`n")) }
+          # Pure document edit on native Framework; no settings IO or activation.
+          $preferenceExe = Join-Path $work 'PreferenceTests.exe'
+          $preferenceArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/out:' + $preferenceExe)) + $refArgs + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\AccountPreferenceDocument.cs'), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\preference-tests\Program.cs'))
+          $preferenceRsp = Join-Path $work 'preference.rsp'
+          $preferenceArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $preferenceRsp -Encoding utf8
+          $preferenceCompile = & $compiler /noconfig ('@' + $preferenceRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native preference compilation failed: ' + ($preferenceCompile -join "`n")) }
+          Write-Output $preferenceCompile
+          $preferenceResult = @(& $preferenceExe 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw ('Native preference tests failed: ' + ($preferenceResult -join "`n")) }
+          $lockExe = Join-Path $work 'SettingsLockTests.exe'
+          $lockArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', ('/out:' + $lockExe)) + $refArgs + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\Bootstrap.cs'), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\WindowsPreflight.cs'), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\settings-lock-tests\Program.cs'))
+          $lockRsp = Join-Path $work 'settings-lock.rsp'
+          $lockArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $lockRsp -Encoding utf8
+          $lockCompile = & $compiler /noconfig ('@' + $lockRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native settings lock compilation failed: ' + ($lockCompile -join "`n")) }
+          Write-Output $lockCompile
+          $lockResult = @(& $lockExe 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw ('Native settings lock tests failed: ' + ($lockResult -join "`n")) }
+          $handoffEvidence = [ordered]@{sha=$env:GITHUB_SHA; handoff=$handoffResult; preference=$preferenceResult; settingsLock=$lockResult; qualification='source retirement, pure document edit and native lock primitives only; no settings transaction or activation'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native handoff results::' + $handoffEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Read-only six-role controller preflight; no installer or activation.
+          $locationsExe = Join-Path $work 'LocationsTests.exe'
+          $locationsArgs = $common + @('/define:NETFRAMEWORK', ('/out:' + $locationsExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\SetupLocations.cs'), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\locations-tests\Program.cs'))
+          $locationsRsp = Join-Path $work 'locations.rsp'
+          $locationsArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $locationsRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $locationsRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native locations compilation failed: ' + ($compiled -join "`n")) }
+          $locationsResult = & $locationsExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native locations tests failed: ' + ($locationsResult -join "`n")) }
+          $locationsEvidence = [ordered]@{sha=$env:GITHUB_SHA; locations=$locationsResult; qualification='read-only all-role preflight only; no setup transaction or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native locations results::' + $locationsEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          $faultExe = Join-Path $work 'TransactionTests.exe'
+          $faultArgs = $common + @('/define:BOOTSTRAP_TESTS', ('/out:' + $faultExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\transaction-tests\Program.cs'))
+          $faultRsp = Join-Path $work 'fault.rsp'
+          $faultArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $faultRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $faultRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native Framework fault harness compilation failed: ' + ($compiled -join "`n")) }
+          $faultResult = & $faultExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native transaction fault tests failed: ' + ($faultResult -join "`n")) }
+          Write-Output $faultResult
+          # Negative compiled artifact: unchanged pins, one corrupted resource byte.
+          # Separate output preserves the good production-symbol test executable.
+          $tamperPayload = Join-Path $work 'tampered-payload.zip'
+          $tamperBytes = [System.IO.File]::ReadAllBytes($payload)
+          $tamperBytes[0] = $tamperBytes[0] -bxor 1
+          [System.IO.File]::WriteAllBytes($tamperPayload, $tamperBytes)
+          $tamperExe = Join-Path $work 'TamperTests.exe'
+          $tamperArgs = $resourceArgs | ForEach-Object {
+            if ($_.StartsWith('/resource:')) { '/resource:' + $tamperPayload + ',Trojaino.Setup.Payload' }
+            elseif ($_.StartsWith('/out:')) { '/out:' + $tamperExe }
+            else { $_ }
+          }
+          $tamperRsp = Join-Path $work 'tamper.rsp'
+          $tamperArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $tamperRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $tamperRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native tamper harness compilation failed: ' + ($compiled -join "`n")) }
+          $tamperResult = & $tamperExe '--expect-tamper' 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native changed-resource rejection failed: ' + ($tamperResult -join "`n")) }
+          Write-Output $tamperResult
+          $evidence = [ordered]@{sha=$env:GITHUB_SHA; payload=$payloadPin; resource=$resourceResult; faults=$faultResult; tamper=$tamperResult} | ConvertTo-Json -Depth 4 -Compress
+          Write-Output ('::notice title=Native staging results::' + $evidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          Write-Output "PASS native Framework staging SHA=$env:GITHUB_SHA payload=$payloadPin; staging harness does not execute bundled runtime"
+          # Test-only self-child process fixtures; no candidate code or PATH lookup.
+          $processExe = Join-Path $work 'ProcessTests.exe'
+          $processArgs = $common + @('/define:PREPARATION_TESTS', ('/out:' + $processExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\process-tests\Program.cs'))
+          $processRsp = Join-Path $work 'process.rsp'
+          $processArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $processRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $processRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native process test compilation failed: ' + ($compiled -join "`n")) }
+          $processResult = & $processExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native bounded process tests failed: ' + ($processResult -join "`n")) }
+          $processEvidence = [ordered]@{sha=$env:GITHUB_SHA; process=$processResult} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native process results::' + $processEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Test-only inert output and write-fault injection; never production authority.
+          $publicationExe = Join-Path $work 'PublicationTests.exe'
+          $publicationArgs = $common + @('/define:PREPARATION_TESTS;BOOTSTRAP_TESTS', ('/out:' + $publicationExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\publication-tests\Program.cs'))
+          $publicationRsp = Join-Path $work 'publication.rsp'
+          $publicationArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $publicationRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $publicationRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native publication test compilation failed: ' + ($compiled -join "`n")) }
+          $publicationResult = & $publicationExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native publication tests failed: ' + ($publicationResult -join "`n")) }
+          $publicationEvidence = [ordered]@{sha=$env:GITHUB_SHA; publication=$publicationResult} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native publication results::' + $publicationEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Separate developer feasibility test, not an installer: explicit approved
+          # runtime execution after compiled receipt verification, no candidates.
+          $serializerRef = Join-Path $references 'System.Web.Extensions.dll'
+          if (-not (Test-Path -LiteralPath $serializerRef -PathType Leaf)) { throw 'Framework JSON test reference missing' }
+          $preparationExe = Join-Path $work 'PreparationTests.exe'
+          $preparationArgs = $common + @(('/reference:' + $serializerRef), ('/out:' + $preparationExe)) + $sources + @($generated, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\preparation-tests\Program.cs'))
+          $preparationRsp = Join-Path $work 'preparation.rsp'
+          $preparationArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $preparationRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $preparationRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native preparation test compilation failed: ' + ($compiled -join "`n")) }
+          $preparationResult = & $preparationExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native preparation test failed: ' + ($preparationResult -join "`n")) }
+          $preparationEvidence = [ordered]@{sha=$env:GITHUB_SHA; payload=$payloadPin; preparation=$preparationResult; qualification='approved runtime executed; no candidate execution; no GUI or Claude activation'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native preparation results::' + $preparationEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Ownership codec: separate schema-only test-symbol and real production DPAPI builds.
+          $securityRef = Join-Path $references 'System.Security.dll'
+          if (-not (Test-Path -LiteralPath $securityRef -PathType Leaf)) { throw 'Framework DPAPI reference missing' }
+          $receiptSources = @('installer\friendly\Bootstrap.cs', 'installer\friendly\WindowsPreflight.cs', 'installer\friendly\ReceiptCodec.cs') | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
+          $receiptResults = @()
+          foreach ($kind in @('schema', 'production')) {
+            $receiptExe = Join-Path $work ($kind + '-ReceiptTests.exe')
+            $testPath = if ($kind -eq 'schema') { 'installer\friendly\receipt-tests\Program.cs' } else { 'installer\friendly\receipt-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'schema') { '/define:NETFRAMEWORK;RECEIPT_TESTS' } else { '/define:NETFRAMEWORK' }
+            $receiptArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', $symbols, ('/out:' + $receiptExe), ('/reference:' + $securityRef)) + $refArgs + $receiptSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $receiptRsp = Join-Path $work ($kind + '-receipt.rsp')
+            $receiptArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $receiptRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $receiptRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' receipt compilation failed: ' + ($compiled -join "`n")) }
+            $receiptResult = & $receiptExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' receipt tests failed: ' + ($receiptResult -join "`n")) }
+            $receiptResults += $receiptResult
+          }
+          $receiptEvidence = [ordered]@{sha=$env:GITHUB_SHA; receipt=$receiptResults; qualification='Framework DPAPI component only; no state-file persistence or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native receipt results::' + $receiptEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Persistent single-component state: distinct test-only and real DPAPI builds.
+          $stateSources = $receiptSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\StateStore.cs'))
+          $stateResults = @()
+          foreach ($kind in @('schema', 'production')) {
+            $stateExe = Join-Path $work ($kind + '-StateTests.exe')
+            $testPath = if ($kind -eq 'schema') { 'installer\friendly\state-tests\Program.cs' } else { 'installer\friendly\state-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'schema') { '/define:NETFRAMEWORK;RECEIPT_TESTS;STATE_STORE_TESTS' } else { '/define:NETFRAMEWORK' }
+            $stateArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', $symbols, ('/out:' + $stateExe), ('/reference:' + $securityRef)) + $refArgs + $stateSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $stateRsp = Join-Path $work ($kind + '-state.rsp')
+            $stateArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $stateRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $stateRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' state compilation failed: ' + ($compiled -join "`n")) }
+            $stateResult = & $stateExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' state tests failed: ' + ($stateResult -join "`n")) }
+            $stateResults += $stateResult
+          }
+          $stateEvidence = [ordered]@{sha=$env:GITHUB_SHA; state=$stateResults; qualification='single-component state with fresh-process DPAPI reload/removal; no whole installer or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native state results::' + $stateEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Pair persistence uses the same reviewed state primitives; no activation.
+          $pairSources = $stateSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\PairState.cs'))
+          $pairResults = @()
+          foreach ($kind in @('schema', 'production')) {
+            $pairExe = Join-Path $work ($kind + '-PairTests.exe')
+            $testPath = if ($kind -eq 'schema') { 'installer\friendly\pair-tests\Program.cs' } else { 'installer\friendly\pair-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'schema') { '/define:NETFRAMEWORK;RECEIPT_TESTS;STATE_STORE_TESTS' } else { '/define:NETFRAMEWORK' }
+            $pairArgs = @('/nologo', '/nostdlib+', '/warnaserror+', '/target:exe', '/platform:x64', $symbols, ('/out:' + $pairExe), ('/reference:' + $securityRef)) + $refArgs + $pairSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $pairRsp = Join-Path $work ($kind + '-pair.rsp')
+            $pairArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $pairRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $pairRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' pair compilation failed: ' + ($compiled -join "`n")) }
+            $pairResult = & $pairExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' pair tests failed: ' + ($pairResult -join "`n")) }
+            $pairResults += $pairResult
+          }
+          $pairEvidence = [ordered]@{sha=$env:GITHUB_SHA; pair=$pairResults; qualification='two-component state with fresh-process DPAPI reload/removal; no whole installer or GUI'} | ConvertTo-Json -Compress
+          Write-Output ('::notice title=Native pair results::' + $pairEvidence.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+          # Whole internal transaction: separate inert-fault and real approved-helper builds.
+          $controllerSources = $sources + @($generated) + @('ReceiptCodec.cs', 'StateStore.cs', 'PairState.cs', 'SetupLocations.cs', 'SetupController.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) })
+          $controllerResults = @()
+          foreach ($kind in @('faults', 'production')) {
+            $controllerExe = Join-Path $work ($kind + '-ControllerTests.exe')
+            $testPath = if ($kind -eq 'faults') { 'installer\friendly\controller-tests\Program.cs' } else { 'installer\friendly\controller-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'faults') { '/define:NETFRAMEWORK;RECEIPT_TESTS;STATE_STORE_TESTS;SETUP_CONTROLLER_TESTS' } else { '/define:NETFRAMEWORK' }
+            $controllerArgs = $common + @($symbols, ('/out:' + $controllerExe), ('/reference:' + $securityRef), ('/reference:' + $serializerRef)) + $controllerSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $controllerRsp = Join-Path $work ($kind + '-controller.rsp')
+            $controllerArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $controllerRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $controllerRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' controller compilation failed: ' + ($compiled -join "`n")) }
+            $controllerResult = & $controllerExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' controller tests failed: ' + ($controllerResult -join "`n")) }
+            $controllerResults += $controllerResult
+          }
+          # Read-only default-profile plan. Append to controller notice to stay within ten annotations.
+          $planSources = @('Bootstrap.cs', 'WindowsPreflight.cs', 'SetupLocations.cs', 'DefaultSetupPlan.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) }) + @($generated)
+          $planResults = @()
+          foreach ($kind in @('pure', 'production')) {
+            $planExe = Join-Path $work ($kind + '-PlanTests.exe')
+            $testPath = if ($kind -eq 'pure') { 'installer\friendly\plan-tests\Program.cs' } else { 'installer\friendly\plan-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'pure') { '/define:NETFRAMEWORK;SETUP_PLAN_TESTS' } else { '/define:NETFRAMEWORK' }
+            $planArgs = $common + @($symbols, ('/out:' + $planExe)) + $planSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $planRsp = Join-Path $work ($kind + '-plan.rsp')
+            $planArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $planRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $planRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' plan compilation failed: ' + ($compiled -join "`n")) }
+            $planResult = & $planExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' plan tests failed: ' + ($planResult -join "`n")) }
+            $planResults += $planResult
+          }
+          # Transient shared-parent creation. Native harness injects only test OS-folder
+          # plans; production SharedParents entry has no raw-operation/fault seam.
+          $parentResults = @()
+          foreach ($kind in @('faults', 'native')) {
+            $parentExe = Join-Path $work ($kind + '-ParentTests.exe')
+            $testPath = if ($kind -eq 'faults') { 'installer\friendly\parents-tests\Program.cs' } else { 'installer\friendly\parents-native-tests\Program.cs' }
+            $symbols = if ($kind -eq 'faults') { '/define:NETFRAMEWORK;SETUP_PARENTS_TESTS' } else { '/define:NETFRAMEWORK;SETUP_PLAN_TESTS' }
+            $parentArgs = $common + @($symbols, ('/out:' + $parentExe)) + $planSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\SharedParents.cs'), (Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $parentRsp = Join-Path $work ($kind + '-parent.rsp')
+            $parentArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $parentRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $parentRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' parent compilation failed: ' + ($compiled -join "`n")) }
+            $parentResult = & $parentExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' parent tests failed: ' + ($parentResult -join "`n")) }
+            $parentResults += $parentResult
+          }
+          # Composition starts with missing shared parents and runs the real approved
+          # helper/controller. Only default-plan fixture input is compiled into tests.
+          $defaultExe = Join-Path $work 'DefaultTests.exe'
+          $defaultSources = $controllerSources + @('AccountPreferenceDocument.cs', 'AccountPreferenceTransaction.cs', 'DefaultSetupPlan.cs', 'DefaultSetupDiscovery.cs', 'SharedParents.cs', 'DefaultSetup.cs' | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE ('installer\friendly\' + $_) })
+          $defaultArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS', ('/out:' + $defaultExe), ('/reference:' + $securityRef), ('/reference:' + $serializerRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\default-tests\Program.cs'))
+          $defaultRsp = Join-Path $work 'default.rsp'
+          $defaultArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $defaultRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $defaultRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native default composition compilation failed: ' + ($compiled -join "`n")) }
+          $defaultResult = & $defaultExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native default composition tests failed: ' + ($defaultResult -join "`n")) }
+          $discoveryResults = @()
+          foreach ($kind in @('pure', 'production')) {
+            $discoveryExe = Join-Path $work ($kind + '-DiscoveryTests.exe')
+            $testPath = if ($kind -eq 'pure') { 'installer\friendly\discovery-tests\Program.cs' } else { 'installer\friendly\discovery-production-tests\Program.cs' }
+            $symbols = if ($kind -eq 'pure') { '/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS' } else { '/define:NETFRAMEWORK' }
+            $discoveryArgs = $common + @($symbols, ('/out:' + $discoveryExe), ('/reference:' + $securityRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE $testPath))
+            $discoveryRsp = Join-Path $work ($kind + '-discovery.rsp')
+            $discoveryArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $discoveryRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $discoveryRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native discovery compilation failed: ' + ($compiled -join "`n")) }
+            $discoveryResult = & $discoveryExe 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native discovery tests failed: ' + ($discoveryResult -join "`n")) }
+            $discoveryResults += $discoveryResult
+          }
+          # Real journaled existing-account edit in isolated approved setup fixtures.
+          $accountExe = Join-Path $work 'AccountTransactionTests.exe'
+          $accountArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS;ACCOUNT_TRANSACTION_TESTS', ('/out:' + $accountExe), ('/reference:' + $securityRef)) + $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\account-transaction-tests\Program.cs'))
+          $accountRsp = Join-Path $work 'account-transaction.rsp'
+          $accountArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $accountRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $accountRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native account transaction compilation failed: ' + ($compiled -join "`n")) }
+          $accountResult = @(& $accountExe 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw ('Native account transaction tests failed: ' + ($accountResult -join "`n")) }
+          # Real native window handlers in isolated OS-folder fixtures; no normal settings.
+          # Reflection allows the test-first commit to fail for the missing window.
+          $windowExe = Join-Path $work 'WindowTests.exe'
+          $windowSources = $defaultSources + @((Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\window-tests\Program.cs'))
+          $windowSource = Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\SetupWindow.cs'
+          if (Test-Path -LiteralPath $windowSource) { $windowSources += $windowSource }
+          $windowArgs = $common + @('/define:NETFRAMEWORK;SETUP_PLAN_TESTS;SETUP_DISCOVERY_TESTS;SETUP_WINDOW_TESTS', ('/out:' + $windowExe), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $windowSources
+          $windowRsp = Join-Path $work 'window.rsp'
+          $windowArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $windowRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $windowRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native window test compilation failed: ' + ($compiled -join "`n")) }
+          $windowResult = & $windowExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native window tests failed: ' + ($windowResult -join "`n") + "`nPrior account fixture results (not UI/recovery acceptance): " + ($accountResult -join "`n")) }
+          $windowProductionExe = Join-Path $work 'WindowProductionTests.exe'
+          $windowProductionArgs = $common + @('/define:NETFRAMEWORK', ('/out:' + $windowProductionExe), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $defaultSources + @($windowSource, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\window-production-tests\Program.cs'))
+          $windowProductionRsp = Join-Path $work 'window-production.rsp'
+          $windowProductionArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $windowProductionRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $windowProductionRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native production window compilation failed: ' + ($compiled -join "`n")) }
+          $windowProductionResult = & $windowProductionExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native production window tests failed: ' + ($windowProductionResult -join "`n")) }
+          $windowResult = @($windowResult) + @($windowProductionResult)
+          # Test-first launcher/guard. Missing entry is a reflection assertion,
+          # never permission to invoke a normal-profile setup from the harness.
+          $launcherExe = Join-Path $work 'LauncherTests.exe'
+          $launcherSources = $defaultSources + @($windowSource, (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\launcher-tests\Program.cs'))
+          $launcherSource = Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\SetupProgram.cs'
+          if (Test-Path -LiteralPath $launcherSource) { $launcherSources += $launcherSource }
+          $launcherArgs = $common + @('/define:NETFRAMEWORK;SETUP_LAUNCHER_TESTS', '/main:LauncherTests', ('/out:' + $launcherExe), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $launcherSources
+          $launcherRsp = Join-Path $work 'launcher.rsp'
+          $launcherArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $launcherRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $launcherRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native launcher compilation failed: ' + ($compiled -join "`n")) }
+          $launcherResult = & $launcherExe 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native launcher tests failed: ' + ($launcherResult -join "`n")) }
+          # Build production-symbol GUI artifact; never launch normal-profile Main here.
+          $setupExe = Join-Path $work 'TrojainoSetup.exe'
+          $linkedExe = Join-Path $work 'TrojainoSetup-linked-negative.exe'
+          $setupSources = $defaultSources + @($windowSource, $launcherSource)
+          foreach ($kind in @('embedded', 'linked-negative')) {
+            $output = if ($kind -eq 'embedded') { $setupExe } else { $linkedExe }
+            $setupCommon = @($common | Where-Object { $_ -notlike '/target:*' -and $_ -notlike '/resource:*' })
+            $resourceArg = if ($kind -eq 'embedded') { '/resource:' + $payload + ',Trojaino.Setup.Payload' } else { '/linkresource:' + $payload + ',Trojaino.Setup.Payload' }
+            $setupArgs = $setupCommon + @('/target:winexe', '/define:NETFRAMEWORK', '/main:Trojaino.Setup.SetupProgram', ('/out:' + $output), $resourceArg, ('/win32manifest:' + (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\setup.manifest')), ('/reference:' + $securityRef), ('/reference:' + (Join-Path $references 'System.Windows.Forms.dll')), ('/reference:' + (Join-Path $references 'System.Drawing.dll'))) + $setupSources
+            $setupRsp = Join-Path $work ($kind + '-setup.rsp')
+            $setupArgs | ForEach-Object {
+              if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+              '"' + $_ + '"'
+            } | Set-Content -LiteralPath $setupRsp -Encoding utf8
+            $compiled = & $compiler '/noconfig' ('@' + $setupRsp) 2>&1
+            if ($LASTEXITCODE -ne 0) { throw ('Native ' + $kind + ' setup compilation failed: ' + ($compiled -join "`n")) }
+          }
+          $executableTestExe = Join-Path $work 'ExecutableTests.exe'
+          $executableArgs = $common + @(('/out:' + $executableTestExe), ('/reference:' + (Join-Path $references 'System.Xml.dll')), (Join-Path $env:GITHUB_WORKSPACE 'installer\friendly\executable-tests\Program.cs'))
+          $executableRsp = Join-Path $work 'executable-tests.rsp'
+          $executableArgs | ForEach-Object {
+            if ($_ -match '["\r\n]') { throw 'Unsafe compiler response argument' }
+            '"' + $_ + '"'
+          } | Set-Content -LiteralPath $executableRsp -Encoding utf8
+          $compiled = & $compiler '/noconfig' ('@' + $executableRsp) 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native executable test compilation failed: ' + ($compiled -join "`n")) }
+          $executableResult = & $executableTestExe $setupExe $payload $references $runtimeInfo[0].FullName 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Native executable artifact tests failed: ' + ($executableResult -join "`n")) }
+          $linkedResult = & $executableTestExe $linkedExe $payload $references $runtimeInfo[0].FullName 2>&1
+          if ($LASTEXITCODE -eq 0 -or -not (($linkedResult -join "`n").Contains('ASSERT: payload must be embedded, not linked'))) { throw ('Linked-resource negative did not fail for embedding: ' + ($linkedResult -join "`n")) }
+          $restoredResult = & $executableTestExe $setupExe $payload $references $runtimeInfo[0].FullName 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ('Good production executable recheck failed: ' + ($restoredResult -join "`n")) }
+          $executableResult = @($executableResult) + @('PASS actual linked-resource negative artifact rejected for nonembedded payload, even with approved linked bytes present; good production executable retained and rechecked')
+          $controllerEvidence = [ordered]@{sha=$env:GITHUB_SHA; controller=$controllerResults; accountTransaction=$accountResult; plan=$planResults; parents=$parentResults; defaultSetup=$defaultResult; discovery=$discoveryResults; window=$windowResult; launcher=$launcherResult; executable=$executableResult; qualification='native window event tests and approved helper/controller/DPAPI composition; no visual/keyboard/settings/Claude activation/Windows11'} | ConvertTo-Json -Compress
+          # GitHub truncates each annotation message at 4096 characters. Preserve
+          # every result losslessly within the existing ten-annotation budget.
+          $evidenceBytes = [Text.Encoding]::UTF8.GetBytes($controllerEvidence)
+          $buffer = [IO.MemoryStream]::new()
+          try {
+            $gzip = [IO.Compression.GZipStream]::new($buffer, [IO.Compression.CompressionMode]::Compress, $true)
+            try { $gzip.Write($evidenceBytes, 0, $evidenceBytes.Length) } finally { $gzip.Dispose() }
+            $encoded = [Convert]::ToBase64String($buffer.ToArray())
+          } finally { $buffer.Dispose() }
+          $notice = [ordered]@{sha=$env:GITHUB_SHA; encoding='gzip-base64'; data=$encoded} | ConvertTo-Json -Compress
+          if ($notice.Length -gt 3900) { throw 'Controller evidence exceeds annotation budget; full output must not be silently truncated' }
+          Write-Output ('::notice title=Native controller results::' + $notice)
