@@ -425,7 +425,7 @@
     },
     {
       "file": "scripts/check_release_self_scan.py",
-      "sha256": "ead687f6d8f78b58614b7627edac0c3873f1029b8c129efddd4c30aeaae938db"
+      "sha256": "908e5d91d247576e3e14e1a69e9537cc1855e7c27e993b118f6c54188ec74d05"
     },
     {
       "file": "scripts/check_repository_boundary.py",
@@ -433,7 +433,7 @@
     },
     {
       "file": "scripts/prepare_preflight_plugin.py",
-      "sha256": "ebcd535b1ca027e2c01cef89c1e8f0b1a8bd5203c2ead562fbb6d1d0a47e31c6"
+      "sha256": "d5d7caecc036bc278732d0974f3a3232ab5da60e4fde08c04d4e0352156c1e51"
     },
     {
       "file": "scripts/run_calibration_benchmark.py",
