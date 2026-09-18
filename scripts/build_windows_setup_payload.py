@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import stat
+import struct
 import tempfile
 import zipfile
 
@@ -50,8 +51,16 @@ def _archive_files(data):
             if entry.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
                 raise ValueError('unsupported archive compression')
             name = entry.filename
+            archive.fp.seek(entry.header_offset)
+            header = archive.fp.read(30)
+            if len(header) != 30 or header[:4] != b'PK':
+                raise ValueError('malformed archive')
+            raw_name_length = struct.unpack('<IHHHHHIIIHH', header)[9]
+            raw_name = archive.fp.read(raw_name_length)
+            if len(raw_name) != raw_name_length:
+                raise ValueError('malformed archive')
             parts = name.split('/')
-            if entry.orig_filename != name or any(
+            if chr(92).encode() in raw_name or entry.orig_filename != name or any(
                 not re.fullmatch(r'[A-Za-z0-9_.-]{1,240}', part)
                 or part in ('.', '..') or part.endswith('.')
                 or part.split('.')[0].upper() in RESERVED for part in parts

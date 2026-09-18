@@ -103,6 +103,85 @@ SHELL_TOOL_RE = re.compile(r'\\bexec\\b')
         self.assertFalse(CHECKER.has_shipped_source_change(["tests/test_release_profile.py", "reference/release-self-scan-baseline.json"]))
         self.assertTrue(CHECKER.has_shipped_source_change(["plugins/trojaino/scripts/preflight.py", "reference/release-self-scan-baseline.json"]))
 
+    def test_corrective_inventory_refresh_requires_only_stale_source_hashes(self):
+        root = self.make_project({
+            "scripts/runtime.py": "safe = True\n",
+            "scripts/unchanged.py": "still_safe = True\n",
+        })
+        current_digest = hashlib.sha256((root / "scripts/runtime.py").read_bytes()).hexdigest()
+        unchanged_digest = hashlib.sha256((root / "scripts/unchanged.py").read_bytes()).hexdigest()
+        base_baseline = {
+            "version": 1,
+            "profile": "release",
+            "findings": [],
+            "source_inventory": [
+                {"file": "scripts/runtime.py", "sha256": "0" * 64},
+                {"file": "scripts/unchanged.py", "sha256": unchanged_digest},
+            ],
+        }
+        refreshed_baseline = {
+            **base_baseline,
+            "source_inventory": [
+                {"file": "scripts/runtime.py", "sha256": current_digest},
+                {"file": "scripts/unchanged.py", "sha256": unchanged_digest},
+            ],
+        }
+
+        self.assertEqual(
+            CHECKER.verify_corrective_inventory_refresh(
+                root,
+                refreshed_baseline,
+                base_baseline,
+                [".github/release-self-scan-baseline.json"],
+            ),
+            [],
+        )
+        refreshed_baseline["findings"] = [{"id": "NEW"}]
+        self.assertEqual(
+            CHECKER.verify_corrective_inventory_refresh(
+                root,
+                refreshed_baseline,
+                base_baseline,
+                [".github/release-self-scan-baseline.json"],
+            ),
+            ["corrective self-scan baseline refresh changed reviewed findings or policy"],
+        )
+
+    def test_strict_baseline_json_rejects_duplicate_keys(self):
+        with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+            CHECKER.strict_json_load('{"version": 1, "version": 1}')
+
+    def test_corrective_inventory_refresh_rejects_duplicate_inventory_entries(self):
+        root = self.make_project({"scripts/runtime.py": "safe = True\n"})
+        digest = hashlib.sha256((root / "scripts/runtime.py").read_bytes()).hexdigest()
+        baseline = {
+            "version": 1,
+            "profile": "release",
+            "findings": [],
+            "source_inventory": [
+                {"file": "scripts/runtime.py", "sha256": digest},
+                {"file": "scripts/runtime.py", "sha256": digest},
+            ],
+        }
+
+        self.assertEqual(
+            CHECKER.verify_corrective_inventory_refresh(
+                root, baseline, baseline, [".github/release-self-scan-baseline.json"]
+            ),
+            ["corrective self-scan baseline refresh has an invalid source inventory"],
+        )
+
+    def test_self_scan_baseline_rejects_unsorted_source_inventory(self):
+        root = self.make_project({
+            "scripts/a.py": "a = 1\n",
+            "scripts/b.py": "b = 1\n",
+        })
+        inventory = CHECKER.shipped_source_inventory(root)
+        self.assertEqual(
+            CHECKER.verify_source_inventory(root, {"source_inventory": list(reversed(inventory))}),
+            ["self-scan baseline source inventory is invalid"],
+        )
+
     def test_self_scan_baseline_binds_reviewed_shipped_source_bytes(self):
         root = self.make_project({
             "scripts/runtime.py": "safe = True\n",
@@ -118,8 +197,8 @@ SHELL_TOOL_RE = re.compile(r'\\bexec\\b')
         baseline = {"source_inventory": [
             {"file": "installer/Setup.cs", "sha256": installer_digest},
             {"file": "requirements/test.txt", "sha256": requirements_digest},
-            {"file": "scripts/runtime.py", "sha256": digest},
             {"file": "schemas/report.json", "sha256": schema_digest},
+            {"file": "scripts/runtime.py", "sha256": digest},
         ]}
 
         self.assertEqual(CHECKER.verify_source_inventory(root, baseline), [])
@@ -134,6 +213,10 @@ SHELL_TOOL_RE = re.compile(r'\\bexec\\b')
         self.assertIn(".github/release-self-scan-baseline.json", workflow)
         self.assertIn("if: github.event_name == 'pull_request'", workflow)
         self.assertIn("github.event.pull_request.base.sha", workflow)
+        self.assertIn("--base-baseline", workflow)
+        self.assertIn("git show \"$BASE_SHA:.github/release-self-scan-baseline.json\"", workflow)
+        self.assertIn("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", workflow)
+        self.assertIn("actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", workflow)
         self.assertNotIn("github.event.before", workflow)
         self.assertIn("unable to establish a trusted base revision", workflow)
 

@@ -14,8 +14,12 @@ def archive_bytes(entries):
     output = io.BytesIO()
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in entries:
-            archive.writestr(name, data)
-    return output.getvalue()
+            archive.writestr(name.replace(chr(92), 'X'), data)
+    data = output.getvalue()
+    for name, _ in entries:
+        if chr(92) in name:
+            data = data.replace(name.replace(chr(92), 'X').encode(), name.encode())
+    return data
 
 
 class SetupPayloadTests(unittest.TestCase):
