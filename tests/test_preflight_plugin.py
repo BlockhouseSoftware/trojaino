@@ -14,6 +14,23 @@ CLI = PLUGIN / 'scripts/preflight.py'
 
 
 class PluginWorkflowTests(unittest.TestCase):
+    def test_binding_replacement_accepts_crlf_sealed_entry(self):
+        helper = runpy.run_path(str(ROOT / 'scripts/prepare_preflight_plugin.py'))
+        entry = CLI.read_bytes().replace(b'\n', b'\r\n')
+
+        prepared = helper['bind_sealed_entry'](entry, ('C:/prepared/preflight.py', 'C:/Python/python.exe'))
+
+        self.assertEqual(prepared.count(b'_EXPECTED_BINDING = '), 1)
+        self.assertIn(b"_EXPECTED_BINDING = ('C:/prepared/preflight.py', 'C:/Python/python.exe')\r\n", prepared)
+
+    def test_binding_replacement_rejects_mixed_newline_duplicate_slots(self):
+        helper = runpy.run_path(str(ROOT / 'scripts/prepare_preflight_plugin.py'))
+        entry = (b'_EXPECTED_BINDING = None\r\n'
+                 b'_EXPECTED_BINDING = None\n')
+
+        with self.assertRaises(ValueError):
+            helper['bind_sealed_entry'](entry, ('C:/prepared/preflight.py', 'C:/Python/python.exe'))
+
     def test_session_start_supplies_trusted_scan_command(self):
         event = {'hook_event_name': 'SessionStart', 'source': 'startup'}
         result = subprocess.run([sys.executable, '-I', '-S', str(CLI), 'hook'],

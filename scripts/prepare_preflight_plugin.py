@@ -33,7 +33,20 @@ def prepared_hook_manifest(python: str, plugin: Path) -> dict:
         'SessionStart': [{'hooks': [dict(handler)]}],
         'PreToolUse': [{'matcher': 'Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|Workflow|mcp__.*',
                         'hooks': [dict(handler)]}],
-    }}
+    }
+    }
+
+
+def bind_sealed_entry(entry_bytes, binding):
+    """Bind exactly one generated entry slot while preserving its line ending."""
+    slots = [(b"_EXPECTED_BINDING = None\r\n", b"\r\n"),
+             (b"_EXPECTED_BINDING = None\n", b"\n")]
+    matches = [(slot, newline) for slot, newline in slots if entry_bytes.count(slot)]
+    if sum(entry_bytes.count(slot) for slot, _ in slots) != 1 or len(matches) != 1:
+        raise ValueError('sealed executable binding slot missing or ambiguous')
+    binding_slot, newline = matches[0]
+    replacement = ("_EXPECTED_BINDING = " + repr(binding)).encode() + newline
+    return entry_bytes.replace(binding_slot, replacement, 1)
 
 
 def coverage_section(text):
@@ -77,12 +90,8 @@ def _render(destination, personal_plugin_name=None):
                        archive.read(name) for name in archive.namelist()}
     entry_key = 'plugins/trojaino/scripts/preflight.py'
     entry_bytes = payload.get(entry_key, b'')
-    binding_slot = b'_EXPECTED_BINDING = None\n'
-    if entry_bytes.count(binding_slot) != 1:
-        raise ValueError('sealed executable binding slot missing or ambiguous')
     binding = (str(plugin / 'scripts/preflight.py'), trusted_python)
-    payload[entry_key] = entry_bytes.replace(binding_slot,
-        ('_EXPECTED_BINDING = ' + repr(binding) + '\n').encode(), 1)
+    payload[entry_key] = bind_sealed_entry(entry_bytes, binding)
     payload['plugins/trojaino/hooks/hooks.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
     if personal_plugin_name is not None:
         license_bytes = payload['LICENSE']
