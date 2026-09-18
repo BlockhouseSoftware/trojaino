@@ -1,0 +1,5 @@
+# Security-review ownership for the release self-scan qualification gate.
+/.github/release-self-scan-baseline.json @joseamayo
+/scripts/check_release_self_scan.py @joseamayo
+/.github/workflows/ci.yml @joseamayo
+/.github/CODEOWNERS @joseamayo
