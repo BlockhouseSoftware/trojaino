@@ -18,6 +18,7 @@ def build(output):
                                       'scripts/write_prepared_tree.py',
                                       'scripts/build_sealed_runtime.py')]
     files += sorted((ROOT / 'trojaino').rglob('*.py'))
+    files += sorted((ROOT / 'trojaino/claude/payload').iterdir())
     files += sorted(p for p in (ROOT / 'plugins/trojaino').rglob('*')
                     if p.is_file() and '__pycache__' not in p.parts
                     and p.suffix in {'.py', '.sh', '.json', '.md'})

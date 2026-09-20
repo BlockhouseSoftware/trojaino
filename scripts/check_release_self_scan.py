@@ -156,13 +156,19 @@ def shipped_source_inventory(root: Path) -> list[dict[str, str]]:
                 and path.suffix != ".pyc"
             )
     files.extend(root / name for name in SHIPPED_SOURCE_FILES if (root / name).is_file())
-    return [
+    entries = [
         {
             "file": path.relative_to(root).as_posix(),
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         }
-        for path in sorted(set(files))
+        for path in set(files)
     ]
+    # Sort by the recorded posix path, not by Path. Path orders component-wise,
+    # so a directory sorts before a same-stemmed sibling file ("pkg/payload/x"
+    # before "pkg/payload.py") while inventory_map requires plain string order
+    # and would reject the result as invalid.
+    entries.sort(key=lambda entry: entry["file"])
+    return entries
 
 
 def has_shipped_source_symlink(root: Path) -> bool:

@@ -377,7 +377,7 @@
     },
     {
       "file": "pyproject.toml",
-      "sha256": "18228f2aa7d2cd8df53b0cd5a48772e63746a8648e4927e14c0d173ff35f799d"
+      "sha256": "de0b98c195471c8f12ffa10e4efb51cb9e31ea4cf76a097aa702a52df450309b"
     },
     {
       "file": "requirements/test.txt",
@@ -393,11 +393,11 @@
     },
     {
       "file": "scripts/audit_setup_source.py",
-      "sha256": "f9986363b6154e45ff373d230cfd268b0af9f01f4de69cefed4180ad78282a58"
+      "sha256": "59b0b63b6faf00b35e35624ca239bd93e45a1156f0839f578f8157639387a687"
     },
     {
       "file": "scripts/build_preflight_bundle.py",
-      "sha256": "9a3db5019a4170db41a2e7569d38b9aa25185ae850389587f1345ed705332461"
+      "sha256": "146c16ca71c73ffd7cb27c1dcc8da668f2729bbc2d6daf550d76119b42363419"
     },
     {
       "file": "scripts/build_sealed_runtime.py",
@@ -417,11 +417,15 @@
     },
     {
       "file": "scripts/check_release_self_scan.py",
-      "sha256": "908e5d91d247576e3e14e1a69e9537cc1855e7c27e993b118f6c54188ec74d05"
+      "sha256": "45c3f8663ee1b0951db01162d741560ef191e40b603265d6c63dd6d349b294a8"
     },
     {
       "file": "scripts/check_repository_boundary.py",
       "sha256": "8b32868300b0fe17287c3b83921a563025bcdaf38647b096e9f29ae6a9eed533"
+    },
+    {
+      "file": "scripts/generate_plugin_dir.py",
+      "sha256": "5112fdc11882ea66fe640a1bb5a2decec8821b2203407730682b65cf5bc17bcc"
     },
     {
       "file": "scripts/prepare_preflight_plugin.py",
@@ -433,7 +437,7 @@
     },
     {
       "file": "scripts/smoke_installed_wheel.py",
-      "sha256": "b9367f9e0223f9c995f55d682d785aee4ec6da425e61e13e56ec0ab6bf958af2"
+      "sha256": "f588439fee7c9b3b37b85db99610f484e33dcbb9be1c5715ae2c0429983e271e"
     },
     {
       "file": "scripts/verify_distribution.py",
@@ -454,6 +458,26 @@
     {
       "file": "trojaino/claude/__init__.py",
       "sha256": "c7dec747302b2b9a913a41366ed45c7de6b632b4b3b5513d12a9550c5c0170db"
+    },
+    {
+      "file": "trojaino/claude/payload.py",
+      "sha256": "77f26f654d43e810f4e0d39ea778860206947e33301bc8e4da6e021ff7c77ce8"
+    },
+    {
+      "file": "trojaino/claude/payload/LICENSE",
+      "sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+    },
+    {
+      "file": "trojaino/claude/payload/README.md",
+      "sha256": "6423d54a6feeed5d9e7d979ed495ce7b71cdcf7df56a155f112e0d9d2dc1bc7c"
+    },
+    {
+      "file": "trojaino/claude/payload/SKILL.md",
+      "sha256": "ad9e91210bdac77386d6938894316efebf56d74e81b9659ba05fc626087fe69f"
+    },
+    {
+      "file": "trojaino/claude/payload/plugin.json",
+      "sha256": "0a6ef9be3346dc8cc3297f73806ec8af67b7b222aa63d69b16311c95da7f4e31"
     },
     {
       "file": "trojaino/claude/seal.py",

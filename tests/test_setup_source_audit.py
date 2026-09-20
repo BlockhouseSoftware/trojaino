@@ -118,13 +118,28 @@ class SourceAuditTests(unittest.TestCase):
             self.assertEqual(result_v4['source_files'], len(files_v4))
             with self.assertRaisesRegex(ValueError, 'Git'):
                 audit(data_v4, hashlib.sha256(data_v4).hexdigest(), root, fourth, git, 'source-layout-v3')
+            # v5 additionally selects the packaged plugin payload.
+            files_v5 = dict(files_v4)
+            for name, data in (('trojaino/claude/payload/plugin.json', b'{}\n'),
+                               ('trojaino/claude/payload/README.md', b'payload readme\n')):
+                files_v5[name] = data
+                target = root / name; target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(data)
+            command('add', 'trojaino/claude/payload')
+            command('-c', 'user.name=Source Audit Test', '-c', 'user.email=audit@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'layout v5')
+            fifth = command('rev-parse', 'HEAD').decode().strip()
+            data_v5 = packed(files_v5)
+            result_v5 = audit(data_v5, hashlib.sha256(data_v5).hexdigest(), root, fifth, git, 'source-layout-v5')
+            self.assertEqual(result_v5['source_files'], len(files_v5))
+            # v4 must refuse the same archive: it does not select the payload.
+            with self.assertRaisesRegex(ValueError, 'Git'):
+                audit(data_v5, hashlib.sha256(data_v5).hexdigest(), root, fifth, git, 'source-layout-v4')
             # A Git symlink blob must be refused even with identical packaged bytes.
-            oid = command('rev-parse', fourth + ':trojaino/__init__.py').decode().strip()
+            oid = command('rev-parse', fifth + ':trojaino/__init__.py').decode().strip()
             command('update-index', '--cacheinfo', '120000,' + oid + ',trojaino/__init__.py')
             command('-c', 'user.name=Source Audit Test', '-c', 'user.email=audit@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'symlink fixture')
             symlink_commit = command('rev-parse', 'HEAD').decode().strip()
             with self.assertRaisesRegex(ValueError, 'regular'):
-                audit(data_v4, hashlib.sha256(data_v4).hexdigest(), root, symlink_commit, git, 'source-layout-v4')
+                audit(data_v5, hashlib.sha256(data_v5).hexdigest(), root, symlink_commit, git, 'source-layout-v5')
             for malformed in (commit.upper(), commit[:7], '--help', commit + '\n'):
                 with self.assertRaisesRegex(ValueError, 'literal'):
                     audit(data, hashlib.sha256(data).hexdigest(), root, malformed, git, 'source-layout-v1')

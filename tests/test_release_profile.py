@@ -244,3 +244,22 @@ SHELL_TOOL_RE = re.compile(r'\\bexec\\b')
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InventoryOrderingTests(unittest.TestCase):
+    """The generated inventory must satisfy the validator that consumes it."""
+
+    def test_directory_beside_same_stemmed_file_stays_string_sorted(self):
+        import runpy
+        checker = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'scripts/check_release_self_scan.py'))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'trojaino/claude/payload').mkdir(parents=True)
+            (root / 'trojaino/claude/payload.py').write_text('x')
+            (root / 'trojaino/claude/payload/LICENSE').write_text('y')
+            (root / 'trojaino/claude/payload/plugin.json').write_text('{}')
+            inventory = checker['shipped_source_inventory'](root)
+            names = [entry['file'] for entry in inventory]
+            self.assertEqual(names, sorted(names), 'inventory must be sorted as strings')
+            self.assertIsNotNone(checker['inventory_map'](inventory),
+                                 'inventory_map must accept a freshly generated inventory')

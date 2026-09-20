@@ -23,3 +23,6 @@ tjscan = "trojaino.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["trojaino*"]
+
+[tool.setuptools.package-data]
+"trojaino.claude" = ["payload/*"]
