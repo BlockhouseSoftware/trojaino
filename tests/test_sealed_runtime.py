@@ -170,3 +170,30 @@ class SealedRuntimeTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PackagedRendererTests(unittest.TestCase):
+    """The renderer must ship in the wheel, and must not seal the setup code."""
+
+    def test_bootstrap_ships_as_package_source_and_stays_scannable(self):
+        root = Path(__file__).resolve().parents[1]
+        bootstrap = root / 'trojaino/claude/sealed_runtime_bootstrap.py'
+        self.assertTrue(bootstrap.is_file())
+        # Kept as .py on purpose: setuptools ships it without a package-data
+        # entry, and Trojaino's own Python rules keep flagging its exec() in the
+        # reviewed release self-scan. A .txt suffix would silently drop that.
+        self.assertIn('exec(', bootstrap.read_text(encoding='utf-8'))
+
+    def test_renderer_resolves_without_a_checkout_layout(self):
+        from trojaino.claude import seal
+        # Inputs come from the package, not from a repository root.
+        self.assertTrue(seal.BOOTSTRAP.is_relative_to(seal.PACKAGE))
+        self.assertEqual(seal.PACKAGE.name, 'trojaino')
+
+    def test_setup_machinery_is_excluded_from_the_image(self):
+        from trojaino.claude import seal
+        sealed = seal.source_map()
+        self.assertTrue(sealed, 'scanner modules must be sealed')
+        self.assertFalse([name for name in sealed if name.startswith('trojaino.claude')],
+                         'the sealed image must not carry its own setup code')
+        self.assertIn('trojaino.scanner', sealed)

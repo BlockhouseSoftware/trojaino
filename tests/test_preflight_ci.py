@@ -17,7 +17,6 @@ class NativeWindowsCIContract(unittest.TestCase):
             'scripts/build_preflight_bundle.py',
             'scripts/prepare_preflight_plugin.py',
             'scripts/build_sealed_runtime.py',
-            'scripts/sealed_runtime_bootstrap.py',
             'scripts/write_prepared_tree.py',
             'docs/windows-preflight.md',
             'docs/windows-trial-checklist.md',
