@@ -2,6 +2,24 @@
 
 All notable changes to Trojaino are documented here.
 
+## Unreleased
+
+### Cross-platform setup
+
+- Added `tjscan setup`: prepares a disabled personal inspection plugin from the installed package on macOS, Linux and Windows. The interpreter running the command is the trust anchor, so `pipx install trojaino` decides what Claude Code will execute. Nothing is enabled, no Claude setting is changed, and no network is used.
+- `prepare`, the prepared-tree writer and the sealed-runtime renderer now live in `trojaino.claude` and ship in the wheel; `scripts/` retains shims so CI and the native Windows build keep one entry point.
+- `plugins/trojaino` is generated from `trojaino/claude/payload`, with a test that fails if the checked-in copy drifts.
+
+### Staleness signalling
+
+- A prepared plugin now reports its own age at `SessionStart`, at most once every 30 days. The build carries its release date, so this works with no connection, no catalog and no server — which matters because a prepared plugin has no update mechanism of its own.
+- When Claude Code has already cached a marketplace catalog locally, the reminder names the newer version instead. Trojaino makes no network request of its own to do this, and degrades silently if those files are absent or unrecognised.
+- Added `tjscan check-updates`, the only command that uses the network. It names the host before contacting it and reports plainly when offline.
+
+### Fixed
+
+- `shipped_source_inventory` sorted by `Path`, which orders component-wise, so a directory could precede a same-stemmed sibling file and produce an inventory that `inventory_map` rejected as invalid.
+
 ## 0.2.0 - 2026-09-18
 
 ### Claude Code preflight plugin (experimental)

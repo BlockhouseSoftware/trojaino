@@ -115,6 +115,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     setup.add_argument("--dry-run", action="store_true", help="Show what would be written and exit without touching the filesystem")
     setup.add_argument("--skills-dir", help="Override the Claude Code skills directory this prepares into")
+    sub.add_parser(
+        "check-updates",
+        help="Ask the package index whether a newer Trojaino has been released",
+        description="Contacts pypi.org to compare this installation against the latest "
+                    "release. This is the only Trojaino command that uses the network, and "
+                    "it runs only when you invoke it.",
+    )
     scan = sub.add_parser(
         "scan",
         help="Scan a local file or folder",
@@ -334,6 +341,30 @@ def _choose_interactive_budget(estimate, limits: ScanLimits, budget_name: str) -
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(invocation_arguments(argv))
+    if args.command == "check-updates":
+        from trojaino import __version__
+        from trojaino.claude.updates import INDEX_HOST, check
+
+        print(f"Contacting {INDEX_HOST} to look up the latest release...")
+        outcome = check(__version__)
+        age = outcome["age_days"]
+        print(f"  installed : {outcome['current']}" + (f" (built {age} days ago)" if age is not None else ""))
+        if outcome["advertised_locally"]:
+            print(f"  catalog   : {outcome['advertised_locally']} advertised by a marketplace on this machine")
+        if not outcome["reachable"]:
+            print(f"  index     : unreachable ({outcome['error']})")
+            print("Could not check. Nothing was changed; try again when you have a connection.")
+            return 0
+        print(f"  released  : {outcome['latest']}")
+        if outcome["newer_available"]:
+            print("")
+            print("A newer release exists. Updating is deliberate and manual:")
+            print("  pipx upgrade trojaino   (or your installer's equivalent)")
+            print("  tjscan setup            to prepare a new plugin identity")
+            print("Your existing prepared plugin keeps working until you disable it.")
+        else:
+            print("You are on the latest release.")
+        return 0
     if args.command == "setup":
         from pathlib import Path as _Path
 
