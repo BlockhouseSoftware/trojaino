@@ -27,6 +27,10 @@ def console_script(environment: Path) -> Path:
 REQUIRED_PACKAGE_FILES = (
     "trojaino/claude/__init__.py",
     "trojaino/claude/seal.py",
+    "trojaino/claude/prepare.py",
+    "trojaino/claude/writer.py",
+    "trojaino/claude/setup.py",
+    "trojaino/claude/payload.py",
     "trojaino/claude/sealed_runtime_bootstrap.py",
     "trojaino/claude/payload/plugin.json",
     "trojaino/claude/payload/README.md",
