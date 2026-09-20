@@ -361,7 +361,7 @@
     },
     {
       "file": "plugins/trojaino/README.md",
-      "sha256": "068c954f831fb27a18032c3a2b85b0065338ddc43eb79ea624d31df97a2c3274"
+      "sha256": "d53603371f90aecfe9030fe6c22b15912ad03134ac0a4b8f4b82cf06d2d09674"
     },
     {
       "file": "plugins/trojaino/hooks/hooks.json",
