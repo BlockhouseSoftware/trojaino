@@ -96,7 +96,7 @@ namespace Trojaino.Setup
             byte[] manifest = null;
             var expected = new HashSet<string>(new[] {
                 ".claude-plugin/plugin.json", "LICENSE", "MANIFEST.sha256.json", "README.md",
-                "hooks/hooks.json", "scripts/hook.sh", "scripts/preflight.py", "skills/scan/SKILL.md"
+                "hooks/hooks.json", "scripts/preflight.py", "skills/scan/SKILL.md"
             }, StringComparer.Ordinal);
             using (var memory = new MemoryStream(plan, false))
             using (var zip = new ZipArchive(memory, ZipArchiveMode.Read))

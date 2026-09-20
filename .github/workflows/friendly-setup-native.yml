@@ -5,9 +5,22 @@ on:
     branches: ["main"]
     paths:
       - "installer/friendly/**"
+      - "plugins/trojaino/**"
       - "scripts/audit_setup_source.py"
+      - "scripts/build_preflight_bundle.py"
       - "scripts/build_setup_resources.py"
       - "scripts/build_windows_setup_payload.py"
+      - "scripts/prepare_preflight_plugin.py"
+      - ".github/workflows/friendly-setup-native.yml"
+  pull_request:
+    paths:
+      - "installer/friendly/**"
+      - "plugins/trojaino/**"
+      - "scripts/audit_setup_source.py"
+      - "scripts/build_preflight_bundle.py"
+      - "scripts/build_setup_resources.py"
+      - "scripts/build_windows_setup_payload.py"
+      - "scripts/prepare_preflight_plugin.py"
       - ".github/workflows/friendly-setup-native.yml"
   workflow_dispatch:
 

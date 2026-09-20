@@ -14,7 +14,7 @@ internal static class PublicationTests
     static Dictionary<string, byte[]> Files()
     {
         var files = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-        foreach (string name in new[] { ".claude-plugin/plugin.json", "LICENSE", "README.md", "hooks/hooks.json", "scripts/hook.sh", "scripts/preflight.py", "skills/scan/SKILL.md" })
+        foreach (string name in new[] { ".claude-plugin/plugin.json", "LICENSE", "README.md", "hooks/hooks.json", "scripts/preflight.py", "skills/scan/SKILL.md" })
             files.Add(name, Encoding.UTF8.GetBytes("inert fixture: " + name));
         Manifest(files);
         return files;

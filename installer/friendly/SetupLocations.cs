@@ -35,7 +35,7 @@ namespace Trojaino.Setup
         {
             return new[] {
                 ApprovedPayload.RuntimeMembers(), ApprovedPayload.SourceMembers(), new string[0],
-                new[] {".claude-plugin/plugin.json", "LICENSE", "MANIFEST.sha256.json", "README.md", "hooks/hooks.json", "scripts/hook.sh", "scripts/preflight.py", "skills/scan/SKILL.md"},
+                new[] {".claude-plugin/plugin.json", "LICENSE", "MANIFEST.sha256.json", "README.md", "hooks/hooks.json", "scripts/preflight.py", "skills/scan/SKILL.md"},
                 new[] {"receipt.bin"}, new[] {"receipt.bin"}
             };
         }
