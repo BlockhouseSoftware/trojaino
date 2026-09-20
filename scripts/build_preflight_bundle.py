@@ -16,8 +16,7 @@ def build(output):
                                       'scripts/build_preflight_bundle.py',
                                       'scripts/prepare_preflight_plugin.py',
                                       'scripts/write_prepared_tree.py',
-                                      'scripts/build_sealed_runtime.py',
-                                      'scripts/sealed_runtime_bootstrap.py')]
+                                      'scripts/build_sealed_runtime.py')]
     files += sorted((ROOT / 'trojaino').rglob('*.py'))
     files += sorted(p for p in (ROOT / 'plugins/trojaino').rglob('*')
                     if p.is_file() and '__pycache__' not in p.parts

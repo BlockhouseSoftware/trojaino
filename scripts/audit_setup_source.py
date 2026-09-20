@@ -13,21 +13,26 @@ import runpy
 import subprocess
 
 _HELPER = runpy.run_path(str(Path(__file__).with_name('build_windows_setup_payload.py')))
-_COMMON = ('LICENSE', 'README.md', 'pyproject.toml', 'scripts/build_preflight_bundle.py',
+_COMMON_BASE = ('LICENSE', 'README.md', 'pyproject.toml', 'scripts/build_preflight_bundle.py',
            'scripts/prepare_preflight_plugin.py', 'scripts/write_prepared_tree.py',
-           'scripts/build_sealed_runtime.py', 'scripts/sealed_runtime_bootstrap.py',
+           'scripts/build_sealed_runtime.py',
            'docs/windows-preflight.md', 'docs/marketplace-lifecycle.md',
            'docs/marketplace-requirements.md', 'docs/marketplace-runtime-architecture.md',
            'docs/personal-plugin-delivery.md')
 # Historical layouts stay frozen so archives built from earlier commits still audit.
+_BOOTSTRAP_V1 = ('scripts/sealed_runtime_bootstrap.py',)
+_COMMON = _COMMON_BASE + _BOOTSTRAP_V1
 LAYOUTS = {
     'source-layout-v1': frozenset(_COMMON + ('.claude-plugin/marketplace.json', 'docs/sig-windows-trial.md')),
     'source-layout-v2': frozenset(_COMMON + ('.claude-plugin/marketplace.json', 'docs/sig-windows-trial.md',
                                              'docs/friendly-setup-architecture.md')),
     'source-layout-v3': frozenset(_COMMON + ('docs/windows-trial-checklist.md',
                                              'docs/friendly-setup-architecture.md')),
+    # v4: the sealed-runtime bootstrap moved into the installable package.
+    'source-layout-v4': frozenset(_COMMON_BASE + ('docs/windows-trial-checklist.md',
+                                                  'docs/friendly-setup-architecture.md')),
 }
-FIXED = LAYOUTS['source-layout-v3']
+FIXED = LAYOUTS['source-layout-v4']
 
 
 def audit(data, source_sha256, repo, source_commit, git, layout):

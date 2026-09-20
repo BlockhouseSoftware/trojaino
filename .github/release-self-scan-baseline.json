@@ -41,8 +41,8 @@
       "severity": "high"
     },
     {
-      "file": "scripts/sealed_runtime_bootstrap.py",
-      "fingerprint": "9c15147c33fd669f40b37fae",
+      "file": "trojaino/claude/sealed_runtime_bootstrap.py",
+      "fingerprint": "213553734c0f65d57e7454a5",
       "id": "PY_EVAL_EXEC",
       "line": 45,
       "review": "The bootstrap executes only hash-bound reviewed capsule modules, not project candidate code.",
@@ -369,7 +369,7 @@
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "a8248bcfd58f86248ee579fadae96b0f0cc16bd4eb18f805113720196fddf1ba"
+      "sha256": "8e6f6627bc776052636b7225d131e214bbdc99b57ab04d226f0dc62d0db08a37"
     },
     {
       "file": "plugins/trojaino/skills/scan/SKILL.md",
@@ -393,15 +393,15 @@
     },
     {
       "file": "scripts/audit_setup_source.py",
-      "sha256": "0ff388eb02b4fe23a8879498155dfa484bfac01ea8b530e0cce206105b0e383d"
+      "sha256": "f9986363b6154e45ff373d230cfd268b0af9f01f4de69cefed4180ad78282a58"
     },
     {
       "file": "scripts/build_preflight_bundle.py",
-      "sha256": "239300b7398deb50ad365f82f04c1ba3779507e01a2944b42b9c11fdb80a59ff"
+      "sha256": "9a3db5019a4170db41a2e7569d38b9aa25185ae850389587f1345ed705332461"
     },
     {
       "file": "scripts/build_sealed_runtime.py",
-      "sha256": "38d6eee49191f0cba1b59c464748686db1d76f6209304018eaf35d363df99bfb"
+      "sha256": "a73efa6b3ad9a81ec838b0338866149154cf7a12ac59665210b1d93deb4d7932"
     },
     {
       "file": "scripts/build_setup_resources.py",
@@ -432,10 +432,6 @@
       "sha256": "83efee535745fcd701366dc85737a43c4fb487dd850d83921efd3d1f01c8887b"
     },
     {
-      "file": "scripts/sealed_runtime_bootstrap.py",
-      "sha256": "26e135b02ae52085b8a3a4011247ebd114536982a2e692010ed68fe15bbf5971"
-    },
-    {
       "file": "scripts/smoke_installed_wheel.py",
       "sha256": "b9367f9e0223f9c995f55d682d785aee4ec6da425e61e13e56ec0ab6bf958af2"
     },
@@ -454,6 +450,18 @@
     {
       "file": "trojaino/__main__.py",
       "sha256": "0e31744dd21199c58a6626a7c1b7bab0202da6dbd623d7a2e05adf7cd50e2114"
+    },
+    {
+      "file": "trojaino/claude/__init__.py",
+      "sha256": "c7dec747302b2b9a913a41366ed45c7de6b632b4b3b5513d12a9550c5c0170db"
+    },
+    {
+      "file": "trojaino/claude/seal.py",
+      "sha256": "553e8020d0acbd08a9c94707c47dd0e6e6998cc8dda2b63e0e41231b787a9f45"
+    },
+    {
+      "file": "trojaino/claude/sealed_runtime_bootstrap.py",
+      "sha256": "26e135b02ae52085b8a3a4011247ebd114536982a2e692010ed68fe15bbf5971"
     },
     {
       "file": "trojaino/cli.py",

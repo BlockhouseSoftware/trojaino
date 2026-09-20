@@ -108,13 +108,23 @@ class SourceAuditTests(unittest.TestCase):
                 audit(data_v3, hashlib.sha256(data_v3).hexdigest(), root, third, git, 'source-layout-v2')
             with self.assertRaisesRegex(ValueError, 'Git'):
                 audit(data_v2, hashlib.sha256(data_v2).hexdigest(), root, third, git, 'source-layout-v3')
+            # v4 drops the bootstrap script, which moved into the installable package.
+            files_v4 = {k: v for k, v in files_v3.items() if k != 'scripts/sealed_runtime_bootstrap.py'}
+            command('rm', '-q', 'scripts/sealed_runtime_bootstrap.py')
+            command('-c', 'user.name=Source Audit Test', '-c', 'user.email=audit@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'layout v4')
+            fourth = command('rev-parse', 'HEAD').decode().strip()
+            data_v4 = packed(files_v4)
+            result_v4 = audit(data_v4, hashlib.sha256(data_v4).hexdigest(), root, fourth, git, 'source-layout-v4')
+            self.assertEqual(result_v4['source_files'], len(files_v4))
+            with self.assertRaisesRegex(ValueError, 'Git'):
+                audit(data_v4, hashlib.sha256(data_v4).hexdigest(), root, fourth, git, 'source-layout-v3')
             # A Git symlink blob must be refused even with identical packaged bytes.
-            oid = command('rev-parse', third + ':trojaino/__init__.py').decode().strip()
+            oid = command('rev-parse', fourth + ':trojaino/__init__.py').decode().strip()
             command('update-index', '--cacheinfo', '120000,' + oid + ',trojaino/__init__.py')
             command('-c', 'user.name=Source Audit Test', '-c', 'user.email=audit@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'symlink fixture')
             symlink_commit = command('rev-parse', 'HEAD').decode().strip()
             with self.assertRaisesRegex(ValueError, 'regular'):
-                audit(data_v3, hashlib.sha256(data_v3).hexdigest(), root, symlink_commit, git, 'source-layout-v3')
+                audit(data_v4, hashlib.sha256(data_v4).hexdigest(), root, symlink_commit, git, 'source-layout-v4')
             for malformed in (commit.upper(), commit[:7], '--help', commit + '\n'):
                 with self.assertRaisesRegex(ValueError, 'literal'):
                     audit(data, hashlib.sha256(data).hexdigest(), root, malformed, git, 'source-layout-v1')
