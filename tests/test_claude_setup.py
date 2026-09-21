@@ -47,7 +47,11 @@ class IdentityTests(unittest.TestCase):
     def test_skills_directory_follows_claude_config_dir(self):
         with mock.patch.dict(os.environ, {'CLAUDE_CONFIG_DIR': '/tmp/example-config'}):
             self.assertEqual(setup.skills_directory(), Path('/tmp/example-config/skills'))
-        with mock.patch.dict(os.environ, {}, clear=True):
+        # Unset only the variable under test. Clearing the whole environment
+        # takes USERPROFILE with it, and Path.home() cannot resolve without it
+        # on Windows, where there is no pwd database to fall back to.
+        with mock.patch.dict(os.environ):
+            os.environ.pop('CLAUDE_CONFIG_DIR', None)
             self.assertEqual(setup.skills_directory(), Path.home() / '.claude' / 'skills')
 
 
