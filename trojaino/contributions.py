@@ -136,7 +136,7 @@ def _summary_from_report(report: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "scanner_version": scanner_version,
-        "profile": _checked_string(report.get("profile"), field="profile", allowed={"default", "release"}),
+        "profile": _checked_string(report.get("profile"), field="profile", allowed={"default", "release", "package"}),
         "verdict": _checked_string(report.get("verdict"), field="verdict", allowed={"DO NOT RUN", "CAUTION", "NO CRITICAL RISKS FOUND"}),
         "complete": _checked_bool(report.get("complete"), field="complete"),
         "files_scanned_band": _file_count_band(_checked_nonnegative_int(report.get("files_scanned"), field="files scanned")),

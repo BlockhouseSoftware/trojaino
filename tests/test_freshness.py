@@ -91,7 +91,7 @@ class ReminderTests(unittest.TestCase):
         with mock.patch.object(freshness, 'RELEASE_DATE', '2026-09-18'):
             text = freshness.reminder('0.2.0', today=date(2026, 12, 21),
                                       config_dir=Path('/nonexistent'))
-            self.assertIn('check-updates', text)
+            self.assertIn('plugin update', text)
             self.assertNotIn('available', text.split('.')[0])
 
     def test_same_version_in_the_catalog_is_not_reported_as_an_update(self):
@@ -99,7 +99,7 @@ class ReminderTests(unittest.TestCase):
                 mock.patch.object(freshness, 'RELEASE_DATE', '2026-09-18'):
             config = _catalog(Path(tmp), 'v0.2.0')
             text = freshness.reminder('0.2.0', today=date(2026, 12, 21), config_dir=config)
-            self.assertIn('check-updates', text)
+            self.assertIn('plugin update', text)
 
 
 class GatingTests(unittest.TestCase):
@@ -120,9 +120,23 @@ class GatingTests(unittest.TestCase):
             blocker.write_text('', encoding='utf-8')
             self.assertFalse(freshness.due(date(2026, 12, 21), blocker / 'stamp'))
 
+    def test_a_young_build_does_not_start_the_reminder_clock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stamp = Path(tmp) / 'stamp'
+            with mock.patch.object(freshness, 'RELEASE_DATE', '2026-09-21'):
+                self.assertEqual(freshness.session_reminder('0.3.0', today=date(2026, 9, 25), stamp=stamp,
+                                                             config_dir=Path(tmp) / 'none'), '')
+                self.assertFalse(stamp.exists(), 'a silent session must not consume the reminder window')
+                text = freshness.session_reminder('0.3.0', today=date(2026, 10, 21), stamp=stamp,
+                                                  config_dir=Path(tmp) / 'none')
+            self.assertIn('30 days', text)
+
     def test_session_reminder_never_raises(self):
-        with mock.patch.object(freshness, 'due', side_effect=RuntimeError('boom')):
-            self.assertEqual(freshness.session_reminder('0.2.0'), '')
+        for name in ('reminder', 'due'):
+            with self.subTest(failing=name), \
+                    mock.patch.object(freshness, 'reminder', return_value='text'), \
+                    mock.patch.object(freshness, name, side_effect=RuntimeError('boom')):
+                self.assertEqual(freshness.session_reminder('0.2.0'), '')
 
 
 if __name__ == '__main__':

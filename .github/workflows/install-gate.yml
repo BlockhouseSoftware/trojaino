@@ -1,0 +1,90 @@
+name: Install gate
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit tests / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Run the test suite
+        run: |
+          python -m pip install . -r requirements/test.txt
+          python -m unittest discover -s tests -v
+
+  live:
+    # A real Claude Code session, with the plugin installed the way users install
+    # it, against the real npm and PyPI registries. Needs the ANTHROPIC_API_KEY
+    # repository secret; without it the job is skipped, never faked.
+    name: Live Claude session / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      PYTHONUTF8: "1"
+    steps:
+      - name: Skip without an API key
+        if: env.ANTHROPIC_API_KEY == ''
+        shell: bash
+        run: echo "::notice::ANTHROPIC_API_KEY is not set; the live Claude session was not run."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        if: env.ANTHROPIC_API_KEY != ''
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        if: env.ANTHROPIC_API_KEY != ''
+        with:
+          python-version: "3.12"
+      - name: Provide python3 on Windows as the Python Install Manager does
+        if: env.ANTHROPIC_API_KEY != '' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          $python3 = Join-Path (Split-Path $python) 'python3.exe'
+          if (-not (Test-Path $python3)) {
+            Copy-Item $python $python3
+          }
+          python3 --version
+      - name: Install Claude Code
+        if: env.ANTHROPIC_API_KEY != ''
+        shell: bash
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+      - name: Install Trojaino with the two plugin commands
+        if: env.ANTHROPIC_API_KEY != ''
+        shell: bash
+        run: |
+          market="$RUNNER_TEMP/market"
+          mkdir -p "$market/.claude-plugin"
+          cp -r plugins/trojaino "$market/trojaino"
+          printf '%s' '{"name":"blockhouse-ci","owner":{"name":"ci"},"plugins":[{"name":"trojaino","source":"./trojaino","description":"install gate"}]}' > "$market/.claude-plugin/marketplace.json"
+          claude plugin marketplace add "$market"
+          claude plugin install trojaino@blockhouse-ci --scope user
+          claude plugin list
+      - name: Run real sessions through the gate
+        if: env.ANTHROPIC_API_KEY != ''
+        shell: bash
+        run: python scripts/live_gate_check.py

@@ -1,383 +1,91 @@
 {
   "findings": [
     {
-      "file": "plugins/trojaino/scripts/preflight.py",
-      "fingerprint": "e5b36ac6165b70be430450ab",
-      "id": "MCP_CREDENTIAL_ACCESS",
-      "line": 19,
-      "review": "The sealed entry contains scanner credential-detection rules; it does not expose a credential tool to Claude.",
-      "severity": "critical"
-    },
-    {
-      "file": "plugins/trojaino/scripts/preflight.py",
-      "fingerprint": "12a91de761c64b988933904d",
-      "id": "MCP_FILESYSTEM_TOOL",
-      "line": 5,
-      "review": "The sealed scanner reads the selected candidate solely for bounded inspection; it is not a general agent filesystem tool.",
-      "severity": "medium"
-    },
-    {
-      "file": "plugins/trojaino/scripts/preflight.py",
-      "fingerprint": "5d0a6f7fb26ead1cf358b77f",
-      "id": "MCP_OUTBOUND_ENDPOINT",
-      "line": 19,
-      "review": "The endpoint occurs in the reviewed sealed scanner; its outbound behavior remains subject to existing scanner contracts and tests.",
-      "severity": "medium"
-    },
-    {
-      "file": "plugins/trojaino/scripts/preflight.py",
-      "fingerprint": "bcb9bdb851363d6aca60476b",
-      "id": "MCP_SHELL_TOOL",
-      "line": 19,
-      "review": "The sealed scanner detects shell-capable candidates; the plugin hook does not launch candidate shell commands.",
-      "severity": "high"
-    },
-    {
-      "file": "plugins/trojaino/scripts/preflight.py",
-      "fingerprint": "adfbc6c6616a0303a8b1e597",
-      "id": "PY_EVAL_EXEC",
-      "line": 21,
-      "review": "The entry executes only the versioned sealed capsule bootstrap after isolation and binding checks.",
-      "severity": "high"
-    },
-    {
-      "file": "trojaino/claude/sealed_runtime_bootstrap.py",
-      "fingerprint": "213553734c0f65d57e7454a5",
-      "id": "PY_EVAL_EXEC",
+      "id": "CI_SECRET_REFERENCE",
+      "severity": "medium",
+      "file": ".github/workflows/install-gate.yml",
       "line": 45,
-      "review": "The bootstrap executes only hash-bound reviewed capsule modules, not project candidate code.",
-      "severity": "high"
+      "fingerprint": "ea22faa56fd2705e41bb0fd9",
+      "review": "The live install-gate job passes ANTHROPIC_API_KEY to Claude Code so a real session can exercise the plugin. GitHub withholds repository secrets from pull requests opened from forks, and the job is skipped when the key is absent."
+    },
+    {
+      "id": "MCP_CREDENTIAL_ACCESS",
+      "severity": "critical",
+      "file": "plugins/trojaino/scripts/preflight.py",
+      "line": 8,
+      "fingerprint": "4faae95fce69d38de29faad8",
+      "review": "The sealed entry contains the scanner's credential-detection rules as data; it exposes no credential tool to Claude."
+    },
+    {
+      "id": "MCP_FILESYSTEM_TOOL",
+      "severity": "medium",
+      "file": "plugins/trojaino/scripts/preflight.py",
+      "line": 6,
+      "fingerprint": "ac1eb14d1952e0ebb596c365",
+      "review": "The install gate reads the package it downloaded, or the local folder named in an install command, solely to scan it; it is not a general agent filesystem tool."
+    },
+    {
+      "id": "MCP_OUTBOUND_ENDPOINT",
+      "severity": "medium",
+      "file": "plugins/trojaino/scripts/preflight.py",
+      "line": 8,
+      "fingerprint": "aec18b8b6fd422d3a9af4a63",
+      "review": "The flagged endpoint is the opt-in anonymous statistics service used only by `tjscan share`. The install gate also fetches packages, but only from registry.npmjs.org, pypi.org, files.pythonhosted.org, github.com and codeload.github.com over HTTPS, only while checking an install, and sends nothing about the user or project."
+    },
+    {
+      "id": "MCP_SHELL_TOOL",
+      "severity": "high",
+      "file": "plugins/trojaino/scripts/preflight.py",
+      "line": 8,
+      "fingerprint": "d51ee31e1f3e482e26ecf182",
+      "review": "The sealed scanner detects shell-capable candidates; the hook never runs candidate code or shell commands."
+    },
+    {
+      "id": "PY_EVAL_EXEC",
+      "severity": "high",
+      "file": "plugins/trojaino/scripts/preflight.py",
+      "line": 10,
+      "fingerprint": "8fbe9cac4ed231c37f707d6f",
+      "review": "The entry executes only the versioned sealed capsule bootstrap, after refusing to run without Python 3.11+ isolation flags."
+    },
+    {
+      "id": "PY_EVAL_EXEC",
+      "severity": "high",
+      "file": "trojaino/claude/sealed_runtime_bootstrap.py",
+      "line": 46,
+      "fingerprint": "fc6f896cc7277c70f0b77d49",
+      "review": "The bootstrap executes only hash-bound modules from the reviewed capsule, never package or project code."
     }
   ],
   "profile": "release",
   "source_inventory": [
     {
-      "file": "installer/friendly/.gitignore",
-      "sha256": "6c5082c7e6de3e350189c67a1aacf757485ecc26e0a3cf96683528565f3e5f12"
-    },
-    {
-      "file": "installer/friendly/AccountPreferenceDocument.cs",
-      "sha256": "31dfbd6dda26c58a0c66b31738c79b57b4a3b94b9e850e12e6db383261d2c6a6"
-    },
-    {
-      "file": "installer/friendly/AccountPreferenceTransaction.cs",
-      "sha256": "de09f12eec0df7d8c7429c69274f6500fb0a735ff7069b623dea813bf8eff66f"
-    },
-    {
-      "file": "installer/friendly/Bootstrap.cs",
-      "sha256": "efa3ca62a56c75aa826683ed94ac38d693dbb51ca357f8f369b82720db5a30d3"
-    },
-    {
-      "file": "installer/friendly/DefaultSetup.cs",
-      "sha256": "d5e8968c5bf3d1a99a19e52abda803886a8789eee70f2c4461c5ca89458b4687"
-    },
-    {
-      "file": "installer/friendly/DefaultSetupDiscovery.cs",
-      "sha256": "7d9375952def326063f4dfdcc8ef3c15fdfb2257ed0e0470ec4ab455eb27710a"
-    },
-    {
-      "file": "installer/friendly/DefaultSetupPlan.cs",
-      "sha256": "78a4da2f946a1f507de615fec3a6276abc626574f03efde075aa7bf7efe416f7"
-    },
-    {
-      "file": "installer/friendly/PairState.cs",
-      "sha256": "bbc962987ac30db7b8095a699dea9040152a36b4bfde545dd195032c63fbb744"
-    },
-    {
-      "file": "installer/friendly/README.md",
-      "sha256": "9fadd485c679e88b4e0752327557ab674e0b5933ae39bb8d7e2cf90ac4002b4d"
-    },
-    {
-      "file": "installer/friendly/ReceiptCodec.cs",
-      "sha256": "5727b6cdd3bb3177fb1d5bb8629b5b4c37eb6fc9879a1aefb864765cc8f04203"
-    },
-    {
-      "file": "installer/friendly/SetupController.cs",
-      "sha256": "c6e532a2f9993291036ca8848f2f40e780e70c0cf3ccffc08a7371df24d87ff3"
-    },
-    {
-      "file": "installer/friendly/SetupLocations.cs",
-      "sha256": "96ee5e460e20f306789c17bb4e179de202305f5208c7b5a6932bdb8613db73f7"
-    },
-    {
-      "file": "installer/friendly/SetupProgram.cs",
-      "sha256": "28f1d4e8b1a583ba5c81ef0a5955f7407949939e3896a1cbd8ab88b476a2cba5"
-    },
-    {
-      "file": "installer/friendly/SetupWindow.cs",
-      "sha256": "f9ce2cf2fab60a89c150eae0fe4301982db800c95d1df083db33da038bf37408"
-    },
-    {
-      "file": "installer/friendly/SharedParents.cs",
-      "sha256": "435675465269b984beb895174d72e63fb63efc238ea7fab739bf63bc1d6e3b97"
-    },
-    {
-      "file": "installer/friendly/StagedPayload.cs",
-      "sha256": "dfefe5076c0387185fcf35da092e7cd6ad58bc33ebab6607c6da19a76fafc38d"
-    },
-    {
-      "file": "installer/friendly/StateStore.cs",
-      "sha256": "72665e6924b4cdc4fceab52813fd63ecb6d0b5e97b86515acbc64eef1a5ba1ef"
-    },
-    {
-      "file": "installer/friendly/TrustedPreparation.cs",
-      "sha256": "c08bc11c709d52bcd6a909192d5469f511ec5951262e32598e1fd433db2d9ab1"
-    },
-    {
-      "file": "installer/friendly/WindowsPreflight.cs",
-      "sha256": "072020762efc70737347adbe77463810967ee4f85cfa0d4f729ec3561d4ce8ac"
-    },
-    {
-      "file": "installer/friendly/account-transaction-tests/AccountTransaction.Tests.csproj",
-      "sha256": "89341d8326b4909575b8444c13e1222083f270189a6dd7614304bf552760b203"
-    },
-    {
-      "file": "installer/friendly/account-transaction-tests/Program.cs",
-      "sha256": "111c913af37f756039dc50aaa0e4b7160f896b7362a2944acd6ecdffcc1fdf6f"
-    },
-    {
-      "file": "installer/friendly/controller-native-tests/Controller.Native.Tests.csproj",
-      "sha256": "7a381699ced44687711c7b194c4b16b72254afd568b0344e773a22278f37a5a9"
-    },
-    {
-      "file": "installer/friendly/controller-native-tests/Program.cs",
-      "sha256": "9808b82d0c775efb1daca8d15eae747bfdbc3e628d308eb7ecac24ffb709e47f"
-    },
-    {
-      "file": "installer/friendly/controller-tests/Controller.Tests.csproj",
-      "sha256": "d748448ea7f4e0cf4a59debab850407116e2e2e08e514806310b346386d19724"
-    },
-    {
-      "file": "installer/friendly/controller-tests/Program.cs",
-      "sha256": "246583d3890b8c214ae201902df7591038a0ae5e98a7ca70dea2852520c17fa3"
-    },
-    {
-      "file": "installer/friendly/default-tests/Default.Tests.csproj",
-      "sha256": "f6de66456dd6cd4f8cd16ae431fe26a5fee3ddc209361c37181c43f5d7f42b15"
-    },
-    {
-      "file": "installer/friendly/default-tests/Program.cs",
-      "sha256": "23f479f5b3c499f4d48c5647380f7a387221c5eed47b9a1f576efb60fb606467"
-    },
-    {
-      "file": "installer/friendly/discovery-production-tests/Discovery.Production.Tests.csproj",
-      "sha256": "74faab0a4da1f44021cad583c9077a696fe2a29eb0fcab8982004cf0d2268852"
-    },
-    {
-      "file": "installer/friendly/discovery-production-tests/Program.cs",
-      "sha256": "8abd39bdaf4b87bf2144910233a0aaecf17b1b87c4be2af07b756f0a2df16506"
-    },
-    {
-      "file": "installer/friendly/discovery-tests/Discovery.Tests.csproj",
-      "sha256": "334ad8eeffbc162fc94ddc6d936a8896860ef566b9dca2d9fb1ce593210f5219"
-    },
-    {
-      "file": "installer/friendly/discovery-tests/Program.cs",
-      "sha256": "dcbfcbe8857b3c693563d733bbd102342992f396c696fcb745d020d19887af64"
-    },
-    {
-      "file": "installer/friendly/executable-tests/Program.cs",
-      "sha256": "270ad97fd8ac23de0809d349bbb3b0e9133f9e74f2b807b6bb5b93ff648d5505"
-    },
-    {
-      "file": "installer/friendly/handoff-tests/Handoff.Tests.csproj",
-      "sha256": "e912d2af21262d8818a5c37076659f4170c6752119dfdd6af6043c0512ec2fe0"
-    },
-    {
-      "file": "installer/friendly/handoff-tests/Program.cs",
-      "sha256": "05b6eb0304fef90e19c1b71d6dcc47b2efa10ec59ba9d92f6b04db81f7e65429"
-    },
-    {
-      "file": "installer/friendly/launcher-tests/Program.cs",
-      "sha256": "2b6d939e420bd37461e18cc4664767ee592e3a39ae852b159ced8189723816b0"
-    },
-    {
-      "file": "installer/friendly/locations-tests/Locations.Tests.csproj",
-      "sha256": "4917696ba63d2a607f8682b7bbe7ed8cd7118f936547a546668d1635734f1f6a"
-    },
-    {
-      "file": "installer/friendly/locations-tests/Program.cs",
-      "sha256": "bd43fc1acba1ad5e469b3cc5b91f724d90803f1ea0c29ef1e521042aada8fb9d"
-    },
-    {
-      "file": "installer/friendly/pair-native-tests/Pair.Native.Tests.csproj",
-      "sha256": "eb74140ccd60b9c27f18b50d756b184d6105a42a795892ac186f571938c797e0"
-    },
-    {
-      "file": "installer/friendly/pair-native-tests/Program.cs",
-      "sha256": "614e4fc31ab7bf33b0d03a56381de2caee59fcc1569e817ee995ed508b2e216c"
-    },
-    {
-      "file": "installer/friendly/pair-tests/Pair.Tests.csproj",
-      "sha256": "061152206f4c16d9b6a3c95f3d05798197be684524ff79fd871b2a1a6d3db02e"
-    },
-    {
-      "file": "installer/friendly/pair-tests/Program.cs",
-      "sha256": "4139dc6093ce49a1d8a02c675ad64870ec09b6c6266957af37fb247d58d5a079"
-    },
-    {
-      "file": "installer/friendly/parents-native-tests/Parents.Native.Tests.csproj",
-      "sha256": "eedd30f5edb41dbcdde090e2e132f95c7aa82889e6164940f5b99b5c72726ce8"
-    },
-    {
-      "file": "installer/friendly/parents-native-tests/Program.cs",
-      "sha256": "7e1ae28b5a823c799a346b45b826c573f67becf299898be9e74abd9f9888f465"
-    },
-    {
-      "file": "installer/friendly/parents-tests/Parents.Tests.csproj",
-      "sha256": "8b250b6601ffb2388f3d90a864384d67a7270078d46642308ef5bfe3e1a9014c"
-    },
-    {
-      "file": "installer/friendly/parents-tests/Program.cs",
-      "sha256": "c1f450b9723b84707f02a7f413a0f19a08f7b71d47cffec3020b474c973d409e"
-    },
-    {
-      "file": "installer/friendly/plan-native-tests/Plan.Native.Tests.csproj",
-      "sha256": "e3c5b6f7c0af2fe877929db6a935ca1f74b101db242184efaa1dbc651d2e81a5"
-    },
-    {
-      "file": "installer/friendly/plan-native-tests/Program.cs",
-      "sha256": "ee19ce4ffacf0098355214a8e47f5f880c4291021d5087664a59a80549cea3f4"
-    },
-    {
-      "file": "installer/friendly/plan-tests/Plan.Tests.csproj",
-      "sha256": "c894ee3a54505261bc17544eb275c05f02f6a699bd1f3619bb609a4b35bcf698"
-    },
-    {
-      "file": "installer/friendly/plan-tests/Program.cs",
-      "sha256": "20445a25e43a399557dbba9b92a3614cfc889ff2a97c77d482fa997e28ece265"
-    },
-    {
-      "file": "installer/friendly/preference-tests/Preference.Tests.csproj",
-      "sha256": "257cadadda92ac37fc9d2bda0351a15d0bec37c650b8133cd8094d5824598a65"
-    },
-    {
-      "file": "installer/friendly/preference-tests/Program.cs",
-      "sha256": "f53fe5a8d220b646c5684a1f300c8eb3d5b6581dc44095e65e8adc9f2546b56a"
-    },
-    {
-      "file": "installer/friendly/preparation-tests/Program.cs",
-      "sha256": "47a66bded6251a2adc358e618e68df7ac911424d2ae7e0db8f5576b32958bd94"
-    },
-    {
-      "file": "installer/friendly/process-tests/Process.Tests.csproj",
-      "sha256": "f3e4a438b7450f5671dcf71920ae8658971237a37a5a8c0033af4a36b4ed59f2"
-    },
-    {
-      "file": "installer/friendly/process-tests/Program.cs",
-      "sha256": "878f9a0d36de03dd07499f65313f8ccd804143291f869cb8066c13c195dc8f62"
-    },
-    {
-      "file": "installer/friendly/publication-tests/Program.cs",
-      "sha256": "a7fad0715aad57d6431eef4530f4dc5d1132f51fb6f3cd13ca019c2300dd2926"
-    },
-    {
-      "file": "installer/friendly/publication-tests/Publication.Tests.csproj",
-      "sha256": "0c56d93289d5f520be88323914e32eb70a42d228e4c7417125edc117cf59ddb3"
-    },
-    {
-      "file": "installer/friendly/receipt-native-tests/Program.cs",
-      "sha256": "adbe36040bcd4861d3dc6ab258ecda011bbbfe82286e895f8c661392c9cc6380"
-    },
-    {
-      "file": "installer/friendly/receipt-native-tests/Receipt.Native.Tests.csproj",
-      "sha256": "ad469a25b2b48d48130cea5b4e3fade754990f7b14b3649fc578a6a5ae2a6486"
-    },
-    {
-      "file": "installer/friendly/receipt-tests/Program.cs",
-      "sha256": "ac1c3bdae676cee25c5ecc567addc2e402caaae550bcad7a367144a56994cdc4"
-    },
-    {
-      "file": "installer/friendly/receipt-tests/Receipt.Tests.csproj",
-      "sha256": "678efa4fdc51e700acb739585791251599f9d15020473f37022d73a22f82d7fa"
-    },
-    {
-      "file": "installer/friendly/resource-tests/Program.cs",
-      "sha256": "d9b95daf8d549cb53f2a08090b3367fa0698b963326587605ed288503095ede5"
-    },
-    {
-      "file": "installer/friendly/resource-tests/Resources.Tests.csproj",
-      "sha256": "4873b04ce14bb2441d6621702865e9b08a927a502f287038bea2128f86cabcbb"
-    },
-    {
-      "file": "installer/friendly/settings-lock-tests/Program.cs",
-      "sha256": "22e3c58ca57d8b9758b75979ff661c78a2f2216d1fc35060d378b9b6e7327c54"
-    },
-    {
-      "file": "installer/friendly/settings-lock-tests/SettingsLock.Tests.csproj",
-      "sha256": "ea0207708f86df4edc8bacadde457c898424881cefcc68bd1403def2ac755e8c"
-    },
-    {
-      "file": "installer/friendly/setup.manifest",
-      "sha256": "b81c0ed99e5cd6893d58a8c105f5ef2cb58be66ded1441e79fa7aa75b7e0bfd5"
-    },
-    {
-      "file": "installer/friendly/state-native-tests/Program.cs",
-      "sha256": "775ceef08e53c071c3869ca699008870388f9cf4142e0c34df74a07ae605b450"
-    },
-    {
-      "file": "installer/friendly/state-native-tests/State.Native.Tests.csproj",
-      "sha256": "4e3c96949c6e2270e245f853f24fd8cfda3d58130070623ccf02595fe26db773"
-    },
-    {
-      "file": "installer/friendly/state-tests/Program.cs",
-      "sha256": "20bd37869d71bd0e751ff1bb7625fa95f68914b3edd662313a9e515cc5f9f034"
-    },
-    {
-      "file": "installer/friendly/state-tests/State.Tests.csproj",
-      "sha256": "42f50bdc26e0fb6f6bdcd3d5d44284aa414273d7f73d1204e5853f64f9160ebb"
-    },
-    {
-      "file": "installer/friendly/tests/Bootstrap.Tests.csproj",
-      "sha256": "9837714e3013a1dec7542379b294e83b6eafdb1730657fd6660b4d3d798780ef"
-    },
-    {
-      "file": "installer/friendly/tests/Program.cs",
-      "sha256": "022bba0d66e39f0bd7303ce6ed3218d5805abf955accd8eb933e9b124c509475"
-    },
-    {
-      "file": "installer/friendly/transaction-tests/Program.cs",
-      "sha256": "538ead5b9b5b8bb7a94cf461bb217b5ad685b566f07983f33dc1b3a6c973d3ef"
-    },
-    {
-      "file": "installer/friendly/transaction-tests/Transaction.Tests.csproj",
-      "sha256": "010a2afb678d2cf9d8dea5e956eead4c2a966e7d63fcbc953cfb826a5887c42e"
-    },
-    {
-      "file": "installer/friendly/window-production-tests/Program.cs",
-      "sha256": "21aec6aafce6caf693d1422d124f70829d40cfeeadf839576084bf0bd9e8c1e5"
-    },
-    {
-      "file": "installer/friendly/window-tests/Program.cs",
-      "sha256": "ec284f068744f1605954313d80f08fef597f7af59516d7cb884094556dac6310"
-    },
-    {
       "file": "installer/trojaino.iss",
-      "sha256": "e4152efccd998f68930b4d1248bc2c8cdae0ce79de7da4c3e5066076b47c8ecf"
+      "sha256": "7eadfb034ec896300c8249bf4ec0f8b5aa7ab0f9b6a6f179104d370e4a0bc8f3"
     },
     {
       "file": "plugins/trojaino/.claude-plugin/plugin.json",
-      "sha256": "0a6ef9be3346dc8cc3297f73806ec8af67b7b222aa63d69b16311c95da7f4e31"
+      "sha256": "96fd2e319435eccc512d19e7e336c99393e608ac9916485246e0adc782ecc228"
     },
     {
       "file": "plugins/trojaino/README.md",
-      "sha256": "6423d54a6feeed5d9e7d979ed495ce7b71cdcf7df56a155f112e0d9d2dc1bc7c"
+      "sha256": "9e356e067313b77f1a49b641931c6002404a1550ef797c3cc9cf252d405bcc8c"
     },
     {
       "file": "plugins/trojaino/hooks/hooks.json",
-      "sha256": "78922a784ee78e9e50587e93628cd3b9d4dfbe49087adc4514e6781cea38cbb9"
+      "sha256": "7428e832dd709534cabc22e6b21c4f7bcfc5bc48cbb0979718f4e3500ece8ea4"
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "43b428a95f8d88d4275720594342c58f387720f348bcaf98431bee51ec6fcc82"
+      "sha256": "94bc899d9204c0a46e591d947076402af982079d87871cc14238b65babbc0569"
     },
     {
       "file": "plugins/trojaino/skills/scan/SKILL.md",
-      "sha256": "ad9e91210bdac77386d6938894316efebf56d74e81b9659ba05fc626087fe69f"
+      "sha256": "0192fdb0849c3f922d8bede9f55fa1681480f3b577273dc01577dc7de3cadbdc"
     },
     {
       "file": "pyproject.toml",
-      "sha256": "de0b98c195471c8f12ffa10e4efb51cb9e31ea4cf76a097aa702a52df450309b"
+      "sha256": "6bb25962edf3c307b81b57efb00abca84f59b041fc537c435d0091b5a5a72cf5"
     },
     {
       "file": "requirements/test.txt",
@@ -392,28 +100,12 @@
       "sha256": "56b70a4db75aea9538364fc4e83976df1394315f161a0b78e8086b727232abfe"
     },
     {
-      "file": "scripts/audit_setup_source.py",
-      "sha256": "59b0b63b6faf00b35e35624ca239bd93e45a1156f0839f578f8157639387a687"
-    },
-    {
-      "file": "scripts/build_preflight_bundle.py",
-      "sha256": "146c16ca71c73ffd7cb27c1dcc8da668f2729bbc2d6daf550d76119b42363419"
-    },
-    {
       "file": "scripts/build_sealed_runtime.py",
       "sha256": "a73efa6b3ad9a81ec838b0338866149154cf7a12ac59665210b1d93deb4d7932"
     },
     {
-      "file": "scripts/build_setup_resources.py",
-      "sha256": "4678ede3571d050439d99d7b783f84316c4f8067484c14bb1fd5919b774ae2b9"
-    },
-    {
       "file": "scripts/build_windows_executable.py",
       "sha256": "c4e2954ea50eb42f47df7685d9cdca7ebc5594eb0050f5199437f430e615ce5a"
-    },
-    {
-      "file": "scripts/build_windows_setup_payload.py",
-      "sha256": "67b51421c6f80f69995eddb581531982836a3f7edb5ce9ebee867bdd639ea979"
     },
     {
       "file": "scripts/check_release_self_scan.py",
@@ -428,8 +120,8 @@
       "sha256": "5112fdc11882ea66fe640a1bb5a2decec8821b2203407730682b65cf5bc17bcc"
     },
     {
-      "file": "scripts/prepare_preflight_plugin.py",
-      "sha256": "01a04cdfed52d38cc1d7694652d443238090ba3386870b45bbcc2cd1ee8127a4"
+      "file": "scripts/live_gate_check.py",
+      "sha256": "d9f501603abf1528b0943c372a3ac9467f5bc609fe72df78b16a7400132a491b"
     },
     {
       "file": "scripts/run_calibration_benchmark.py",
@@ -437,15 +129,11 @@
     },
     {
       "file": "scripts/smoke_installed_wheel.py",
-      "sha256": "95ae630be1c1e74ef6100fa7df5a4585dcc3228268ac7af96490865e0d1e2934"
+      "sha256": "f7bfdf72df730003395ec4427b73af0514916cbd8bf616ec6d55e41f13fff68e"
     },
     {
       "file": "scripts/verify_distribution.py",
       "sha256": "6584e5a2f119af96ba5ac1ee4579fff0a80158fa062ac00ebb0c9baca8578645"
-    },
-    {
-      "file": "scripts/write_prepared_tree.py",
-      "sha256": "9979c95c7673730fb5441f13d865393a7b58c199be1b4135856623f7a5b97e70"
     },
     {
       "file": "trojaino/__init__.py",
@@ -457,7 +145,7 @@
     },
     {
       "file": "trojaino/_release.py",
-      "sha256": "f6f08dc4d9fcf02aa5fe5ad381b655cd9a51a83a015a9477b8a35dd219767c76"
+      "sha256": "e87d3a64772ada6159de91862941e9825e37131e9f62fdac4417f09751f41d7e"
     },
     {
       "file": "trojaino/claude/__init__.py",
@@ -465,7 +153,7 @@
     },
     {
       "file": "trojaino/claude/payload.py",
-      "sha256": "77f26f654d43e810f4e0d39ea778860206947e33301bc8e4da6e021ff7c77ce8"
+      "sha256": "6e253190388a8fe6a19b005525bd8ec53af39a0385e881f74575fb8a52d606ec"
     },
     {
       "file": "trojaino/claude/payload/LICENSE",
@@ -473,43 +161,31 @@
     },
     {
       "file": "trojaino/claude/payload/README.md",
-      "sha256": "6423d54a6feeed5d9e7d979ed495ce7b71cdcf7df56a155f112e0d9d2dc1bc7c"
+      "sha256": "9e356e067313b77f1a49b641931c6002404a1550ef797c3cc9cf252d405bcc8c"
     },
     {
       "file": "trojaino/claude/payload/SKILL.md",
-      "sha256": "ad9e91210bdac77386d6938894316efebf56d74e81b9659ba05fc626087fe69f"
+      "sha256": "0192fdb0849c3f922d8bede9f55fa1681480f3b577273dc01577dc7de3cadbdc"
     },
     {
       "file": "trojaino/claude/payload/plugin.json",
-      "sha256": "0a6ef9be3346dc8cc3297f73806ec8af67b7b222aa63d69b16311c95da7f4e31"
-    },
-    {
-      "file": "trojaino/claude/prepare.py",
-      "sha256": "3c238780ddca0382d7b460860f8e2ae74b8e1bb9b140416f36d1042126d08692"
+      "sha256": "96fd2e319435eccc512d19e7e336c99393e608ac9916485246e0adc782ecc228"
     },
     {
       "file": "trojaino/claude/seal.py",
-      "sha256": "553e8020d0acbd08a9c94707c47dd0e6e6998cc8dda2b63e0e41231b787a9f45"
+      "sha256": "27f061e7413248ab4267c754a517f0cdeccb178e9d7a260af5a5e2e9603bca5e"
     },
     {
       "file": "trojaino/claude/sealed_runtime_bootstrap.py",
-      "sha256": "26e135b02ae52085b8a3a4011247ebd114536982a2e692010ed68fe15bbf5971"
-    },
-    {
-      "file": "trojaino/claude/setup.py",
-      "sha256": "9ac8b8e2046b8e6e8651a495045fd878ef3419e80b6a4ccdefca1e70404192b2"
+      "sha256": "46624975779e0d35f938d700774a28ead893b354e1e87dfa79f45b4c99581d6c"
     },
     {
       "file": "trojaino/claude/updates.py",
       "sha256": "0a9faf9015fc9b99e1c7dc22dd18de07da82e547d561ccd0805f0c647abfc1bb"
     },
     {
-      "file": "trojaino/claude/writer.py",
-      "sha256": "0ef43689e841c94e205608988594461e9ce05b662410c2b65ea09ca07ac47ef5"
-    },
-    {
       "file": "trojaino/cli.py",
-      "sha256": "10d0549b67eaaa30e9e832627376b3a54a84eaa7657f410d786964ba37e5b3d3"
+      "sha256": "9ae01a0703af23226e72e1f6f65eb07cf198f1650e00d9f1066719d561c10aec"
     },
     {
       "file": "trojaino/contract.py",
@@ -517,19 +193,27 @@
     },
     {
       "file": "trojaino/contributions.py",
-      "sha256": "864305f177b7dad11a0467f0e1d861cf37a755359aca1abe007dc24c519543e0"
+      "sha256": "eda91161b470749b20f703e1a8d52aaf6f862a0f97506941bc9c6a9e79abb286"
     },
     {
       "file": "trojaino/file_utils.py",
-      "sha256": "62dd86afc56e45d7325c77299467fbfcb5f7a9ce32fd740d0b8e7476ecef9526"
+      "sha256": "1c03388da671311f79374202f799631f63516d0b62f84e4650e6f8a5796b4f56"
     },
     {
       "file": "trojaino/freshness.py",
-      "sha256": "0459c791a7856a98c2261d3d396bd284b21fbc8afdec1952ad29a2aa5570823b"
+      "sha256": "dbf78f520a67623c93f65667930de2cd78fb25947aa2ad462f85f2d9c804a65e"
+    },
+    {
+      "file": "trojaino/gate.py",
+      "sha256": "24c3bcd318254df0f6a78761af402d21d301596a50c3f59981d4e6491b2b0d3d"
     },
     {
       "file": "trojaino/gui.py",
       "sha256": "e0a02dba3537d5e43cef5dcd127c7c32f908ed28d2ed6da9f9623cd90d15fd67"
+    },
+    {
+      "file": "trojaino/install_detect.py",
+      "sha256": "7a860a3ca9fbf3c18410e3ff8c432b535ee41eb8a9bdc93ce5893fe2627576cc"
     },
     {
       "file": "trojaino/models.py",
@@ -537,19 +221,15 @@
     },
     {
       "file": "trojaino/preflight.py",
-      "sha256": "6ead1ceb8153aa154fd44ea736fc6ad003673b9fb2c241525456d267a9cc0c31"
+      "sha256": "a9823a4e0fd9cc67c7e93ad21021a4dca6b317a303873e3c39eddf2109a1202a"
     },
     {
       "file": "trojaino/preflight_paths.py",
       "sha256": "c1569f676b8f39daa792d2e1f0ce582ab59659f1340b9f4b99cfcbb045d0c425"
     },
     {
-      "file": "trojaino/preflight_process.py",
-      "sha256": "df055d7dd58b72c5f80d8a6517ae68a137b1fab52afcfcfdb637c1afa66b09c5"
-    },
-    {
-      "file": "trojaino/preflight_windows.py",
-      "sha256": "6a31ca34636ccf3a3465b7159339eb516ea01d8cdd89a14cb47fcc2a7ebf77da"
+      "file": "trojaino/registry.py",
+      "sha256": "37c5a7d4921410a8beee18d23bc759fe560f02c0e9875c481bfa0e1bab6a277c"
     },
     {
       "file": "trojaino/report.py",

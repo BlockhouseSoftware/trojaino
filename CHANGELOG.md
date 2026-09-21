@@ -2,25 +2,40 @@
 
 All notable changes to Trojaino are documented here.
 
-## Unreleased
+## 0.3.0 - 2026-09-21
 
-### Cross-platform setup
+Trojaino for Claude Code becomes an install gate: a normal plugin, installed with two commands inside Claude Code, that checks software before Claude installs it and stays out of the way otherwise. 0.2.0 was prepared but never published; its strict inspection-session design is replaced, not shipped.
 
-- Added `tjscan setup`: prepares a disabled personal inspection plugin from the installed package on macOS, Linux and Windows. The interpreter running the command is the trust anchor, so `pipx install trojaino` decides what Claude Code will execute. Nothing is enabled, no Claude setting is changed, and no network is used.
-- `prepare`, the prepared-tree writer and the sealed-runtime renderer now live in `trojaino.claude` and ship in the wheel; `scripts/` retains shims so CI and the native Windows build keep one entry point.
-- `plugins/trojaino` is generated from `trojaino/claude/payload`, with a test that fails if the checked-in copy drifts.
+### Install gate
+
+- The plugin installs with `/plugin marketplace add BlockhouseSoftware/claude-marketplace` and `/plugin install trojaino@blockhouse-software`, and is active from the next session. It needs Python 3.11 or newer as `python3`.
+- When Claude runs an install command (npm, npx, pnpm, yarn, bun, pip, uv, uvx, pipx, git clone, `claude mcp add`, `claude plugin install`, `claude plugin marketplace add`), Trojaino resolves the exact package, downloads it from the registry with its checksum verified, unpacks it without running anything, and scans it.
+- Clean results continue, pinned to the exact version scanned, and Claude's own permission settings still apply. CAUTION results and anything that cannot be scanned (system installers, private registries, remote MCP servers, compiled code, packages over the size limits, `curl | sh`) go to the user through Claude's permission prompt with the reason. DO NOT RUN results are blocked.
+- Only the named package is scanned, not its dependencies, and every result says so.
+- Installing what a project already declares (`npm install`, `pip install -r requirements.txt`, `pip install -e .`) passes through untouched. Everything that is not an install passes through untouched.
+- Edits to `.mcp.json`, `~/.claude.json` and Claude's plugin, MCP and hook settings are sent to the user to decide.
+- Verdicts are remembered per exact package version and scanner build, so the same version is not fetched twice. Reports are kept under `~/.local/state/trojaino/reports` (Windows: `%LOCALAPPDATA%\trojaino\reports`).
+- A `package` scan profile reads `dist/` and `build/`, which published npm packages routinely use for their code; the default profile still skips them.
+- `/trojaino:scan` checks an npm package, PyPI package, GitHub repository or local folder without installing it.
+
+### Removed
+
+- The strict inspection-session mode: `tjscan setup`, the prepared per-machine plugin copy and its path binding, the receipt launcher, the restricted Node launcher, the native Windows staging backend and the `installer/friendly` setup application. None of these shipped in a published release.
 
 ### Staleness signalling
 
-- A prepared plugin now reports its own age at `SessionStart`, at most once every 30 days. The build carries its release date, so this works with no connection, no catalog and no server — which matters because a prepared plugin has no update mechanism of its own.
-- When Claude Code has already cached a marketplace catalog locally, the reminder names the newer version instead. Trojaino makes no network request of its own to do this, and degrades silently if those files are absent or unrecognised.
-- Added `tjscan check-updates`, the only command that uses the network. It names the host before contacting it and reports plainly when offline.
+- The plugin reports its own age at session start, at most once every 30 days, and names a newer version when a marketplace catalog Claude Code has already cached advertises one. It makes no network request of its own to do this.
+- A session with nothing to report no longer consumes the 30-day window.
+- `tjscan check-updates` is the only command that contacts the network outside an install check, and only when run.
 
 ### Fixed
 
-- `shipped_source_inventory` sorted by `Path`, which orders component-wise, so a directory could precede a same-stemmed sibling file and produce an inventory that `inventory_map` rejected as invalid.
+- Line endings are pinned to LF by `.gitattributes`, so byte-for-byte integrity checks agree across platforms; the repository boundary check fails on committed CRLF.
+- `shipped_source_inventory` sorted by `Path`, which could produce an inventory `inventory_map` rejected.
 
-## 0.2.0 - 2026-09-18
+## 0.2.0 - 2026-09-18 (not published)
+
+Prepared and reviewed but never released. Superseded by the 0.3.0 install gate; the plugin design below was not shipped.
 
 ### Claude Code preflight plugin (experimental)
 

@@ -12,9 +12,22 @@ from pathlib import Path
 from trojaino.claude import seal
 
 PAYLOAD = Path(__file__).resolve().parent / 'payload'
-# An unprepared copy registers no hooks. Preparation replaces this with literal
-# interpreter and entry paths; until then the plugin provides no protection.
-INERT_HOOKS = {'hooks': {}}
+
+
+def _hook(timeout: int) -> dict:
+    # Exec form: no shell on any platform, so nothing in the event can be
+    # interpreted as shell syntax. Claude Code fills in CLAUDE_PLUGIN_ROOT.
+    return {'type': 'command', 'command': 'python3',
+            'args': ['-I', '-S', '${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py', 'hook'],
+            'timeout': timeout}
+
+
+# Live from the moment the plugin is installed. The PreToolUse matcher covers
+# the tools that can install software or change which MCP servers load.
+HOOKS = {'hooks': {
+    'SessionStart': [{'hooks': [_hook(30)]}],
+    'PreToolUse': [{'matcher': 'Bash|PowerShell|Write|Edit|MultiEdit', 'hooks': [_hook(150)]}],
+}}
 
 
 def source_files() -> dict[str, bytes]:
@@ -28,9 +41,9 @@ def source_files() -> dict[str, bytes]:
 
 
 def marketplace_files() -> dict[str, bytes]:
-    """The inert, distributable plugin directory: no hooks, no binding."""
+    """The distributable plugin directory, exactly as Claude Code installs it."""
     files = source_files()
     del files['LICENSE']  # the repository's own LICENSE covers the checked-in copy
-    files['hooks/hooks.json'] = (json.dumps(INERT_HOOKS, indent=2) + '\n').encode()
+    files['hooks/hooks.json'] = (json.dumps(HOOKS, indent=2) + '\n').encode()
     files['scripts/preflight.py'] = seal.render().encode('utf-8')
     return files

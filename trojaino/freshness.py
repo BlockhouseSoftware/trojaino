@@ -4,15 +4,15 @@ Three layers, none of which open a network connection:
 
 1. Age. The build carries its own release date, so any copy can say how old it
    is with no connection, no catalog and no server. This is the only layer that
-   always works, and it is the one that matters for a prepared plugin, which has
-   no update mechanism of its own.
+   always works.
 2. Advertised version. Claude Code already fetches and refreshes marketplace
    catalogs on the user's behalf. Reading what it has already written to disk
    turns "94 days old" into "0.3.0 is available". Those files are internal to
    Claude Code with no documented format, so every failure here is silent and
    falls back to layer 1.
 3. Checking whether a newer release exists really does need the network, so it
-   lives in `tjscan check-updates` and runs only when a person types it.
+   is left to the user: `/plugin marketplace update` inside Claude Code, or
+   `tjscan check-updates` for the command-line scanner.
 
 Nothing in this module may raise into a hook. A stale-reminder bug must never
 stop a scan or a denial from working.
@@ -101,18 +101,18 @@ def reminder(current_version: str, *, today: date | None = None,
     available = advertised_version(config_dir)
     if available and is_newer(available, current_version):
         return (f'Trojaino update available: this copy is {current_version}, built {days} days ago, '
-                f'and a catalog on this machine advertises {available}. '
-                'Tell the operator; do not update anything yourself.')
-    return (f'Trojaino freshness: this copy is {current_version}, built {days} days ago, and its '
-            'rule pack has not changed since. Suggest the operator run `tjscan check-updates` '
-            '(which uses the network) to see whether a newer release exists.')
+                f'and a catalog on this machine advertises {available}. Tell the user they can run '
+                '/plugin update trojaino@blockhouse-software; do not update anything yourself.')
+    return (f'Trojaino freshness: this copy is {current_version}, built {days} days ago. Suggest the '
+            'user run /plugin marketplace update blockhouse-software and then /plugin update '
+            'trojaino@blockhouse-software to check for a newer release.')
 
 
 def _stamp_path() -> Path:
     if os.name == 'nt':
         base = Path(os.environ.get('LOCALAPPDATA') or Path.home() / 'AppData/Local')
-        return base / 'trojaino-pilot' / 'last-freshness-reminder'
-    return Path.home() / '.local/state/trojaino-pilot' / 'last-freshness-reminder'
+        return base / 'trojaino' / 'last-freshness-reminder'
+    return Path.home() / '.local/state/trojaino' / 'last-freshness-reminder'
 
 
 def due(today: date | None = None, stamp: Path | None = None) -> bool:
@@ -135,8 +135,13 @@ def session_reminder(current_version: str, *, today: date | None = None,
                      config_dir: Path | None = None, stamp: Path | None = None) -> str:
     """Reminder text for a session hook, or '' — never raises."""
     try:
-        if not due(today, stamp):
+        # Decide there is something to say before consuming the once-a-window
+        # stamp. Checking the stamp first would let a young build's first
+        # session start the 30-day clock, delaying the first real reminder by
+        # up to a further 30 days.
+        text = reminder(current_version, today=today, config_dir=config_dir)
+        if not text or not due(today, stamp):
             return ''
-        return reminder(current_version, today=today, config_dir=config_dir) or ''
+        return text
     except Exception:
         return ''
