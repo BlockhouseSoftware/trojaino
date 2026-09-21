@@ -1,9 +1,5 @@
 """MKT-001A containment checks; these inspect package files only."""
 import ast
-import shutil
-import subprocess
-import sys
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -23,20 +19,6 @@ class MarketplacePackageContainmentTests(unittest.TestCase):
         for path in PLUGIN_ROOT.rglob("*"):
             if path.is_symlink():
                 self.assertTrue(path.resolve().is_relative_to(plugin), str(path))
-
-    def test_symlinked_entry_wrapper_is_denied_before_runtime_load(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            copied = Path(tmp) / "trojaino"
-            shutil.copytree(PLUGIN_ROOT, copied, symlinks=True)
-            wrapper = copied / "scripts/preflight.py"
-            wrapper.unlink()
-            wrapper.symlink_to(WRAPPER)
-            result = subprocess.run(
-                [sys.executable, "-I", "-S", str(wrapper), "--help"],
-                capture_output=True, text=True, check=False,
-            )
-        self.assertEqual(result.returncode, 2)
-        self.assertIn("plugin_entry_invalid", result.stdout)
 
     def test_wrapper_uses_sealed_image_without_runtime_path_loader(self):
         source = WRAPPER.read_text(encoding="utf-8")

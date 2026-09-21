@@ -1,245 +1,141 @@
-# Trojaino on Windows 11: supervised first test
+# Trojaino on Windows: quick start
 
-**Start here. You do not need to know how to code.**
+Trojaino checks new software before Claude Code installs it.
+This takes about 10 minutes. You do not need to know how to code.
 
-Trojaino checks program files for warning signs before you try them. This guide sets up a small test with Claude Code. It does **not** install any new MCP, plugin from another company, or app to test.
+## Rules
 
-**This is an early test version.** It has passed tests on Windows Server, but it still needs checking with Claude Code on a Windows 11 computer. It is not antivirus software. A good scan result does not prove that an app is safe.
+- Do one step at a time, in order.
+- Each step says **what you should see**. If you see something different, stop and take a picture of the screen.
+- Never choose **Run as administrator**.
+- Never click **Run anyway**, and never turn off antivirus.
 
-Read this guide once before you begin. Follow one numbered step at a time. Do not use this test session for normal work yet.
+You need Claude Code already working on this computer.
 
-## Values from the release page
+---
 
-Each Trojaino release publishes three things on its [GitHub Releases](https://github.com/BlockhouseSoftware/trojaino/releases) page: the test-files ZIP, its SHA-256 checksum, and the SHA-256 checksum of the matching official Python installer. Fill in the three values below from the release you were given before pasting any later box. Do not take them from a search result or another release.
+## Step 1. Open PowerShell
+
+1. Click the **Start** button.
+2. Type **PowerShell**.
+3. Click **Windows PowerShell**.
+
+**You should see:** a window with a line that ends in `>`. This is where you type.
+
+To run a command from this guide: type it (or copy it and **right-click** in the window to paste), then press **Enter**.
+
+## Step 2. Check for Python
+
+Type this and press **Enter**:
 
 ```powershell
-$TrojainoZipName  = 'trojaino-preflight-source.zip'                    # file name shown on the release page
-$TrojainoZipHash  = 'PASTE-64-CHARACTER-CHECKSUM-FROM-THE-RELEASE-PAGE'
-$PythonExeHash    = 'PASTE-64-CHARACTER-CHECKSUM-FROM-THE-RELEASE-PAGE'
+python3 --version
 ```
 
-## 1. Check your computer
+- If you see `Python 3.11`, `3.12`, `3.13` or `3.14` followed by more numbers, **skip to Step 4**.
+- Anything else (an error, "not recognized", a Microsoft Store window, or an older version): go to Step 3.
 
-1. Open **Start → Settings → System → About**. If Windows is in another language, use the matching labels on your screen.
-2. Check that the Windows version is **Windows 11**.
-3. Under **System type**, look for **64-bit operating system, x64-based processor**. If it says **ARM**, stop. The Python download below is for x64 computers only.
-4. Use your own Windows account. Do not choose **Run as administrator** for any step.
-5. Claude Code must already work on this computer. This means the Claude app you use in a command window, not just the Claude website or desktop chat app. If it is missing, asks you to sign in again, or needs payment, stop. Do not download a replacement from a search result.
+## Step 3. Install Python
 
-## 2. Download the files
+Type this and press **Enter**:
 
-From the release page, save these files in your usual **Downloads** folder. Do not rename them. You do not need Git, a GitHub account, or the green **Code** button.
+```powershell
+winget install 9NQ7512CXL7T -e --accept-package-agreements
+```
 
-| File | What to do |
+This installs the **Python Install Manager** from Microsoft's app store. It takes a minute or two.
+
+**You should see:** `Successfully installed`.
+
+Then:
+
+1. **Close PowerShell** and open it again, like in Step 1.
+2. Type this and press **Enter**. Answer **Y** to any question it asks.
+
+```powershell
+py install default
+```
+
+3. Close PowerShell, open it again, and go back to **Step 2**.
+
+If Step 2 still does not show a version, stop.
+
+## Step 4. Start Claude
+
+Type this and press **Enter**:
+
+```powershell
+claude
+```
+
+## Step 5. Install Trojaino
+
+In Claude, type this and press **Enter**:
+
+```
+/plugin marketplace add BlockhouseSoftware/claude-marketplace
+```
+
+**You should see:** a message that the marketplace was added.
+
+Then type this and press **Enter**:
+
+```
+/plugin install trojaino@blockhouse-software
+```
+
+**You should see:** a message that Trojaino was installed.
+
+## Step 6. Restart Claude
+
+1. Type `/exit` and press **Enter**.
+2. Type `claude` and press **Enter**.
+
+## Step 7. Check that Trojaino is on
+
+1. In Claude, type `/hooks` and press **Enter**.
+2. Look for **SessionStart** and **PreToolUse**. Each one should mention **trojaino**.
+3. Press **Escape**.
+
+**That's it.** Trojaino is now on, and it stays on. You do not need to turn it on or off.
+
+---
+
+## What happens now
+
+When Claude tries to install something, Trojaino checks it first:
+
+| What Trojaino finds | What you see |
 | --- | --- |
-| Trojaino test files ZIP | Required. Download this first. Do **not** open or extract it yet. |
-| Python 3.14 for Windows x64 installer | Download only if Step 3 says Python is missing. Python is the tool that runs Trojaino. |
+| No warning signs | Nothing. The install continues as normal. |
+| Warning signs (**CAUTION**) | Claude asks you, and shows what Trojaino found. You decide. |
+| Serious danger (**DO NOT RUN**) | The install is stopped. |
+| Something it cannot check | Claude asks you, and says why. You decide. |
 
-The Python file is an unchanged copy of the installer from [Python's official release page](https://www.python.org/downloads/). Its license is included in the installer. Claude Code is not included; use your existing installation.
+When Claude asks you, read what Trojaino says. If you are not sure, choose **No**.
 
-If a link shows **404 / Not Found**, or Windows/browser security blocks a download, stop. Do not turn off security settings or choose **Run anyway**.
+Everything else Claude does works exactly as before.
 
-## 3. Open PowerShell and check Python
+## Updating Trojaino
 
-PowerShell is a Windows app where you can paste the commands below.
+In Claude, type:
 
-1. Click **Start**.
-2. Type **Windows PowerShell**.
-3. Click **Open**. Do not choose **Run as administrator**.
-4. Paste the "Values from the release page" box first and press **Enter**.
-5. Copy the entire box below. Click inside PowerShell, paste it, and press **Enter**. If Windows warns that you are pasting several lines, check that the text is this box before agreeing to paste.
-
-**Paste into PowerShell, not into Claude:**
-
-```powershell
-$Python = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314\python.exe'
-if (Test-Path -LiteralPath $Python) {
-    & $Python --version
-} else {
-    Write-Host 'Python was not found in the folder used by this guide.'
-}
 ```
-
-**What you should see:** `Python 3.14.x`. If so, skip to Step 5.
-
-If you see Python 3.13, 3.15, a test version, or anything else, stop. This guide uses one fixed Python folder so you do not have to edit file paths.
-
-If Python was not found and you already use Python elsewhere, stop. Do not install another copy.
-
-If you do not have Python, continue to Step 4.
-
-## 4. Install Python only if needed
-
-1. Download the Python file from the release page. Do not open it yet.
-2. Paste this box into the **same PowerShell window** and press Enter. It checks the downloaded file without running it.
-
-```powershell
-& {
-    $File = Get-ChildItem -LiteralPath (Join-Path $HOME 'Downloads') -Filter 'python-3.14*-amd64.exe' | Select-Object -First 1
-    if ($null -eq $File) { throw 'STOP: Python installer not found in Downloads.' }
-    $Actual = (Get-FileHash -LiteralPath $File.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
-    if ($Actual.ToLowerInvariant() -ne $PythonExeHash.ToLowerInvariant()) { throw 'STOP: Python download did not match.' }
-    Write-Host 'PYTHON DOWNLOAD CHECKED. You may open this file.'
-}
+/plugin update trojaino@blockhouse-software
 ```
-
-3. Continue only if you see **PYTHON DOWNLOAD CHECKED** with no error.
-4. Open **File Explorer → Downloads**. Double-click the Python installer.
-5. Use **Install Now** for your own account. Keep the default folder. Leave options for administrator access or installing for all users **off**. You do not need to add Python to PATH for this guide.
-6. If the installer instead shows **Modify**, **Repair**, or **Uninstall**, stop. If Windows asks for an administrator password or permission to make administrator changes, cancel and stop.
-7. When installation finishes, click **Close**. Do not change the Windows path-length limit or other Windows settings.
-8. Repeat the check in Step 3. Continue only when it shows Python 3.14. If you see a different version or an error, stop.
-
-## 5. Check Claude Code
-
-Keep the same PowerShell window open for the rest of this guide.
-
-Paste this line into **PowerShell** and press Enter:
-
-```powershell
-claude --version
-```
-
-**What you should see:** a Claude Code version number. Write it down or take a screenshot. If the command is not found, do not try other installation commands. Stop.
-
-## 6. Prepare Trojaino
-
-This step checks the Trojaino download and puts its files in a new folder named **TJ** inside your Windows user folder. It does not change Claude's global settings.
-
-1. Do not move the files into OneDrive, Dropbox, a USB drive, or a shared network folder.
-2. Copy **all** of the next box. Paste it into **PowerShell**, not Claude. Press Enter.
-3. You do not need to understand or edit the code. It uses your own Windows folder automatically.
-
-```powershell
-$TrojainoSetup = $null
-& {
-    $OldPreference = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = 'Stop'
-        $Python = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314\python.exe'
-        $Zip = Join-Path $HOME ('Downloads\' + $TrojainoZipName)
-        $Base = Join-Path $HOME 'TJ'
-        if ((Get-FileHash -LiteralPath $Zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $TrojainoZipHash.ToLowerInvariant()) { throw 'STOP: Trojaino download did not match.' }
-        if (Test-Path -LiteralPath $Base) { throw 'STOP: The TJ folder already exists. Do not delete it.' }
-        & $Python --version
-        if ($LASTEXITCODE -ne 0) { throw 'STOP: Python check failed.' }
-        New-Item -ItemType Directory -Path $Base | Out-Null
-        Expand-Archive -LiteralPath $Zip -DestinationPath $Base
-        $Source = Join-Path $Base 'trojaino-source'
-        $Prepared = Join-Path $Base 'prepared'
-        & $Python -I -S (Join-Path $Source 'scripts\prepare_preflight_plugin.py') $Prepared
-        if ($LASTEXITCODE -ne 0) { throw 'STOP: Trojaino setup failed.' }
-        $Plugin = Join-Path $Prepared 'plugins\trojaino'
-        $Helper = Join-Path $Plugin 'scripts\preflight.py'
-        & $Python -I -S $Helper capabilities
-        if ($LASTEXITCODE -ne 0) { throw 'STOP: Trojaino check failed.' }
-        claude plugin validate --strict $Plugin
-        if ($LASTEXITCODE -ne 0) { throw 'STOP: Claude could not check the plugin.' }
-        $script:TrojainoSetup = @{ Python = $Python; Base = $Base; Plugin = $Plugin; Helper = $Helper }
-        Write-Host 'SETUP FINISHED. Continue to Step 7.'
-    } finally {
-        $ErrorActionPreference = $OldPreference
-    }
-}
-```
-
-**What you should see:** several lines of technical details, followed by **SETUP FINISHED. Continue to Step 7.**
-
-If that final line is missing, or you see an error, **stop**. Write down the step number and error. Do not delete folders, repeat setup, or change security settings to make it work.
-
-## 7. Start the small test
-
-This creates one sample file for Trojaino to read. The test does not run that sample program.
-
-Paste the whole box into the **same PowerShell window**:
-
-```powershell
-& {
-    $OldPreference = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = 'Stop'
-        if ($null -eq $TrojainoSetup) { throw 'STOP: Setup is not ready.' }
-        $Fixture = Join-Path $TrojainoSetup.Base 'fixture'
-        New-Item -ItemType Directory -Path $Fixture | Out-Null
-        [IO.File]::WriteAllText((Join-Path $Fixture 'hello.py'), 'print("harmless fixture")', [Text.UTF8Encoding]::new($false))
-        Set-Location -LiteralPath $TrojainoSetup.Base
-        Write-Host "TEST FOLDER: $Fixture"
-        claude --plugin-dir $TrojainoSetup.Plugin
-        if ($LASTEXITCODE -ne 0) { throw 'STOP: Claude session ended with an error.' }
-    } finally {
-        $ErrorActionPreference = $OldPreference
-    }
-}
-```
-
-Claude Code should now open **inside that window**. From here, paste the test messages into **Claude**, not into another PowerShell window.
-
-If Claude asks whether you trust the folder, accept **only** if the folder shown ends in `\TJ` and you just created it in Step 6. Do not accept a different folder. If it asks for a new login or payment, stop.
-
-## 8. Check that Trojaino loaded
-
-1. Type `/hooks` in Claude and press Enter.
-2. Look for **SessionStart** and **PreToolUse**. Each must show Trojaino's `preflight.py` handler from a path containing `\TJ\prepared\plugins\trojaino\`. These are the two checks Claude must load.
-3. Close that menu with **Escape** if needed.
-4. If a check is missing, disabled, or shows an error, exit Claude. Do not keep testing just because the chat still works.
-
-Trojaino's startup details may be sent to Claude rather than shown as a banner. Claude saying "I am ready" is not proof that these checks loaded.
-
-## 9. Ask Claude to scan the sample
-
-Copy this message into **Claude** and press Enter:
-
-> Assess the source in the fixture folder inside our current TJ folder before I try it. Use Trojaino's report-only scan and the exact scan command from its startup instructions. Do not run, install, or modify the sample. Give me the scan result in this reply. If you cannot use native PowerShell, stop and explain. Do not work around a denial.
-
-If Claude asks to run a command, read it before choosing anything. Allow **only** a report-only scan that uses the Python path under `AppData\Local\Programs\Python\Python314`, a Trojaino path under `\TJ\prepared\plugins\trojaino\`, and the sample folder under `\TJ\fixture`. Do not choose "always allow" or approve several actions at once. Do not approve installation, running the sample, or a security bypass.
-
-**What you should see:** a report for **one file**, with no findings, and the saved report location. It should also explain that reading code cannot prove a program is safe.
-
-If Claude only promises to scan, asks you to install something, reports incomplete coverage, or tries to run the sample, stop. Write down what happened.
-
-## 10. Check that a blocked command stays blocked
-
-Paste this message into **Claude**:
-
-> Attempt exactly one PowerShell call with command Write-Output TROJAINO_DENIAL_CANARY. If denied, report it without retrying or using other tools.
-
-This command would only print a test word. It does not install or delete anything.
-
-**Expected result:** Trojaino blocks the command and Claude says the command was denied by the hook or Trojaino. Seeing the test word quoted in Claude's explanation is not the same as the command running. If Claude shows the test word as command output, the test failed.
-
-Do not approve a new command, a workaround, or broader permissions to make this test pass. If the command actually runs, stop and report the test as failed.
-
-## 11. Close, reopen, and finish
-
-1. Type `/exit` in Claude and press Enter. You should return to PowerShell.
-2. In that **same PowerShell window**, paste this line and press Enter:
-
-```powershell
-claude --plugin-dir $TrojainoSetup.Plugin
-```
-
-3. Repeat Step 8 to check that Trojaino loaded again.
-4. Type `/exit` again. The first test is now finished.
-5. Save your Windows, PowerShell, Python, and Claude versions; whether the scan worked; the saved report and receipt locations; whether Trojaino blocked the test command; whether the checks loaded again; and any error step number. Keep this record for later review. Hide passwords, sign-in codes, private files, and unrelated chats.
-
-**Do not try any real third-party app, plugin or MCP yet.** This guide only tests the harmless sample file.
 
 ## If something goes wrong
 
 | What you see | What to do |
 | --- | --- |
-| File not found | The download may be in another folder or have `(1)` in its name. Stop; do not edit the code yourself. |
-| TJ folder already exists | Stop. It may contain a previous test. Do not delete it. |
-| Permission denied, path not supported, or security warning | Stop. Do not use administrator mode, change execution policy, or turn off antivirus. |
-| Claude wants a login, payment, or a different tool | Stop. Do not share sign-in details. |
-| You closed PowerShell by mistake | Stop. Do not run the setup again. |
-
-**To stop using this test:** exit Claude and close PowerShell. Starting Claude normally, without the special `--plugin-dir` command, does not load this test copy. Keep the TJ folder and reports. Do not move or rename the prepared folder or Python; that would break the setup.
+| `winget is not recognized` | Open the **Microsoft Store**, search for **Python Install Manager**, click **Get**, then continue from Step 3, number 1. |
+| Windows asks for an administrator password | Click **Cancel**. Stop. |
+| "Windows protected your PC" | Do not click Run anyway. Stop. |
+| A **hook error** that mentions Python | Python is not set up. Go back to Step 2. |
+| `/hooks` does not show trojaino | Type `/plugin`, check that trojaino is installed and enabled, then restart Claude. |
 
 ---
 
-### Technical notes
+### Good to know
 
-This guide is for a first test, not everyday use. Use an ordinary account and a local fixed Windows folder without cloud redirection, filesystem aliases, or junctions. Check for already-enabled third-party plugins/MCPs before launching Claude; Trojaino does not prevent their startup. Keep Claude's default permission mode; never use bypass mode. Native PowerShell tool support and exec-form hooks must work on the installed Claude Code version.
-
-The release ZIP is built from the tagged source commit named on the release page. Windows Server CI runs at that commit; Windows 11 desktop acceptance is a separate gate. Node, Git, WSL, extra Python packages, and the optional CAUTION sample are not needed for this first test. No Claude binary or third-party target app is redistributed. Further technical detail is in `docs/windows-preflight.md` inside the ZIP.
+Trojaino is not antivirus. "No warning signs" means its rules found nothing in the files it read, not that a program is safe. It checks the package being installed, not the other packages that package pulls in. It checks what Claude installs, not what you install yourself.

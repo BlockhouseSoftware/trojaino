@@ -1,8 +1,8 @@
-"""Template embedded by build_sealed_runtime.py; never loaded from disk at runtime.
+"""Template embedded by trojaino.claude.seal; never loaded from disk at runtime.
 
-The approved interpreter and generated entry script are trust anchors. Runtime
-modules and worker bootstraps execute from the captured image, not filesystem
-paths. A digest passed by the parent binds each worker's input capsule.
+Runtime modules and worker bootstraps execute from the captured image, never
+from filesystem paths, so a stray trojaino package in a project cannot be
+imported instead. A digest passed by the parent binds each worker's input.
 """
 import hashlib
 import importlib.abc
@@ -17,8 +17,9 @@ import sys
 from types import MappingProxyType
 
 if sys.version_info < (3, 11) or not sys.flags.isolated or not sys.flags.no_site:
-    print(json.dumps({'decision': 'deny', 'reason': 'isolated_python_required'}))
-    raise SystemExit(2)
+    # Exit 1 is a non-blocking hook error: Claude shows it, and nothing is blocked.
+    sys.stderr.write('Trojaino needs Python 3.11 or newer, run with -I -S.\n')
+    raise SystemExit(1)
 
 _CAPSULE: dict = globals()['_CAPSULE']
 _sources = MappingProxyType(dict(_CAPSULE['sources']))
@@ -63,8 +64,6 @@ def image_worker(name, args, timeout=20, stdin=None):
         raise ValueError('worker image limit')
     argv = [sys.executable, '-I', '-S', '-c', _CHILD, hashlib.sha256(data).hexdigest()]
     environment = trusted_environment()
-    if 'TROJAINO_NODE' in os.environ:
-        environment['TROJAINO_NODE'] = os.environ['TROJAINO_NODE']
     with tempfile.TemporaryFile() as output:
         process = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=output,
             stderr=subprocess.DEVNULL, cwd=str(Path(sys.executable).parent), env=environment)
@@ -72,15 +71,6 @@ def image_worker(name, args, timeout=20, stdin=None):
             try:
                 process.stdin.write(data + b'\n')
                 process.stdin.flush()
-                if name == 'hook_input' and stdin is not None:
-                    total = 0
-                    while total < 65537:
-                        block = os.read(stdin.fileno(), 65537 - total)
-                        if not block:
-                            break
-                        total += len(block)
-                        process.stdin.write(block)
-                        process.stdin.flush()
             except (OSError, ValueError):
                 pass  # An incomplete event or capsule is denied by the child.
             finally:
@@ -113,21 +103,11 @@ setattr(trojaino, '_sealed_worker', image_worker)
 
 _operation = _CAPSULE.get('operation')
 if _operation:
-    _job = None
-    if os.name == 'nt':
-        from trojaino.preflight_windows import contain_process
-        _job = contain_process()
-    from trojaino import preflight
-    if _operation == 'scan_path':
-        from trojaino.scanner import scan_path, ScanLimits
-        _result = scan_path(_CAPSULE['args'][0], profile='default',
-                            limits=ScanLimits(max_elapsed_seconds=8)).to_dict()
-    elif _operation == 'hook_input':
-        _result = preflight.hook_input()
-    elif _operation in {'_gate', 'launch_plan', 'scanner_identity'}:
-        _result = getattr(preflight, _operation)(*_CAPSULE['args'])
-    else:
+    if _operation != 'scan_path':
         raise ValueError('unsupported image operation')
+    from trojaino.scanner import scan_path, ScanLimits
+    _target, _profile = _CAPSULE['args']
+    _result = scan_path(_target, profile=_profile, limits=ScanLimits(max_elapsed_seconds=15)).to_dict()
     print(json.dumps(_result, ensure_ascii=True))
 else:
     from trojaino.preflight import main

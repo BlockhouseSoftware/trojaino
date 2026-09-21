@@ -22,14 +22,14 @@ def console_script(environment: Path) -> Path:
     return environment / ("Scripts/tjscan.exe" if os.name == "nt" else "bin/tjscan")
 
 
-# Setup renders the plugin from the installed package, so a wheel without these
-# cannot run `tjscan setup`. Building and scanning successfully is not enough.
+# The install gate and the plugin renderer ship in the wheel. Building and
+# scanning successfully is not enough evidence that they did.
 REQUIRED_PACKAGE_FILES = (
+    "trojaino/gate.py",
+    "trojaino/install_detect.py",
+    "trojaino/registry.py",
     "trojaino/claude/__init__.py",
     "trojaino/claude/seal.py",
-    "trojaino/claude/prepare.py",
-    "trojaino/claude/writer.py",
-    "trojaino/claude/setup.py",
     "trojaino/claude/payload.py",
     "trojaino/claude/sealed_runtime_bootstrap.py",
     "trojaino/claude/payload/plugin.json",
@@ -52,7 +52,7 @@ def validate_wheel_metadata(wheel: Path) -> None:
             raise RuntimeError("Wheel does not include the project LICENSE")
         missing = [name for name in REQUIRED_PACKAGE_FILES if name not in names]
         if missing:
-            raise RuntimeError(f"Wheel is missing setup support files: {', '.join(missing)}")
+            raise RuntimeError(f"Wheel is missing install-gate or plugin files: {', '.join(missing)}")
 
 
 def run_checked(command: list[str]) -> subprocess.CompletedProcess[str]:

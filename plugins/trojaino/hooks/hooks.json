@@ -1,3 +1,39 @@
 {
-  "hooks": {}
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py",
+              "hook"
+            ],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "-I",
+              "-S",
+              "${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py",
+              "hook"
+            ],
+            "timeout": 150
+          }
+        ]
+      }
+    ]
+  }
 }

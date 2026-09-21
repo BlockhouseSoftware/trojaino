@@ -1,6 +1,7 @@
-"""Behavioral checks for the sealed marketplace runtime boundary."""
+"""The plugin's single executable file carries the whole scanner and imports nothing from disk."""
 import ast
 import json
+import os
 from pathlib import Path
 import runpy
 import subprocess
@@ -9,196 +10,162 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+BUILDER = ROOT / 'scripts/build_sealed_runtime.py'
+
 
 def capsule():
-    text = runpy.run_path(str(ROOT / 'scripts/build_sealed_runtime.py'))['render']()
+    text = runpy.run_path(str(BUILDER))['render']()
     return next(ast.literal_eval(n.value) for n in ast.parse(text).body
                 if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == '_CAPSULE' for t in n.targets))
 
 
+def build(directory):
+    entry = Path(directory) / 'preflight.py'
+    runpy.run_path(str(BUILDER))['build'](entry)
+    return entry
+
+
+def run_image(image, code, *args, cwd=None):
+    """Load the image as a worker would, then run test code inside it.
+
+    Without an operation the bootstrap hands over to main() and exits, so the
+    image runs a harmless scan of an empty folder first and prints its report.
+    Assertions use the last line of output.
+    """
+    with tempfile.TemporaryDirectory() as empty:
+        image = dict(image, operation='scan_path', args=[empty, 'package'])
+        return subprocess.run([sys.executable, '-I', '-S', '-c',
+                               "import sys,json; _CAPSULE=json.load(sys.stdin); exec(_CAPSULE['bootstrap'])\n" + code,
+                               *args], input=json.dumps(image), text=True, capture_output=True,
+                              timeout=40, cwd=cwd)
+
+
 class SealedRuntimeTests(unittest.TestCase):
     def test_identity_binds_the_captured_source_bytes(self):
+        code = "import trojaino; print(trojaino._sealed_identity)"
         image = capsule()
-        image.update(entry='/unused/preflight.py', operation='scanner_identity', args=[])
-        def identity():
-            r = subprocess.run([sys.executable, '-I', '-S', '-c',
-                "import sys,json; _CAPSULE=json.load(sys.stdin); exec(_CAPSULE['bootstrap'])"],
-                input=json.dumps(image), text=True, capture_output=True, timeout=25)
-            self.assertEqual(r.returncode, 0, r.stderr)
-            return json.loads(r.stdout)
-        first = identity()
-        image['sources']['trojaino.scanner'] += '\n# different reviewed image\n'
-        self.assertNotEqual(first, identity())
-        second = identity()
-        image['bootstrap'] += '\n# changed bootstrap\n'
-        self.assertNotEqual(second, identity())
+        image.update(entry='/unused/preflight.py')
+        first = run_image(image, code).stdout.splitlines()[-1]
+        image['sources']['trojaino.scanner'] += '\n# different image\n'
+        second = run_image(image, code).stdout.splitlines()[-1]
+        self.assertTrue(first.strip())
+        self.assertNotEqual(first, second)
 
-    def test_isolated_operations_use_the_same_image(self):
-        image = capsule()
-        image.update(entry='/unused/preflight.py', operation='scanner_identity', args=[])
-        code = ("import sys,json; _CAPSULE=json.load(sys.stdin); exec(_CAPSULE['bootstrap']); "
-                "from trojaino.preflight import isolated_operation; "
-                "print(json.dumps(isolated_operation('scanner_identity', [])))")
-        r = subprocess.run([sys.executable, '-I', '-S', '-c', code],
-                           input=json.dumps(image), text=True, capture_output=True, timeout=25)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        lines = r.stdout.splitlines()
-        self.assertEqual(len(lines), 2)
-        self.assertEqual(lines[0], lines[1])
-
-    def test_hook_worker_preserves_input_and_has_a_deadline(self):
-        image = capsule()
-        image.update(entry='/unused/preflight.py', operation='scanner_identity', args=[])
-        code = ("import sys,json,tempfile; _CAPSULE=json.load(sys.stdin); exec(_CAPSULE['bootstrap']); "
-                "from trojaino.preflight import isolated_operation; "
-                "f=tempfile.TemporaryFile(); f.write(b'{\"hook_event_name\":\"SessionStart\"}'); f.seek(0); "
-                "print(json.dumps(isolated_operation('hook_input', [], stdin=f)))")
-        r = subprocess.run([sys.executable, '-I', '-S', '-c', code],
-                           input=json.dumps(image), text=True, capture_output=True, timeout=25)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual(json.loads(r.stdout.splitlines()[-1])['hookSpecificOutput']['hookEventName'], 'SessionStart')
-
-    def test_worker_ignores_replaced_entry_and_hostile_runtime_tree(self):
+    def test_worker_scans_from_the_image_and_ignores_a_hostile_tree(self):
         image = capsule()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
             candidate = root / 'candidate'
             candidate.mkdir()
             (candidate / 'hello.py').write_text('print(42)\n')
-            entry = root / 'preflight.py'
-            entry.write_text("raise RuntimeError('REPLACEMENT_EXECUTED')\n")
             hostile = root / 'trojaino'
             hostile.mkdir()
             (hostile / '__init__.py').write_text("raise RuntimeError('HOSTILE_RUNTIME_EXECUTED')\n")
-            image.update(entry=str(entry), operation='scanner_identity', args=[])
-            code = ("import sys,json; _CAPSULE=json.load(sys.stdin); exec(_CAPSULE['bootstrap']); "
-                    "print(json.dumps(image_worker('scan_path', [sys.argv[1]])))")
-            r = subprocess.run([sys.executable, '-I', '-S', '-c', code, str(candidate)],
-                cwd=root, input=json.dumps(image), text=True, capture_output=True, timeout=25)
+            image.update(entry=str(root / 'preflight.py'))
+            r = run_image(image, "print(json.dumps(image_worker('scan_path', [sys.argv[1], 'package'])))",
+                          str(candidate), cwd=root)
             self.assertEqual(r.returncode, 0, r.stderr)
-            self.assertTrue(json.loads(r.stdout.splitlines()[-1])['complete'])
+            report = json.loads(r.stdout.splitlines()[-1])
+            self.assertTrue(report['complete'])
+            self.assertEqual(report['files_scanned'], 1)
             self.assertNotIn('EXECUTED', r.stdout + r.stderr)
 
-    def test_worker_rejects_corrupted_capsule_before_execution(self):
+    def test_worker_rejects_a_corrupted_capsule_before_running_it(self):
         bootstrap = capsule()['bootstrap']
         child = next(ast.literal_eval(n.value) for n in ast.parse(bootstrap).body
                      if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == '_CHILD' for t in n.targets))
         r = subprocess.run([sys.executable, '-I', '-S', '-c', child, '0' * 64],
-            input=b'{"bootstrap":"print(\\"ATTACK_EXECUTED\\")"}\n', capture_output=True, timeout=5)
+                           input=b'{"bootstrap":"print(\\"ATTACK_EXECUTED\\")"}\n', capture_output=True, timeout=5)
         self.assertEqual(r.returncode, 2)
         self.assertNotIn(b'ATTACK_EXECUTED', r.stdout + r.stderr)
 
-    def test_shipped_image_is_reproducible_without_a_loose_runtime(self):
-        rendered = runpy.run_path(str(ROOT / 'scripts/build_sealed_runtime.py'))['render']()
+    def test_shipped_image_is_reproducible(self):
+        rendered = runpy.run_path(str(BUILDER))['render']()
         shipped = ROOT / 'plugins/trojaino/scripts/preflight.py'
-        # Bytes, not text: read_text() applies universal-newline translation, so a
-        # CRLF checkout would satisfy a text comparison while shipping different
-        # bytes than the release self-scan inventory hashes. .gitattributes pins
-        # the working tree to LF so this stays a real byte-for-byte assertion.
-        self.assertEqual(shipped.read_bytes(), rendered.encode('utf-8'),
-                         'regenerate stale sealed image')
-        self.assertFalse((ROOT / 'plugins/trojaino/runtime').exists(), 'remove obsolete loose runtime')
+        # Bytes, not text: read_text() would hide a CRLF checkout. .gitattributes
+        # pins LF so this stays a real byte-for-byte comparison.
+        self.assertEqual(shipped.read_bytes(), rendered.encode('utf-8'), 'regenerate stale sealed image')
 
-    def test_worker_preserves_explicit_node_but_not_ambient_options(self):
-        image = capsule()
-        image['sources']['trojaino.preflight'] += "\ndef scanner_identity():\n    return [os.environ.get('TROJAINO_NODE'), os.environ.get('NODE_OPTIONS')]\n"
-        image.update(entry='/unused/preflight.py', operation='scanner_identity', args=[])
-        code = ("import sys,json,os; _CAPSULE=json.load(sys.stdin); exec(_CAPSULE['bootstrap']); "
-                "os.environ['TROJAINO_NODE']='/approved/node'; os.environ['NODE_OPTIONS']='--hostile'; "
-                "print(json.dumps(image_worker('scanner_identity', [])))")
-        r = subprocess.run([sys.executable, '-I', '-S', '-c', code],
-                           input=json.dumps(image), text=True, capture_output=True, timeout=25)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual(json.loads(r.stdout.splitlines()[-1]), ['/approved/node', None])
-
-    def test_nonisolated_entry_denies_before_importing_adjacent_modules(self):
+    def test_without_isolation_flags_it_stops_before_importing_anything_nearby(self):
         with tempfile.TemporaryDirectory() as tmp:
-            entry = Path(tmp) / 'preflight.py'
-            runpy.run_path(str(ROOT / 'scripts/build_sealed_runtime.py'))['build'](entry)
-            (Path(tmp) / 'pathlib.py').write_text("print('AMBIENT_EXECUTED')\nraise RuntimeError('ambient')\n")
-            result = subprocess.run([sys.executable, str(entry), 'capabilities'],
-                                    text=True, capture_output=True, timeout=5)
-            self.assertEqual(result.returncode, 2)
+            entry = build(tmp)
+            (Path(tmp) / 'pathlib.py').write_text("print('AMBIENT_EXECUTED')\n")
+            result = subprocess.run([sys.executable, str(entry), 'hook'], input='{}',
+                                    text=True, capture_output=True, timeout=10)
+            # Exit 1 is a non-blocking hook error: Claude shows it and blocks nothing.
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('Python 3.11', result.stderr)
             self.assertNotIn('AMBIENT_EXECUTED', result.stdout + result.stderr)
 
-    def test_blocked_hook_input_times_out_without_hanging_parent(self):
-        image = capsule()
-        image.update(entry='/unused/preflight.py', operation='scanner_identity', args=[])
-        code = ("import sys,json,os; _CAPSULE=json.load(sys.stdin); exec(_CAPSULE['bootstrap']); "
-                "from trojaino.preflight import isolated_operation,Denied; "
-                "r,w=os.pipe(); source=os.fdopen(r,'rb',buffering=0)\n"
-                "try: isolated_operation('hook_input', [], timeout=0.3, stdin=source)\n"
-                "except Denied: print('EXPECTED_TIMEOUT_DENY')\n"
-                "else: raise AssertionError('blocked input did not deny')\n")
-        result = subprocess.run([sys.executable, '-I', '-S', '-c', code],
-                                input=json.dumps(image), text=True, capture_output=True, timeout=5)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('EXPECTED_TIMEOUT_DENY', result.stdout)
-
-    def test_generated_entry_runs_without_runtime_tree(self):
-        builder = ROOT / 'scripts/build_sealed_runtime.py'
-        self.assertTrue(builder.is_file(), 'sealed runtime builder required')
+    def test_session_start_from_a_copy_outside_the_repository(self):
         with tempfile.TemporaryDirectory() as tmp:
-            entry = Path(tmp) / 'preflight.py'
-            runpy.run_path(str(builder))['build'](entry)
-            result = subprocess.run([sys.executable, '-I', '-S', str(entry), 'capabilities'],
-                                    text=True, capture_output=True, timeout=25)
+            entry = build(tmp)
+            result = subprocess.run([sys.executable, '-I', '-S', str(entry), 'hook'],
+                                    input=json.dumps({'hook_event_name': 'SessionStart'}),
+                                    text=True, capture_output=True, timeout=25, cwd=tmp)
             self.assertEqual(result.returncode, 0, result.stderr)
-            data = json.loads(result.stdout)
-            self.assertEqual(data['runtime_storage'], 'sealed-memory')
+            context = json.loads(result.stdout)['hookSpecificOutput']['additionalContext']
+            self.assertIn('install gate is active', context)
+            self.assertIn(str(entry).replace('\\', '/'), context)
 
-    def test_scan_uses_sealed_worker_without_source_checkout(self):
+    def test_ordinary_commands_get_no_answer_at_all(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            entry = build(tmp)
+            event = {'hook_event_name': 'PreToolUse', 'tool_name': 'Bash',
+                     'tool_input': {'command': 'npm test && ls'}, 'cwd': tmp}
+            result = subprocess.run([sys.executable, '-I', '-S', str(entry), 'hook'],
+                                    input=json.dumps(event), text=True, capture_output=True, timeout=25)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, '')
+
+    def test_malformed_events_are_ignored_not_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            entry = build(tmp)
+            for payload in ('', 'not json', '[]', '{"hook_event_name": "PreToolUse"}'):
+                with self.subTest(payload=payload):
+                    result = subprocess.run([sys.executable, '-I', '-S', str(entry), 'hook'],
+                                            input=payload, text=True, capture_output=True, timeout=25)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertNotIn('"deny"', result.stdout)
+
+    def test_manual_scan_of_a_local_folder(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
-            entry = root / 'preflight.py'
-            runpy.run_path(str(ROOT / 'scripts/build_sealed_runtime.py'))['build'](entry)
+            entry = build(root)
             candidate = root / 'candidate'
             candidate.mkdir()
             (candidate / 'hello.py').write_text('print(42)\n')
-            result = subprocess.run([sys.executable, '-I', '-S', str(entry), 'scan',
-                                     str(candidate), '--state', str(root / 'state')],
-                                    text=True, capture_output=True, timeout=25)
+            result = subprocess.run([sys.executable, '-I', '-S', str(entry), 'scan', str(candidate)],
+                                    text=True, capture_output=True, timeout=40,
+                                    env=dict(os.environ, HOME=str(root), USERPROFILE=str(root),
+                                             LOCALAPPDATA=str(root)))
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual(json.loads(result.stdout)['decision'], 'permit')
-
-    def test_generated_hook_prefix_is_the_sealed_entry(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            entry = Path(tmp) / 'preflight.py'
-            runpy.run_path(str(ROOT / 'scripts/build_sealed_runtime.py'))['build'](entry)
-            result = subprocess.run([sys.executable, '-I', '-S', str(entry), 'hook'],
-                input=json.dumps({'hook_event_name': 'SessionStart'}),
-                text=True, capture_output=True, timeout=25)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            context = json.loads(result.stdout)['hookSpecificOutput']['additionalContext']
-            self.assertIn(str(entry), context)
-            self.assertNotIn('<sealed>', result.stdout)
-
-if __name__ == '__main__':
-    unittest.main()
+            self.assertEqual(json.loads(result.stdout)['result'], 'NO CRITICAL RISKS FOUND')
 
 
 class PackagedRendererTests(unittest.TestCase):
-    """The renderer must ship in the wheel, and must not seal the setup code."""
-
     def test_bootstrap_ships_as_package_source_and_stays_scannable(self):
-        root = Path(__file__).resolve().parents[1]
-        bootstrap = root / 'trojaino/claude/sealed_runtime_bootstrap.py'
-        self.assertTrue(bootstrap.is_file())
-        # Kept as .py on purpose: setuptools ships it without a package-data
-        # entry, and Trojaino's own Python rules keep flagging its exec() in the
-        # reviewed release self-scan. A .txt suffix would silently drop that.
+        bootstrap = ROOT / 'trojaino/claude/sealed_runtime_bootstrap.py'
+        # Kept as .py on purpose: Trojaino's own rules keep flagging its exec()
+        # in the reviewed release self-scan. A .txt suffix would hide that.
         self.assertIn('exec(', bootstrap.read_text(encoding='utf-8'))
 
     def test_renderer_resolves_without_a_checkout_layout(self):
         from trojaino.claude import seal
-        # Inputs come from the package, not from a repository root.
         self.assertTrue(seal.BOOTSTRAP.is_relative_to(seal.PACKAGE))
         self.assertEqual(seal.PACKAGE.name, 'trojaino')
 
-    def test_setup_machinery_is_excluded_from_the_image(self):
+    def test_packaging_helpers_are_excluded_from_the_image(self):
         from trojaino.claude import seal
         sealed = seal.source_map()
-        self.assertTrue(sealed, 'scanner modules must be sealed')
-        self.assertFalse([name for name in sealed if name.startswith('trojaino.claude')],
-                         'the sealed image must not carry its own setup code')
-        self.assertIn('trojaino.scanner', sealed)
+        self.assertFalse([name for name in sealed if name.startswith('trojaino.claude')])
+        for module in ('trojaino.scanner', 'trojaino.gate', 'trojaino.install_detect', 'trojaino.registry'):
+            self.assertIn(module, sealed)
+
+    def test_no_path_binding_survives_in_the_image(self):
+        source = (ROOT / 'plugins/trojaino/scripts/preflight.py').read_text(encoding='utf-8')
+        self.assertNotIn('_EXPECTED_BINDING', source)
+
+
+if __name__ == '__main__':
+    unittest.main()

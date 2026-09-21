@@ -21,14 +21,16 @@ SKIP_DIRS = {
     ".pytest_cache", ".mypy_cache", "coverage", ".turbo",
 }
 RELEASE_EXCLUDED_ROOTS = {"tests", "reference", "docs", "examples", "example", "benchmark"}
-SCAN_PROFILES = {"default", "release"}
+SCAN_PROFILES = {"default", "release", "package"}
+# A published package is exactly what gets installed, so nothing in it is
+# build output to skip: npm packages routinely ship their code in dist/.
 # Finder metadata is a known binary artifact, not project source. Match only
 # the canonical filename so other extensionless files remain eligible.
 EXCLUDED_METADATA_FILENAMES = {".DS_Store"}
 
 
-def should_scan(path: Path) -> bool:
-    if any(part in SKIP_DIRS for part in path.parts):
+def should_scan(path: Path, profile: str = "default") -> bool:
+    if profile != "package" and any(part in SKIP_DIRS for part in path.parts):
         return False
     if path.name in EXCLUDED_METADATA_FILENAMES:
         return False
@@ -95,7 +97,7 @@ def iter_files(
             if excluded is not None:
                 excluded.append(root.name)
             return []
-        return [root] if should_scan(root) else []
+        return [root] if should_scan(root, profile) else []
     files: list[Path] = []
     entries_seen = 0
     stack = [(root, 0)]
@@ -127,7 +129,7 @@ def iter_files(
                     issue_list.append(ScanIssue("symlink_rejected", "Child symbolic link was not followed", rel))
                     continue
                 if entry.is_dir(follow_symlinks=False):
-                    if entry.name in SKIP_DIRS:
+                    if entry.name in SKIP_DIRS and profile != "package":
                         continue
                     child_depth = depth + 1
                     if child_depth > max_depth:
@@ -143,7 +145,7 @@ def iter_files(
                     if excluded is not None:
                         excluded.append(rel)
                     continue
-                if not should_scan(path):
+                if not should_scan(path, profile):
                     continue
             except OSError as exc:
                 issue_list.append(ScanIssue(
@@ -198,7 +200,7 @@ def estimate_project(
         symlinks = 1
         return result()
     if stat.S_ISREG(root_info.st_mode):
-        if should_scan(root):
+        if should_scan(root, profile):
             files = 1
             total_bytes = root_info.st_size
             largest_file = root_info.st_size
@@ -231,7 +233,7 @@ def estimate_project(
                     symlinks += 1
                     continue
                 if entry.is_dir(follow_symlinks=False):
-                    if entry.name in SKIP_DIRS:
+                    if entry.name in SKIP_DIRS and profile != "package":
                         continue
                     child_depth = depth + 1
                     deepest = max(deepest, child_depth)
@@ -246,7 +248,7 @@ def estimate_project(
                         continue
                     stack.append((path, child_depth))
                     continue
-                if not entry.is_file(follow_symlinks=False) or not should_scan(path):
+                if not entry.is_file(follow_symlinks=False) or not should_scan(path, profile):
                     continue
                 size = entry.stat(follow_symlinks=False).st_size
             except OSError:

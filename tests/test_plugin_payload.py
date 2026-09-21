@@ -23,9 +23,15 @@ class PayloadIsCanonicalTests(unittest.TestCase):
                              f'{name} was edited in plugins/trojaino instead of the payload; '
                              'run scripts/generate_plugin_dir.py')
 
-    def test_distributed_copy_registers_no_hooks(self):
-        hooks = json.loads(payload.marketplace_files()['hooks/hooks.json'])
-        self.assertEqual(hooks, {'hooks': {}})
+    def test_distributed_copy_registers_live_exec_form_hooks(self):
+        hooks = json.loads(payload.marketplace_files()['hooks/hooks.json'])['hooks']
+        self.assertEqual(sorted(hooks), ['PreToolUse', 'SessionStart'])
+        for event in hooks.values():
+            handler = event[0]['hooks'][0]
+            # Exec form, so nothing is ever interpreted by a shell.
+            self.assertEqual(handler['command'], 'python3')
+            self.assertEqual(handler['args'], ['-I', '-S', '${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py', 'hook'])
+        self.assertEqual(hooks['PreToolUse'][0]['matcher'], 'Bash|PowerShell|Write|Edit|MultiEdit')
 
     def test_payload_license_matches_the_project_license(self):
         self.assertEqual((payload.PAYLOAD / 'LICENSE').read_bytes(),
