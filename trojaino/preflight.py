@@ -369,6 +369,13 @@ def hook(event):
                        "apostrophes. Quote scan, launch and flags too. Bash alternative prefix: "
                        + format_command(command_prefix("Bash"), "Bash") + ". "
                        if os.name == "nt" else "Bash: use canonical shlex.join argument quoting. ")
+            try:
+                from trojaino import __version__
+                from trojaino.freshness import session_reminder
+
+                freshness = session_reminder(__version__)
+            except Exception:
+                freshness = ""
             return {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": (
                 "Trojaino inspection-session pilot is loaded. When asked to try or install a new MCP, "
                 "plugin, or app, invoke this plugin's scan skill and inspect supported source before execution. "
@@ -378,6 +385,7 @@ def hook(event):
                 "Do not install dependencies or activate native candidate plugins/MCPs in this session. "
                 "Ordinary execution and writes are blocked in inspection mode; normal Claude permissions "
                 "still apply to supported commands. This is not antivirus or an OS sandbox."
+                + ((" " + freshness) if freshness else "")
             )}}
         if event.get("hook_event_name") != "PreToolUse" or event.get("tool_name") not in {"Bash", "PowerShell"}:
             raise Denied("unsupported_tool")
