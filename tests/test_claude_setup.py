@@ -28,6 +28,22 @@ class IdentityTests(unittest.TestCase):
         seen = {setup.new_identity('0.2.0') for _ in range(50)}
         self.assertEqual(len(seen), 50)
 
+    def test_destination_is_the_real_path_not_an_alias_of_one(self):
+        # Preparation binds the sealed entry to a literal absolute path and
+        # rejects any second name for it: an 8.3 short name on Windows, a
+        # symlinked ancestor elsewhere. Setup must hand it the real one.
+        with tempfile.TemporaryDirectory() as tmp:
+            link = Path(tmp) / 'link'
+            target = Path(tmp) / 'real'
+            target.mkdir()
+            try:
+                link.symlink_to(target, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest('symlink creation is unavailable on this host')
+            plan = setup.plan_setup('0.2.0', skills=link)
+            self.assertEqual(Path(plan['skills_directory']), target.resolve())
+            self.assertFalse(Path(plan['destination']).is_relative_to(link))
+
     def test_skills_directory_follows_claude_config_dir(self):
         with mock.patch.dict(os.environ, {'CLAUDE_CONFIG_DIR': '/tmp/example-config'}):
             self.assertEqual(setup.skills_directory(), Path('/tmp/example-config/skills'))

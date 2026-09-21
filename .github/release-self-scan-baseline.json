@@ -369,7 +369,7 @@
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "e128bbed83ed1e7f758433091efd22798ff6e7a496c1de4cebf85e2575a8346f"
+      "sha256": "618b12b266e4fdac883f95616e4c36499fdd4e5ffcd6ea7bbe7206d9483856c8"
     },
     {
       "file": "plugins/trojaino/skills/scan/SKILL.md",
@@ -493,7 +493,7 @@
     },
     {
       "file": "trojaino/claude/setup.py",
-      "sha256": "e265ba23055aea742b6b0b300a96e40530d2475394f50b9e6592fe4646a05de0"
+      "sha256": "9ac8b8e2046b8e6e8651a495045fd878ef3419e80b6a4ccdefca1e70404192b2"
     },
     {
       "file": "trojaino/claude/writer.py",
@@ -501,7 +501,7 @@
     },
     {
       "file": "trojaino/cli.py",
-      "sha256": "8f94b64d5932a6bf898765b548ed67de5f090c9ef7d0ad50007f663b9e9ac7d6"
+      "sha256": "894ee657e1d90af26d6e8b438a54fce11b04737165ce39d56aa12ddeaea563a1"
     },
     {
       "file": "trojaino/contract.py",

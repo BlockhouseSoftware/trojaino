@@ -37,9 +37,28 @@ def existing_installations(skills: Path) -> list[Path]:
                   if path.is_dir() and path.name.startswith(IDENTITY_PREFIX))
 
 
+def resolved_root(skills: Path | None = None) -> Path:
+    """The skills directory under its real name, never an alias of one.
+
+    Preparation binds the sealed entry to the literal absolute path it is
+    written to, and refuses any destination that is a second name for that
+    location: an 8.3 short name on Windows (%TEMP% is routinely handed out as
+    C:\\Users\\RUNNER~1\\...) or a symlinked ancestor on macOS (/var is a link
+    to /private/var). Resolving here means the caller gets the real path
+    rather than a refusal it cannot act on. Reads the filesystem; changes
+    nothing.
+    """
+    root = skills if skills is not None else skills_directory()
+    try:
+        return Path(root).resolve()
+    except OSError:
+        # A path we cannot resolve is one prepare should judge, not this helper.
+        return Path(root)
+
+
 def plan_setup(version: str, *, skills: Path | None = None) -> dict:
     """Decide what would be written. Performs no filesystem changes."""
-    root = skills if skills is not None else skills_directory()
+    root = resolved_root(skills)
     identity = new_identity(version)
     return {
         'identity': identity,

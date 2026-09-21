@@ -344,7 +344,21 @@ def main(argv: list[str] | None = None) -> int:
         try:
             outcome = run_setup(__version__, skills=skills, dry_run=args.dry_run)
         except (OSError, ValueError) as exc:
-            print(f"Setup did not run: {exc}", file=sys.stderr)
+            # These refusals are correct but their internal codes say nothing a
+            # person can act on, and setup is the one command aimed at people
+            # who are not reading the source.
+            advice = {
+                "windows_path_alias": (
+                    "the destination is reached through a Windows 8.3 short name "
+                    "(a path component like RUNNER~1). Pass --skills-dir with the "
+                    "full long-form path."
+                ),
+                "local_fixed_ntfs_required": (
+                    "the destination must be on a local fixed NTFS volume. Network "
+                    "drives, removable media and substituted drives are refused."
+                ),
+            }.get(str(exc))
+            print(f"Setup did not run: {advice or exc}", file=sys.stderr)
             return 1
         if outcome["existing"]:
             print("Existing prepared plugins (left untouched): "
