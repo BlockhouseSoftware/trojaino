@@ -11,7 +11,8 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 
-from scripts import prepare_preflight_plugin as prepare_script
+from scripts import prepare_preflight_plugin as prepare_cli
+from trojaino.claude import prepare as prepare_script
 from trojaino.preflight_paths import windows_path
 
 
@@ -75,7 +76,7 @@ class PreparationRawPathTests(unittest.TestCase):
                 raise ParsedWithoutIO
 
             with self.subTest(raw=repr(raw)), mock.patch.object(
-                    sys, 'argv', [str(prepare_script.ROOT / 'scripts/prepare_preflight_plugin.py'), raw]), mock.patch.object(
+                    sys, 'argv', [str(prepare_cli.ROOT / 'scripts/prepare_preflight_plugin.py'), raw]), mock.patch.object(
                     argparse.ArgumentParser, 'parse_args', inspect_parse):
                 with self.assertRaises(ParsedWithoutIO):
-                    runpy.run_path(str(prepare_script.ROOT / 'scripts/prepare_preflight_plugin.py'), run_name='__main__')
+                    runpy.run_path(str(prepare_cli.ROOT / 'scripts/prepare_preflight_plugin.py'), run_name='__main__')

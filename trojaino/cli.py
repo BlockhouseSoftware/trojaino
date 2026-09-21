@@ -106,6 +106,15 @@ def build_parser() -> argparse.ArgumentParser:
     unshare.add_argument("receipt", help="Receipt shown after the anonymous summary was sent")
     unshare.add_argument("deletion_token", help="One-time deletion token shown with the receipt")
 
+    setup = sub.add_parser(
+        "setup",
+        help="Prepare a personal Claude Code inspection plugin from this installation",
+        description="Write a new, disabled Trojaino plugin into your Claude Code skills "
+                    "directory, bound to this interpreter. Does not enable it, change any "
+                    "Claude setting, or use the network.",
+    )
+    setup.add_argument("--dry-run", action="store_true", help="Show what would be written and exit without touching the filesystem")
+    setup.add_argument("--skills-dir", help="Override the Claude Code skills directory this prepares into")
     scan = sub.add_parser(
         "scan",
         help="Scan a local file or folder",
@@ -325,6 +334,49 @@ def _choose_interactive_budget(estimate, limits: ScanLimits, budget_name: str) -
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(invocation_arguments(argv))
+    if args.command == "setup":
+        from pathlib import Path as _Path
+
+        from trojaino import __version__
+        from trojaino.claude.setup import run_setup
+
+        skills = _Path(args.skills_dir).expanduser().absolute() if args.skills_dir else None
+        try:
+            outcome = run_setup(__version__, skills=skills, dry_run=args.dry_run)
+        except (OSError, ValueError) as exc:
+            # These refusals are correct but their internal codes say nothing a
+            # person can act on, and setup is the one command aimed at people
+            # who are not reading the source.
+            advice = {
+                "windows_path_alias": (
+                    "the destination is reached through a Windows 8.3 short name "
+                    "(a path component like RUNNER~1). Pass --skills-dir with the "
+                    "full long-form path."
+                ),
+                "local_fixed_ntfs_required": (
+                    "the destination must be on a local fixed NTFS volume. Network "
+                    "drives, removable media and substituted drives are refused."
+                ),
+            }.get(str(exc))
+            print(f"Setup did not run: {advice or exc}", file=sys.stderr)
+            return 1
+        if outcome["existing"]:
+            print("Existing prepared plugins (left untouched): "
+                  + ", ".join(outcome["existing"]))
+        if args.dry_run:
+            print("Dry run. Nothing was written.")
+            print(f"  would create : {outcome['destination']}")
+            print(f"  bound python : {outcome['python']}")
+            return 0
+        print(f"Prepared {outcome['identity']}")
+        print(f"  location : {outcome['destination']}")
+        print(f"  python   : {outcome['python']}")
+        print("")
+        print("It is installed but DISABLED, and provides no protection yet.")
+        print("Enable it deliberately, then restart Claude Code:")
+        print(f"  claude plugin enable {outcome['identity']}@skills-dir")
+        print("Verify hooks with /hooks in a new session before relying on it.")
+        return 0
     if args.command == "gui":
         from trojaino.gui import launch_gui
 

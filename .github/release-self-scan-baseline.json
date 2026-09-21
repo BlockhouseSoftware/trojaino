@@ -369,7 +369,7 @@
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "8e6f6627bc776052636b7225d131e214bbdc99b57ab04d226f0dc62d0db08a37"
+      "sha256": "618b12b266e4fdac883f95616e4c36499fdd4e5ffcd6ea7bbe7206d9483856c8"
     },
     {
       "file": "plugins/trojaino/skills/scan/SKILL.md",
@@ -429,7 +429,7 @@
     },
     {
       "file": "scripts/prepare_preflight_plugin.py",
-      "sha256": "d5d7caecc036bc278732d0974f3a3232ab5da60e4fde08c04d4e0352156c1e51"
+      "sha256": "01a04cdfed52d38cc1d7694652d443238090ba3386870b45bbcc2cd1ee8127a4"
     },
     {
       "file": "scripts/run_calibration_benchmark.py",
@@ -437,7 +437,7 @@
     },
     {
       "file": "scripts/smoke_installed_wheel.py",
-      "sha256": "f588439fee7c9b3b37b85db99610f484e33dcbb9be1c5715ae2c0429983e271e"
+      "sha256": "95ae630be1c1e74ef6100fa7df5a4585dcc3228268ac7af96490865e0d1e2934"
     },
     {
       "file": "scripts/verify_distribution.py",
@@ -445,7 +445,7 @@
     },
     {
       "file": "scripts/write_prepared_tree.py",
-      "sha256": "0ef43689e841c94e205608988594461e9ce05b662410c2b65ea09ca07ac47ef5"
+      "sha256": "9979c95c7673730fb5441f13d865393a7b58c199be1b4135856623f7a5b97e70"
     },
     {
       "file": "trojaino/__init__.py",
@@ -480,6 +480,10 @@
       "sha256": "0a6ef9be3346dc8cc3297f73806ec8af67b7b222aa63d69b16311c95da7f4e31"
     },
     {
+      "file": "trojaino/claude/prepare.py",
+      "sha256": "3c238780ddca0382d7b460860f8e2ae74b8e1bb9b140416f36d1042126d08692"
+    },
+    {
       "file": "trojaino/claude/seal.py",
       "sha256": "553e8020d0acbd08a9c94707c47dd0e6e6998cc8dda2b63e0e41231b787a9f45"
     },
@@ -488,8 +492,16 @@
       "sha256": "26e135b02ae52085b8a3a4011247ebd114536982a2e692010ed68fe15bbf5971"
     },
     {
+      "file": "trojaino/claude/setup.py",
+      "sha256": "9ac8b8e2046b8e6e8651a495045fd878ef3419e80b6a4ccdefca1e70404192b2"
+    },
+    {
+      "file": "trojaino/claude/writer.py",
+      "sha256": "0ef43689e841c94e205608988594461e9ce05b662410c2b65ea09ca07ac47ef5"
+    },
+    {
       "file": "trojaino/cli.py",
-      "sha256": "f0719be931cc671a812d32e19b4e944046e6610af65d767c39ec8e595bf02430"
+      "sha256": "894ee657e1d90af26d6e8b438a54fce11b04737165ce39d56aa12ddeaea563a1"
     },
     {
       "file": "trojaino/contract.py",
