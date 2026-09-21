@@ -121,7 +121,7 @@
     },
     {
       "file": "scripts/live_gate_check.py",
-      "sha256": "680cdd9b71ccdf1ae683fa8f3b1d1c8acb47fc53452b6f1595e78750172a6f2b"
+      "sha256": "d9f501603abf1528b0943c372a3ac9467f5bc609fe72df78b16a7400132a491b"
     },
     {
       "file": "scripts/run_calibration_benchmark.py",
