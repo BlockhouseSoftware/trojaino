@@ -77,7 +77,7 @@
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "794b27937d2eef91f7190b1b3280788658f4777257d4a9fd161230b50dd64ca2"
+      "sha256": "94bc899d9204c0a46e591d947076402af982079d87871cc14238b65babbc0569"
     },
     {
       "file": "plugins/trojaino/skills/scan/SKILL.md",
@@ -213,7 +213,7 @@
     },
     {
       "file": "trojaino/install_detect.py",
-      "sha256": "06c38a52f16726cb633a5a556de5888df34bdf7110b19f1a2076798bc469b4b1"
+      "sha256": "7a860a3ca9fbf3c18410e3ff8c432b535ee41eb8a9bdc93ce5893fe2627576cc"
     },
     {
       "file": "trojaino/models.py",

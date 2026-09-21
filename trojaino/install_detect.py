@@ -291,7 +291,7 @@ def pypi_target(token: Token) -> Target | str | None:
         return "the package name is built from variables or globs"
     if _local_path(word) or word.endswith((".whl", ".tar.gz", ".zip")) and not word.startswith("http"):
         return None
-    gh = _GITHUB_URL.fullmatch(word.split("@", 1)[-1].strip()) if "github.com" in word else None
+    gh = _GITHUB_URL.fullmatch(word.split("@", 1)[-1].strip())
     if gh:
         return Target("github", f"{gh[1]}/{gh[2]}", gh[3], None)
     if "://" in word or word.startswith("git+"):
