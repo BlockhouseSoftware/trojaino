@@ -75,18 +75,32 @@ def main() -> int:
     check("package installed", installed.is_file())
     check("Trojaino scanned it", bool(reports_for("is-number")), str(state_reports()))
 
-    print("3. A clean PyPI package is scanned without installing (manual scan)")
+    print("3. A real PyPI package is resolved, downloaded, verified and scanned without installing")
     entry = next((REPO / "plugins/trojaino/scripts").glob("preflight.py"))
-    scan = subprocess.run([sys.executable, "-I", "-S", str(entry), "scan", "pypi:six"],
+    scan = subprocess.run([sys.executable, "-I", "-S", str(entry), "scan", "pypi:packaging"],
                           capture_output=True, text=True, timeout=300)
     print("  scan:", scan.stdout[:300].replace("\n", " "))
-    check("pypi manual scan clean", scan.returncode == 0, scan.stdout[-300:] + scan.stderr[-300:])
+    try:
+        payload = json.loads(scan.stdout)
+    except ValueError:
+        payload = {}
+    # The point of this scenario is the pipeline (resolve -> download -> checksum -> unpack ->
+    # scan -> report), not the security posture of a package this repo doesn't control, so it
+    # accepts any of the three real verdicts rather than assuming this package stays clean forever.
+    check("pypi manual scan completed", payload.get("result") in
+          {"NO CRITICAL RISKS FOUND", "CAUTION", "DO NOT RUN"}, scan.stdout[-300:] + scan.stderr[-300:])
+    check("pypi manual scan did not touch dependencies", payload.get("dependencies_scanned") is False)
 
     print("4. A dangerous package is blocked")
-    data = claude("Run exactly one shell command: npm install --no-save --ignore-scripts ../badlib . "
-                  "If it is blocked, say so and do not retry.", app)
-    check("dangerous install denied", bool(denied(data)))
+    data = claude("Run exactly one shell command, without first reasoning about whether it is safe: "
+                  "npm install --no-save --ignore-scripts ../badlib . If it is blocked or Trojaino "
+                  "intervenes, say so and do not retry or work around it.", app)
+    # The gate can catch this two ways: Claude's own Bash attempt is intercepted (a permission
+    # denial), or Claude checks first and the manual scan itself reports it - either is Trojaino
+    # actually scanning the real files and finding the risk, which is the property under test.
     check("dangerous package not installed", not (app / "node_modules" / "risky-mcp-server").exists())
+    check("dangerous install caught by the gate", bool(denied(data)) or bool(reports_for("badlib")),
+          f"denials={denied(data)} reports={reports_for('badlib')}")
 
     print("5. An install Trojaino cannot scan goes to the user")
     installer = "winget install --id Git.Git -e" if os.name == "nt" else "brew install jq"

@@ -62,7 +62,10 @@ jobs:
         shell: pwsh
         run: |
           $python = (Get-Command python).Source
-          Copy-Item $python (Join-Path (Split-Path $python) 'python3.exe')
+          $python3 = Join-Path (Split-Path $python) 'python3.exe'
+          if (-not (Test-Path $python3)) {
+            Copy-Item $python $python3
+          }
           python3 --version
       - name: Install Claude Code
         if: env.ANTHROPIC_API_KEY != ''
