@@ -102,7 +102,7 @@ def scan_files(label: str, files: dict, compiled: list) -> Outcome:
     outcome = Outcome(label, compiled=list(compiled))
     reports = _private_dir(state_directory() / "reports")
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    safe = re.sub(r"[^A-Za-z0-9._@=-]+", "_", label)[:80]
+    safe = re.sub(r"[^A-Za-z0-9._@=-]+", "_", label)[:40]  # Windows paths top out at 260 characters
     job = Path(tempfile.mkdtemp(prefix=f"{stamp}-{safe}-", dir=reports))
     staged = job / "source"
     try:

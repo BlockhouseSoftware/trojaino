@@ -77,7 +77,7 @@
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "a32a0a6fb12e352294bfe1839f5ddc1255bd49969ef8ce3352c1f4b533b3710a"
+      "sha256": "794b27937d2eef91f7190b1b3280788658f4777257d4a9fd161230b50dd64ca2"
     },
     {
       "file": "plugins/trojaino/skills/scan/SKILL.md",
@@ -205,7 +205,7 @@
     },
     {
       "file": "trojaino/gate.py",
-      "sha256": "5a7782762f6dd379f4de89819b4ac7375cf903a983eb7a9f3f46c296bd1d1b85"
+      "sha256": "24c3bcd318254df0f6a78761af402d21d301596a50c3f59981d4e6491b2b0d3d"
     },
     {
       "file": "trojaino/gui.py",
