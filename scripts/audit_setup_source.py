@@ -31,8 +31,11 @@ LAYOUTS = {
     # v4: the sealed-runtime bootstrap moved into the installable package.
     'source-layout-v4': frozenset(_COMMON_BASE + ('docs/windows-trial-checklist.md',
                                                   'docs/friendly-setup-architecture.md')),
+    # v5: the plugin payload became canonical inside the installable package.
+    'source-layout-v5': frozenset(_COMMON_BASE + ('docs/windows-trial-checklist.md',
+                                                  'docs/friendly-setup-architecture.md')),
 }
-FIXED = LAYOUTS['source-layout-v4']
+FIXED = LAYOUTS['source-layout-v5']
 
 
 def audit(data, source_sha256, repo, source_commit, git, layout):
@@ -62,6 +65,7 @@ def audit(data, source_sha256, repo, source_commit, git, layout):
     for name in entries:
         path = PurePosixPath(name)
         if (name.startswith('trojaino/') and path.suffix == '.py'
+                or layout == 'source-layout-v5' and name.startswith('trojaino/claude/payload/')
                 or name.startswith('plugins/trojaino/') and '__pycache__' not in path.parts
                 and path.suffix in {'.py', '.sh', '.json', '.md'}):
             selected.add(name)

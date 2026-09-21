@@ -1,0 +1,19 @@
+# This project's guarantees are stated in bytes, not in lines.
+#
+# The sealed runtime image, the generated plugin directory and the release
+# self-scan inventory are all verified by comparing or hashing exact file
+# contents. Git's automatic CRLF translation would make those contents depend
+# on which platform performed the checkout, so a Windows working tree would
+# disagree with a Linux one about files neither had modified.
+#
+# Normalising to LF everywhere removes that variable. Every file committed to
+# this repository already uses LF, so this pins existing behaviour rather than
+# changing it, and nothing here needs CRLF: the Windows sources are C#,
+# MSBuild project files and one Inno Setup script, all of which accept LF.
+* text=auto eol=lf
+
+# Never translate or diff these as text.
+*.png binary
+*.ico binary
+*.exe binary
+*.dll binary
