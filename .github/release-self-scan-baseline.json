@@ -421,7 +421,7 @@
     },
     {
       "file": "scripts/check_repository_boundary.py",
-      "sha256": "8b32868300b0fe17287c3b83921a563025bcdaf38647b096e9f29ae6a9eed533"
+      "sha256": "8ccb1de4c33ea1e3724ea8488f64959d2ad26413c339bfc9c6e5e2e5d56f371e"
     },
     {
       "file": "scripts/generate_plugin_dir.py",

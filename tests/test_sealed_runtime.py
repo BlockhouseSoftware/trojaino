@@ -91,7 +91,12 @@ class SealedRuntimeTests(unittest.TestCase):
     def test_shipped_image_is_reproducible_without_a_loose_runtime(self):
         rendered = runpy.run_path(str(ROOT / 'scripts/build_sealed_runtime.py'))['render']()
         shipped = ROOT / 'plugins/trojaino/scripts/preflight.py'
-        self.assertTrue(shipped.read_text() == rendered, 'regenerate stale sealed image')
+        # Bytes, not text: read_text() applies universal-newline translation, so a
+        # CRLF checkout would satisfy a text comparison while shipping different
+        # bytes than the release self-scan inventory hashes. .gitattributes pins
+        # the working tree to LF so this stays a real byte-for-byte assertion.
+        self.assertEqual(shipped.read_bytes(), rendered.encode('utf-8'),
+                         'regenerate stale sealed image')
         self.assertFalse((ROOT / 'plugins/trojaino/runtime').exists(), 'remove obsolete loose runtime')
 
     def test_worker_preserves_explicit_node_but_not_ambient_options(self):
