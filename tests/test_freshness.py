@@ -112,7 +112,13 @@ class GatingTests(unittest.TestCase):
             self.assertTrue(freshness.due(date(2027, 3, 1), stamp))
 
     def test_unwritable_location_stays_quiet_rather_than_raising(self):
-        self.assertFalse(freshness.due(date(2026, 12, 21), Path('/proc/nonexistent/stamp')))
+        # A stamp whose parent is a regular file: mkdir cannot succeed on any
+        # platform. An unwritable system path would not do, because a path like
+        # /proc does not exist on Windows and the runner would simply create it.
+        with tempfile.TemporaryDirectory() as tmp:
+            blocker = Path(tmp) / 'not-a-directory'
+            blocker.write_text('', encoding='utf-8')
+            self.assertFalse(freshness.due(date(2026, 12, 21), blocker / 'stamp'))
 
     def test_session_reminder_never_raises(self):
         with mock.patch.object(freshness, 'due', side_effect=RuntimeError('boom')):
