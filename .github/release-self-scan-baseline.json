@@ -93,7 +93,7 @@
     },
     {
       "file": "requirements/windows-build.txt",
-      "sha256": "f6f9917beab1e0dd5b6f99176202170f330815dd7300de13a9921162b58fe466"
+      "sha256": "60ee205ea0a75a86ab33553128e967b5c3b7e10c23946cc61b3e55e344649136"
     },
     {
       "file": "schemas/trojaino-report-v1.schema.json",
