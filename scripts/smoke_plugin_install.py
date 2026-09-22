@@ -16,6 +16,8 @@ import tempfile
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from trojaino.doctor import doctor_argv  # noqa: E402
 
 
 def run(*args, cwd=None, env=None):
@@ -33,7 +35,7 @@ def verify(env, version):
     settings = json.loads((config/'settings.json').read_text())
     assert settings['enabledPlugins']['trojaino@blockhouse-software'] is True
     entry = Path(current['installPath'])/'scripts/preflight.py'
-    answer = json.loads(run('python3','-I','-S',str(entry),'doctor',env=env))
+    answer = json.loads(run(*doctor_argv(entry.parent.parent),env=env))
     assert answer['status'] == 'Ready', answer
     assert answer['version'] == version
     assert all(c['ok'] for c in answer['checks']), answer
@@ -102,7 +104,7 @@ def main():
         data=json.loads(settings.read_text())
         data['hooks']={'PreToolUse':[{'hooks':[{'type':'command','command':'old-trojaino-prepared-hook'}]}]}
         settings.write_text(json.dumps(data))
-        result=subprocess.run(['python3','-I','-S',str(entry),'doctor'],env=env,text=True,capture_output=True,timeout=90)
+        result=subprocess.run(doctor_argv(entry.parent.parent),env=env,text=True,capture_output=True,timeout=90)
         diagnosis=json.loads(result.stdout)
         assert result.returncode == 1 and diagnosis['status']=='Needs attention', diagnosis
         assert any('Legacy Trojaino' in a for a in diagnosis['actions']), diagnosis
@@ -111,7 +113,7 @@ def main():
         # Integrity errors must not report Ready.
         manifest=entry.parent.parent/'.claude-plugin/plugin.json'
         manifest.write_text(manifest.read_text()+'\n')
-        result=subprocess.run(['python3','-I','-S',str(entry),'doctor'],env=env,text=True,capture_output=True,timeout=90)
+        result=subprocess.run(doctor_argv(entry.parent.parent),env=env,text=True,capture_output=True,timeout=90)
         diagnosis=json.loads(result.stdout)
         assert result.returncode == 1 and any(not c['ok'] for c in diagnosis['checks'] if c['check']=='Packaged file integrity')
         print('PASS damaged payload is not Ready')

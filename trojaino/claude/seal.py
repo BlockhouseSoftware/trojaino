@@ -1,6 +1,6 @@
 """Generate a deterministic, self-contained scanner image. No code is imported.
 
-The generated entry is the plugin's only executable file. It carries the whole
+The generated Python entry carries the whole
 scanner as data and imports nothing from disk, so it works from wherever
 Claude Code installs the plugin.
 """

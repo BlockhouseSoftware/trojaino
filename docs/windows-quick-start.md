@@ -134,7 +134,7 @@ Restart Claude and run `/trojaino:doctor` after updating. If an old prepared plu
 | `winget is not recognized` | Open the **Microsoft Store**, search for **Python Install Manager**, click **Get**, then continue from Step 3, number 1. |
 | Windows asks for an administrator password | Click **Cancel**. Stop. |
 | "Windows protected your PC" | Do not click Run anyway. Stop. |
-| A **hook error** that mentions Python | Python is not set up. Go back to Step 2. |
+| **Trojaino cannot start**: Python was not found, is older than 3.11, or could not run | Trojaino is not checking installations. Complete Step 2, restart Claude, then run `/trojaino:doctor`. |
 | `/hooks` does not show trojaino | Type `/plugin`, check that trojaino is installed and enabled, then restart Claude. |
 
 ---

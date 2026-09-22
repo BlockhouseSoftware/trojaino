@@ -13,7 +13,7 @@ Everything else Claude does (building, testing, editing, running your code) is u
 
 ## Install
 
-You need **Python 3.11 or newer**, available as `python3`, and Claude Code **2.1.274 or newer**. Then, inside Claude Code:
+You need **Python 3.11 or newer**, available as `python3` or `python`, Git (including Git Bash on Windows), and Claude Code **2.1.274 or newer**. Then, inside Claude Code:
 
 ```
 /plugin marketplace add BlockhouseSoftware/claude-marketplace
@@ -58,7 +58,7 @@ Ask Claude to use `/trojaino:scan`, for example:
 - **A clean result is not a safety guarantee.** Trojaino is a deterministic, rule-based static scanner. It is not antivirus and not a sandbox.
 - **It gates what Claude does.** Installs you type yourself in a terminal, or with `/plugin install` in Claude's own interface, are not tool calls and are not checked.
 - **It recognises the usual ways of installing.** A disguised install (an encoded command, a script that installs something) is not recognised. Trojaino is a gate on the front door, not a firewall.
-- **If Python is missing, the gate is not running.** Claude will show a hook error. Nothing is blocked, and nothing is checked.
+- **If Python is missing, outdated or unusable, the gate is not running.** The native launcher returns an explicit message with a setup link at startup and on covered tool calls. `/trojaino:doctor` can diagnose this without Python. Nothing is checked; normal Claude permissions still apply. The plugin can still be listed as installed.
 - **Network.** Trojaino contacts registry.npmjs.org, pypi.org, files.pythonhosted.org, github.com and codeload.github.com, and only while an install is being checked. It sends nothing about you or your project. `tjscan check-updates` is the only other network use, and only when you run it.
 - **Reports** are kept in `~/.local/state/trojaino/reports` (Windows: `%LOCALAPPDATA%\trojaino\reports`). Clean and CAUTION verdicts are remembered per exact package version, so the same version is not fetched twice.
 

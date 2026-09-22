@@ -1,6 +1,6 @@
 # Install Trojaino for Claude Code
 
-Use Claude Code **2.1.274 or newer** and **Python 3.11 or newer**, available as `python3`. You do not need pip, a virtual environment, a source checkout, or a prepared personal plugin.
+Use Claude Code **2.1.274 or newer** and **Python 3.11 or newer**, available as `python3` (or `python`). Git is required to download the marketplace; on Windows, keep Git Bash installed with Git for Windows. You do not need pip, a virtual environment, a source checkout, or a prepared personal plugin.
 
 ## Check prerequisites
 
@@ -21,7 +21,11 @@ Update Claude Code using its supported updater if it is older than 2.1.274. Clos
 
 Restart Claude Code, then run `/trojaino:doctor`. **Ready** means the offline checks passed: runtime, version, packaged files, registration and execution of both hooks, including a known deny fixture. **Needs attention** gives the next action. The fixture is scanned as text; no package is installed and no fixture script is run.
 
-The startup message confirms the Python runtime started. `/hooks` lists configuration; it is not a readiness test. If Python is missing, the hook cannot run and no install is checked. The doctor skill explains how to recover when Python cannot start. Organizational policies may override local settings.
+Starting in 0.3.1, a native launcher checks Python before starting the scanner: PowerShell on Windows (dispatched through Git Bash), and sh on macOS/Linux. It tries `python3`, then `python`, and uses the first interpreter that supports Python 3.11+ in isolated mode. It does not install a runtime or change your settings.
+
+If Python is missing, too old or cannot start, Claude receives an explicit **Trojaino cannot start** message with a setup link and instructions to restart Claude and run `/trojaino:doctor`. The doctor skill uses the same launcher, so it can report **Needs attention** even without Python. No installations are checked in this state; normal Claude permissions still apply. The warning is also returned on covered tool calls if Python becomes unavailable during a session.
+
+This is a startup readiness check, not a pre-install check. Claude can still list the plugin as installed and enabled without Python. With a working runtime, the startup message confirms it started; `/hooks` lists configuration and is not a readiness test. Organizational policies may override local settings.
 
 From a terminal, the equivalent install commands start with `claude plugin` instead of `/plugin`.
 

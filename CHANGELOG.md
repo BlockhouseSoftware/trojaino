@@ -8,6 +8,7 @@ All notable changes to Trojaino are documented here.
 - Recognize repeated package arguments, equals-form source options, global npm options and GitHub clone URLs.
 - Ask before installs whose source or exact artifact cannot be bound, including mutable Git/plugin sources and nested shell commands. Supported Python requirement forms use the scanned artifact URL and SHA-256, not only a version.
 - Detect source-selection environment/configuration overrides without exposing their values.
+- Add native Python prerequisite checks that explain missing, outdated or unusable Python at startup and on covered tool calls, without requiring Python to show the error. Doctor uses the same launcher; installation remains two commands and Python stays a manual prerequisite.
 - Add `/trojaino:doctor`, an offline readiness and legacy-hook migration check, and a visible runtime-started message.
 - Document Python prerequisites, Claude Code 2.1.274 minimum, consistent update steps and runtime packaging options.
 - Validate installed plugins through the public marketplace, exercise updates, and test the supported Claude minimum and latest versions.

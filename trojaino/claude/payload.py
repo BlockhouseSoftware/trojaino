@@ -15,19 +15,21 @@ from trojaino.claude import seal
 PAYLOAD = Path(__file__).resolve().parent / 'payload'
 
 
-def _hook(timeout: int) -> dict:
-    # Exec form: no shell on any platform, so nothing in the event can be
-    # interpreted as shell syntax. Claude Code fills in CLAUDE_PLUGIN_ROOT.
-    return {'type': 'command', 'command': 'python3',
-            'args': ['-I', '-S', '${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py', 'hook'],
+def _hook(timeout: int, mode: str) -> dict:
+    # Use the environment variable without braces: Claude must not substitute a
+    # filesystem path into shell source. Quoted expansion treats even $, quotes
+    # and backticks in an installed path as data. Git Bash dispatches to native
+    # PowerShell on Windows; sh is native on macOS/Linux.
+    return {'type': 'command', 'shell': 'bash',
+            'command': f'sh "$CLAUDE_PLUGIN_ROOT/scripts/launch.sh" {mode}',
             'timeout': timeout}
 
 
 # Live from the moment the plugin is installed. The PreToolUse matcher covers
 # the tools that can install software or change which MCP servers load.
 HOOKS = {'hooks': {
-    'SessionStart': [{'hooks': [_hook(30)]}],
-    'PreToolUse': [{'matcher': 'Bash|PowerShell|Write|Edit|MultiEdit', 'hooks': [_hook(150)]}],
+    'SessionStart': [{'hooks': [_hook(30, 'session-start')]}],
+    'PreToolUse': [{'matcher': 'Bash|PowerShell|Write|Edit|MultiEdit', 'hooks': [_hook(150, 'pre-tool-use')]}],
 }}
 
 
@@ -38,6 +40,8 @@ def source_files() -> dict[str, bytes]:
         'README.md': (PAYLOAD / 'README.md').read_bytes(),
         'skills/scan/SKILL.md': (PAYLOAD / 'SKILL.md').read_bytes(),
         'skills/doctor/SKILL.md': (PAYLOAD / 'DOCTOR.md').read_bytes(),
+        'scripts/launch.sh': (PAYLOAD / 'launch.sh').read_bytes(),
+        'scripts/launch.ps1': (PAYLOAD / 'launch.ps1').read_bytes(),
         'LICENSE': (PAYLOAD / 'LICENSE').read_bytes(),
     }
 

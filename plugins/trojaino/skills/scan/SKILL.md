@@ -8,7 +8,7 @@ argument-hint: npm:NAME[@VERSION] | pypi:NAME[==VERSION] | https://github.com/OW
 
 Trojaino's install gate already checks installs automatically. Use this skill to check something **before** anyone installs it.
 
-1. Take the exact scan command from Trojaino's startup context ("To scan something without installing it, run: ..."). If there is no Trojaino startup context in this session, tell the user the install gate is not running (Python 3.11 or newer is required as `python3`) and stop. Do not guess a path.
+1. Take the exact scan command from Trojaino's startup context ("To scan something without installing it, run: ..."). If there is no Trojaino startup context in this session, tell the user the install gate is not running (Python 3.11 or newer is required as `python3` or `python`; run `/trojaino:doctor` for recovery) and stop. Do not guess a path.
 2. Run that command once, replacing SOURCE with one of:
    - `npm:NAME` or `npm:NAME@VERSION`
    - `pypi:NAME` or `pypi:NAME==VERSION`

@@ -5,13 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-I",
-              "-S",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py",
-              "hook"
-            ],
+            "shell": "bash",
+            "command": "sh \"$CLAUDE_PLUGIN_ROOT/scripts/launch.sh\" session-start",
             "timeout": 30
           }
         ]
@@ -23,13 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-I",
-              "-S",
-              "${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py",
-              "hook"
-            ],
+            "shell": "bash",
+            "command": "sh \"$CLAUDE_PLUGIN_ROOT/scripts/launch.sh\" pre-tool-use",
             "timeout": 150
           }
         ]

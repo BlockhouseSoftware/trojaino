@@ -4,8 +4,8 @@
       "id": "CI_SECRET_REFERENCE",
       "severity": "medium",
       "file": ".github/workflows/install-gate.yml",
-      "line": 86,
-      "fingerprint": "cdb5e12be8f93da004ba6d5e",
+      "line": 114,
+      "fingerprint": "c6d6a7105cbbc182f615bef4",
       "review": "The live install-gate job passes ANTHROPIC_API_KEY to Claude Code so a real session can exercise the plugin. GitHub withholds repository secrets from pull requests opened from forks, and the job is skipped when the key is absent."
     },
     {
@@ -69,27 +69,35 @@
     },
     {
       "file": "plugins/trojaino/README.md",
-      "sha256": "205d86f15d771e840890d21e2ceec728c2704dd23ce576a41c35f2568f253cc1"
+      "sha256": "03ade589f975d11a1efbcd7f6107eca555ba54afe5371ed83ef26aa14646672c"
     },
     {
       "file": "plugins/trojaino/hooks/hooks.json",
-      "sha256": "7428e832dd709534cabc22e6b21c4f7bcfc5bc48cbb0979718f4e3500ece8ea4"
+      "sha256": "3b0feacea9726f76454a7cf0e061a231ddc7770be0240b7147219d5698fe8173"
     },
     {
       "file": "plugins/trojaino/integrity.json",
-      "sha256": "cd55ad351e28a9c1df4d010e6594ee53a2efb044c4678e1752185ffb62bcfbd4"
+      "sha256": "84c93dff37b034bd9532ea63b5ee422a0cb2f558637916fc27ca90b0482f1159"
+    },
+    {
+      "file": "plugins/trojaino/scripts/launch.ps1",
+      "sha256": "377c429f7e3598cd9c9b2e4c40fa10e27763f64aeae9b3eb8549779e50598b53"
+    },
+    {
+      "file": "plugins/trojaino/scripts/launch.sh",
+      "sha256": "16457373555c19783cd7b00339987f236e74b61214b7005754eb62305c93aff6"
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "c4e39717131bcd2bab134128a66d77937d104a939a3b834e98809bd7cdeeb47e"
+      "sha256": "0f86f2469a61ddfdef575e347a71a0b59c833dcb4327c7257ba53278508d2ee6"
     },
     {
       "file": "plugins/trojaino/skills/doctor/SKILL.md",
-      "sha256": "9031cf0a4d133eddb3eeeb9e452f35c3be4e647381f2088f32f6170807a0d51b"
+      "sha256": "c4824176334d10f82ecebd5729c9d1b82a5f32ca9447270c944762065fe8a257"
     },
     {
       "file": "plugins/trojaino/skills/scan/SKILL.md",
-      "sha256": "0192fdb0849c3f922d8bede9f55fa1681480f3b577273dc01577dc7de3cadbdc"
+      "sha256": "25d5f62840ce559a7229aced0fdf27ae947f8b4d1b85947abbe3af5bb756141f"
     },
     {
       "file": "pyproject.toml",
@@ -141,7 +149,7 @@
     },
     {
       "file": "scripts/smoke_plugin_install.py",
-      "sha256": "c21bc52326c4191165fe9f42e6583f4ac1dc88b45f4653b008d6858454f64ecc"
+      "sha256": "d54fcd6ec54b0ecb05c9db334b7d83f7cfb09101bbe09cba1b43a2b58eb8a98f"
     },
     {
       "file": "scripts/verify_distribution.py",
@@ -165,11 +173,11 @@
     },
     {
       "file": "trojaino/claude/payload.py",
-      "sha256": "cfaede9095a78a6977a4805f3e53069f164a4904c7c71929e05aa33249475694"
+      "sha256": "4e64bb6909c0b8e89901b235edd8ce8f7592b68b2a701edb13c6bf17a4f40558"
     },
     {
       "file": "trojaino/claude/payload/DOCTOR.md",
-      "sha256": "9031cf0a4d133eddb3eeeb9e452f35c3be4e647381f2088f32f6170807a0d51b"
+      "sha256": "c4824176334d10f82ecebd5729c9d1b82a5f32ca9447270c944762065fe8a257"
     },
     {
       "file": "trojaino/claude/payload/LICENSE",
@@ -177,11 +185,19 @@
     },
     {
       "file": "trojaino/claude/payload/README.md",
-      "sha256": "205d86f15d771e840890d21e2ceec728c2704dd23ce576a41c35f2568f253cc1"
+      "sha256": "03ade589f975d11a1efbcd7f6107eca555ba54afe5371ed83ef26aa14646672c"
     },
     {
       "file": "trojaino/claude/payload/SKILL.md",
-      "sha256": "0192fdb0849c3f922d8bede9f55fa1681480f3b577273dc01577dc7de3cadbdc"
+      "sha256": "25d5f62840ce559a7229aced0fdf27ae947f8b4d1b85947abbe3af5bb756141f"
+    },
+    {
+      "file": "trojaino/claude/payload/launch.ps1",
+      "sha256": "377c429f7e3598cd9c9b2e4c40fa10e27763f64aeae9b3eb8549779e50598b53"
+    },
+    {
+      "file": "trojaino/claude/payload/launch.sh",
+      "sha256": "16457373555c19783cd7b00339987f236e74b61214b7005754eb62305c93aff6"
     },
     {
       "file": "trojaino/claude/payload/plugin.json",
@@ -189,7 +205,7 @@
     },
     {
       "file": "trojaino/claude/seal.py",
-      "sha256": "f8b3fcd379a587dbe6e5ee7af3b9088f6a8153196df0e416a6e01ef3c7733485"
+      "sha256": "1f84e3b45feff497b8e34f6736eefd3956b3e989e2c1cc2d885a4f6f28de173b"
     },
     {
       "file": "trojaino/claude/sealed_runtime_bootstrap.py",
@@ -213,7 +229,7 @@
     },
     {
       "file": "trojaino/doctor.py",
-      "sha256": "276f5d5503ab98775a1389d2d6ac304f589080ee605f2f4cfdf3530a2bd2313e"
+      "sha256": "66f2d3e25c846effd7450a5c8c1dedfe84ec8fe5f43ad51d68f8f719658d8a76"
     },
     {
       "file": "trojaino/file_utils.py",

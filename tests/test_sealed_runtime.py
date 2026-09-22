@@ -1,4 +1,4 @@
-"""The plugin's single executable file carries the whole scanner and imports nothing from disk."""
+"""The plugin's sealed Python entry carries the whole scanner and imports nothing from disk."""
 import ast
 import json
 import os
