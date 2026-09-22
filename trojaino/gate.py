@@ -304,13 +304,15 @@ def evaluate(target: Target, cwd: str | None) -> Outcome:
 
 
 def _quote(text: str, token, tool: str) -> str:
-    if token.quoted:
-        return token.quoted + text + token.quoted
-    if tool == "PowerShell" and (text.startswith("@") or "[" in text):
-        return "'" + text + "'"
-    if any(c in text for c in " []<>;&|()$`\\\"\'"):
-        return "'" + text + "'"
-    return text
+    # Registry metadata is data too. Quote a complete replacement argument,
+    # including embedded quotes, rather than trusting its original quote style.
+    needs_quotes = token.quoted or any(c in text for c in " []<>;&|()$`\\\"'\n\r")
+    needs_quotes = needs_quotes or (tool == "PowerShell" and text.startswith("@"))
+    if not needs_quotes:
+        return text
+    if tool == "PowerShell":
+        return "'" + text.replace("'", "''") + "'"
+    return "'" + text.replace("'", "'\"'\"'") + "'"
 
 
 def _describe(outcome: Outcome) -> str:

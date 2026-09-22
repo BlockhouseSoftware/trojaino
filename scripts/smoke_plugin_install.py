@@ -63,9 +63,9 @@ def main():
             (market/'.claude-plugin/marketplace.json').write_text(json.dumps({'name':'blockhouse-software',
                 'owner':{'name':'ci'},'plugins':[{'name':'trojaino','source':'./trojaino'}]}))
             manifest=market/'trojaino/.claude-plugin/plugin.json'
-            original=manifest.read_text()
+            original=manifest.read_bytes()
             old=json.loads(original);old['version']='0.3.0'
-            manifest.write_text(json.dumps(old))
+            manifest.write_bytes(json.dumps(old).encode())
             run('git','init',str(market))
             def commit(message):
                 run('git','add','.',cwd=market)
@@ -76,7 +76,7 @@ def main():
             plugin('install','trojaino@blockhouse-software','--scope','user')
             installed=json.loads((base/'claude/plugins/installed_plugins.json').read_text())
             assert installed['plugins']['trojaino@blockhouse-software'][0]['version']=='0.3.0'
-            manifest.write_text(original)
+            manifest.write_bytes(original)
             commit('candidate release')
             plugin('marketplace','update','blockhouse-software')
             plugin('update','trojaino@blockhouse-software')

@@ -77,11 +77,11 @@
     },
     {
       "file": "plugins/trojaino/integrity.json",
-      "sha256": "edb54954fc257eb3b036aab4ea5ad2cd0bca9f78258d71f18ecaf8330a01cb39"
+      "sha256": "cd55ad351e28a9c1df4d010e6594ee53a2efb044c4678e1752185ffb62bcfbd4"
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "41a603b9b52b576515680d90e6e30f89a201842a8b1980156706f131a5121dfa"
+      "sha256": "c4e39717131bcd2bab134128a66d77937d104a939a3b834e98809bd7cdeeb47e"
     },
     {
       "file": "plugins/trojaino/skills/doctor/SKILL.md",
@@ -141,7 +141,7 @@
     },
     {
       "file": "scripts/smoke_plugin_install.py",
-      "sha256": "9243052bfbac17830292f10253223262d145881918dac62e190d08a2208e7ea3"
+      "sha256": "4a5278d88f5666bf95e9737dd7fe7822688446b4df4c1dcb2536a97cff92e6c3"
     },
     {
       "file": "scripts/verify_distribution.py",
@@ -225,7 +225,7 @@
     },
     {
       "file": "trojaino/gate.py",
-      "sha256": "e46f8f075bd8c3132c7cc885fd3501fcdc48b5d0c7b8975e45eb3b1a3dab90c1"
+      "sha256": "3143abf45c877f25c3da6dbdd371903e813894d3893b25d7ffca2fa81c046179"
     },
     {
       "file": "trojaino/gui.py",
@@ -233,11 +233,11 @@
     },
     {
       "file": "trojaino/install_context.py",
-      "sha256": "dee52e367c822e536b4d120ef4cfb3dfc1f5f241767a04c72358bff97c7639da"
+      "sha256": "0ebbbd4c77745bdc0f7afe782285d87c99a3c8b5c23d67436cfb4249749b7f66"
     },
     {
       "file": "trojaino/install_detect.py",
-      "sha256": "7e9445b5603cc4f5241e2a3b0e5a92c4e42f1ea8b7535bd09136569805a88f46"
+      "sha256": "98abaf3f22819fb447eed982db6a3d2ad4cf48512dddd491fa2bc6cd434ad88a"
     },
     {
       "file": "trojaino/models.py",

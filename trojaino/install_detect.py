@@ -239,6 +239,9 @@ def _npm_packages(tokens: list[Token], attempt: Attempt) -> None:
 def _npx(args: list[Token], attempt: Attempt) -> None:
     """npx / bunx / pnpm dlx / yarn dlx / npm exec: the package is what runs."""
     positional, flags = _positionals_until_package(args)
+    if flags.get("_unreadable_source"):
+        attempt.unscannable = "the package-source option could not be read reliably"
+        return
     if "--registry" in flags:
         attempt.unscannable = "it uses a custom package registry"
         return
@@ -278,7 +281,7 @@ def _positionals_until_package(args: list[Token]) -> tuple[list[Token], dict]:
                 if isinstance(flags[name], Token):
                     flags.setdefault("packages", []).append(flags[name])
                 else:
-                    flags["--registry"] = True  # cannot rewrite this spelling reliably
+                    flags["_unreadable_source"] = True
             i += 1
             continue
         return [args[i]], flags

@@ -93,3 +93,30 @@ class InstallIntegrityTests(GateTestCase):
         self.assertEqual(detect('uvx --from=dist program')[0].targets[0].name,'dist')
         self.assertEqual(detect('npm --prefix project install good')[0].targets[0].name,'good')
         self.assertEqual(detect('gh repo clone https://github.com/o/r')[0].targets[0].name,'o/r')
+
+    def test_replacement_metadata_is_one_shell_argument(self):
+        import shlex
+        from trojaino.install_detect import Token
+        value = "pkg @ https://files.pythonhosted.org/a'b;echo-file.whl#sha256=abc"
+        for quoted in ("", "'", '"'):
+            token = Token('pkg',0,3,quoted,True)
+            self.assertEqual(shlex.split(gate._quote(value,token,'Bash')),[value])
+            self.assertEqual(gate._quote(value,token,'PowerShell'), "'" + value.replace("'","''") + "'")
+
+    def test_config_mutation_and_additional_runner_packages_require_review(self):
+        for command in ('npm config set registry https://private.example && npm install good',
+                        'uv run --with=good program'):
+            with self.subTest(command=command):
+                self.assertEqual(self.output(self.decide(command))['permissionDecision'],'ask')
+
+    def test_local_runner_and_python_module_option_forms_are_recognized(self):
+        self.assertEqual(detect('npx ./local-tool')[0].targets[0].ecosystem,'local')
+        self.assertEqual(detect('python -m pip --isolated install good')[0].targets[0].name,'good')
+
+    def test_global_install_prefix_does_not_disable_clean_scans(self):
+        prefix=Path(self.home.name)/'prefix'
+        (prefix/'etc').mkdir(parents=True)
+        with patch.dict(os.environ, {'NPM_CONFIG_PREFIX':str(prefix),'PNPM_HOME':str(prefix),'YARN_CACHE_FOLDER':str(prefix)}):
+            self.assertNotIn('permissionDecision',self.output(self.decide('npm install good')))
+            (prefix/'etc/npmrc').write_text('registry=https://private.example\n')
+            self.assertEqual(self.output(self.decide('npm install good'))['permissionDecision'],'ask')
