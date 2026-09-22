@@ -4,8 +4,8 @@
       "id": "CI_SECRET_REFERENCE",
       "severity": "medium",
       "file": ".github/workflows/install-gate.yml",
-      "line": 45,
-      "fingerprint": "ea22faa56fd2705e41bb0fd9",
+      "line": 51,
+      "fingerprint": "a36c4c1434c8df2f95f5f637",
       "review": "The live install-gate job passes ANTHROPIC_API_KEY to Claude Code so a real session can exercise the plugin. GitHub withholds repository secrets from pull requests opened from forks, and the job is skipped when the key is absent."
     },
     {
