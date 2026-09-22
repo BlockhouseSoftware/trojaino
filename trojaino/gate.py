@@ -53,7 +53,7 @@ def state_directory() -> Path:
     if os.name == "nt":
         base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
         return base / "trojaino"
-    return Path.home() / ".local" / "state" / "trojaino"
+    return Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state") / "trojaino"
 
 
 def _private_dir(path: Path) -> Path:
@@ -71,7 +71,13 @@ def _cached(key: list) -> dict | None:
         path = _cache_path(key)
         if path.is_file() and not path.is_symlink() and path.stat().st_size < 1_000_000:
             data = json.loads(path.read_text(encoding="utf-8"))
-            if data.get("key") == key:
+            if (data.get("schema") == 2 and data.get("key") == key
+                    and data.get("verdict") in {CLEAN, "CAUTION", "DO NOT RUN"}
+                    and isinstance(data.get("files"), int)
+                    and isinstance(data.get("findings"), list)
+                    and isinstance(data.get("compiled"), list)
+                    and all(isinstance(item, str) for item in data["compiled"])
+                    and isinstance(data.get("report"), (str, type(None)))):
                 return data
     except (OSError, ValueError):
         pass
@@ -82,7 +88,8 @@ def _remember(key: list, outcome: Outcome) -> None:
     try:
         folder = _private_dir(state_directory() / "verdicts")
         (folder / _cache_path(key).name).write_text(json.dumps({
-            "key": key, "verdict": outcome.verdict, "files": outcome.files,
+            "schema": 2, "key": key, "verdict": outcome.verdict, "files": outcome.files,
+            "compiled": outcome.compiled,
             "findings": outcome.findings, "report": outcome.report}), encoding="utf-8")
     except OSError:
         pass
@@ -145,7 +152,7 @@ def _scan_artifact(artifact: registry.Artifact) -> Outcome:
     cached = _cached(key)
     if cached:
         return Outcome(artifact.label, verdict=cached["verdict"], files=cached["files"],
-                       findings=cached["findings"], report=cached["report"])
+                       findings=cached["findings"], report=cached["report"], compiled=cached["compiled"])
     try:
         staged = registry.unpack(artifact, registry.download(artifact))
     except registry.Refused as exc:
@@ -250,9 +257,11 @@ def _pin_text(target: Target, artifact: registry.Artifact) -> str | None:
     if target.ecosystem == "npm":
         return f"{target.alias}{artifact.name}@{artifact.version}"
     if target.ecosystem == "pypi":
-        if target.pin_style == "@":
-            return f"{artifact.name}{target.extras}@{artifact.version}"
-        return f"{artifact.name}{target.extras}=={artifact.version}"
+        # A version can have several wheels and an sdist with different code.
+        # Only requirement-taking forms can bind to this exact verified file.
+        if target.pin_style != "==" or not artifact.digest.startswith("sha256:"):
+            return None
+        return f"{artifact.name}{target.extras} @ {artifact.url}#sha256={artifact.digest[7:]}"
     return None
 
 
@@ -299,7 +308,7 @@ def _quote(text: str, token, tool: str) -> str:
         return token.quoted + text + token.quoted
     if tool == "PowerShell" and (text.startswith("@") or "[" in text):
         return "'" + text + "'"
-    if "[" in text or "<" in text or ">" in text:
+    if any(c in text for c in " []<>;&|()$`\\\"\'"):
         return "'" + text + "'"
     return text
 
@@ -307,9 +316,11 @@ def _quote(text: str, token, tool: str) -> str:
 def _describe(outcome: Outcome) -> str:
     if outcome.blocked:
         return f"{outcome.label}: {outcome.blocked}"
-    if outcome.problem:
+    if outcome.problem and not outcome.verdict:
         return f"{outcome.label}: not scanned, because {outcome.problem}"
     text = f"{outcome.label}: {outcome.verdict} ({outcome.files} files scanned)"
+    if outcome.problem:
+        text += "; " + outcome.problem
     if outcome.findings:
         top = "; ".join(f"{f['rule']} in {f['file']}:{f['line']}" for f in outcome.findings[:3])
         text += f" - {top}"
@@ -326,6 +337,11 @@ def decide(command: str, tool: str, tool_input: dict, cwd: str | None) -> dict |
     attempts = detect(command, tool)
     if not attempts:
         return None
+    from trojaino.install_context import source_warning
+    warning = source_warning(command, attempts, cwd)
+    if warning:
+        return _answer("ask", "Trojaino cannot bind this install to the public artifact: " + warning
+                       + ". Decide whether to allow it.")
     deadline = time.monotonic() + GATE_DEADLINE_SECONDS
     outcomes: list[Outcome] = []
     unscannable: list[str] = []
@@ -346,6 +362,12 @@ def decide(command: str, tool: str, tool_input: dict, cwd: str | None) -> dict |
         return _answer("deny", "Trojaino blocked this install. " + " | ".join(_describe(o) for o in blocked)
                        + ". Do not retry or work around this; show the user the report.")
 
+    # Clean content alone cannot clear a mutable source or an unrewriteable
+    # shell/JSON command. Never claim a binding that the installer will not use.
+    for outcome in outcomes:
+        if outcome.verdict == CLEAN and not outcome.problem and not outcome.pin:
+            outcome.problem = ("the source was scanned, but this command cannot be bound to "
+                               "the exact artifact; its installation needs your approval")
     doubtful = [o for o in outcomes if o.problem or o.verdict != CLEAN or o.compiled]
     if doubtful or unscannable:
         parts = unscannable + [_describe(o) for o in doubtful]
@@ -411,14 +433,16 @@ def session_start() -> dict:
         reminder = ""
     text = (f"Trojaino {__version__} install gate is active. When Claude installs or adds software "
             "(npm, npx, pip, uvx, pipx, git clone, claude mcp add, claude plugin install), Trojaino "
-            "scans that exact package first. Clean packages are pinned to the scanned version and "
-            "continue; CAUTION results and anything it cannot scan go to the user to decide; "
+            "checks the named package first. Clean npm packages are version-pinned; supported "
+            "Python requirement forms use the scanned file URL and SHA-256. Unbound commands, "
+            "CAUTION results and anything it cannot scan go to the user to decide; "
             "DO NOT RUN results are blocked and must not be worked around. Only the named package is "
             "scanned, not its dependencies. To scan something without installing it, run: "
             f"{scan_command()} SOURCE (SOURCE is npm:NAME, pypi:NAME, a GitHub URL or a path).")
     if reminder:
         text += " " + reminder
-    return {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}
+    return {"systemMessage": f"Trojaino {__version__}: runtime started. Run /trojaino:doctor to verify readiness.",
+            "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}
 
 
 def scan_source(source: str, cwd: str | None = None) -> dict:

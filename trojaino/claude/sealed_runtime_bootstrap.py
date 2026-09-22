@@ -18,7 +18,7 @@ from types import MappingProxyType
 
 if sys.version_info < (3, 11) or not sys.flags.isolated or not sys.flags.no_site:
     # Exit 1 is a non-blocking hook error: Claude shows it, and nothing is blocked.
-    sys.stderr.write('Trojaino needs Python 3.11 or newer, run with -I -S.\n')
+    sys.stderr.write('Trojaino is not checking installs. Use Python 3.11+ as python3 with -I -S; restart Claude and run /trojaino:doctor. Setup: https://github.com/BlockhouseSoftware/trojaino/blob/main/docs/plugin-installation.md\n')
     raise SystemExit(1)
 
 _CAPSULE: dict = globals()['_CAPSULE']

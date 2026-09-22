@@ -26,6 +26,8 @@ def console_script(environment: Path) -> Path:
 # scanning successfully is not enough evidence that they did.
 REQUIRED_PACKAGE_FILES = (
     "trojaino/gate.py",
+    "trojaino/doctor.py",
+    "trojaino/install_context.py",
     "trojaino/install_detect.py",
     "trojaino/registry.py",
     "trojaino/claude/__init__.py",
@@ -35,6 +37,7 @@ REQUIRED_PACKAGE_FILES = (
     "trojaino/claude/payload/plugin.json",
     "trojaino/claude/payload/README.md",
     "trojaino/claude/payload/SKILL.md",
+    "trojaino/claude/payload/DOCTOR.md",
     "trojaino/claude/payload/LICENSE",
 )
 

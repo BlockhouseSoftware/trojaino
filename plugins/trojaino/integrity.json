@@ -1,0 +1,11 @@
+{
+  "version": "0.3.1",
+  "files": {
+    ".claude-plugin/plugin.json": "af8386e9c77b36acf6569bb6e6686203cbd6a10b368f0daef943c0678d354d7d",
+    "README.md": "205d86f15d771e840890d21e2ceec728c2704dd23ce576a41c35f2568f253cc1",
+    "hooks/hooks.json": "7428e832dd709534cabc22e6b21c4f7bcfc5bc48cbb0979718f4e3500ece8ea4",
+    "scripts/preflight.py": "41a603b9b52b576515680d90e6e30f89a201842a8b1980156706f131a5121dfa",
+    "skills/doctor/SKILL.md": "9031cf0a4d133eddb3eeeb9e452f35c3be4e647381f2088f32f6170807a0d51b",
+    "skills/scan/SKILL.md": "0192fdb0849c3f922d8bede9f55fa1681480f3b577273dc01577dc7de3cadbdc"
+  }
+}

@@ -1,10 +1,10 @@
-# Trojaino for Claude Code — install gate 0.3.0
+# Trojaino for Claude Code — install gate 0.3.1
 
 Trojaino checks software **before Claude installs it**. When Claude runs an install command, Trojaino fetches that exact package, scans it without running any of it, and then:
 
 | Result | What happens |
 | --- | --- |
-| **NO CRITICAL RISKS FOUND** | The install continues, pinned to the exact version Trojaino scanned. Your normal Claude Code permission settings still apply. |
+| **NO CRITICAL RISKS FOUND** | Supported npm installs continue pinned to the scanned version; supported Python requirement forms use the scanned file URL and SHA-256. Commands that cannot be bound require approval. Your normal Claude Code permission settings still apply. |
 | **CAUTION** | Claude asks you, and shows the findings. You decide. |
 | **DO NOT RUN** | The install is blocked. |
 | Could not be scanned | Claude asks you, and says why Trojaino could not check it. |
@@ -13,18 +13,18 @@ Everything else Claude does (building, testing, editing, running your code) is u
 
 ## Install
 
-You need **Python 3.11 or newer**, available as `python3`, and Claude Code. Then, inside Claude Code:
+You need **Python 3.11 or newer**, available as `python3`, and Claude Code **2.1.274 or newer**. Then, inside Claude Code:
 
 ```
 /plugin marketplace add BlockhouseSoftware/claude-marketplace
 /plugin install trojaino@blockhouse-software
 ```
 
-Restart Claude Code. To check it is running, type `/hooks` and look for Trojaino under **SessionStart** and **PreToolUse**.
+Restart Claude Code and run **`/trojaino:doctor`**. Continue when it says **Ready**; otherwise follow its recovery action. `/hooks` only proves registration, not successful execution. See [installation and migration](https://github.com/BlockhouseSoftware/trojaino/blob/main/docs/plugin-installation.md) for macOS/Linux prerequisites and older prepared plugins.
 
 On Windows, install Python with the **Python Install Manager** (from the Microsoft Store, or `winget install 9NQ7512CXL7T`), which provides the `python3` command. Step-by-step instructions for someone who has never used a terminal are in the [Windows quick start](https://github.com/BlockhouseSoftware/trojaino/blob/main/docs/windows-quick-start.md).
 
-To update: `/plugin update trojaino@blockhouse-software`. To remove: `/plugin uninstall trojaino@blockhouse-software`.
+To update: `/plugin marketplace update blockhouse-software`, then `/plugin update trojaino@blockhouse-software`. Restart Claude and run `/trojaino:doctor`. To remove: `/plugin uninstall trojaino@blockhouse-software`.
 
 ## What it checks
 
@@ -35,6 +35,8 @@ To update: `/plugin update trojaino@blockhouse-software`. To remove: `/plugin un
 | `git clone`, `gh repo clone`, npm or pip installs from GitHub | The repository at one exact commit |
 | `claude mcp add ... -- npx ...` or `-- uvx ...` | The package that runs the MCP server |
 | `claude plugin install`, `claude plugin marketplace add` | The plugin or marketplace source |
+
+A scan is followed by approval when the command cannot be bound to what was scanned: Git clones, mutable plugin/local sources, nested shell commands, `uvx PACKAGE` and `pipx run PACKAGE`. Use a supported explicit requirement form such as `uvx --from PACKAGE COMMAND` for Python artifact binding. Source-selection flags, environment overrides and detected source-changing package-manager configuration also require approval.
 
 Asked about, never auto-allowed: `winget`, `choco`, `scoop`, `brew`, `apt`, `cargo install`, `go install`, `gem install`, `docker pull`, installers (`.exe`, `.msi`), `curl … | sh`, `irm … | iex`, private registries and custom indexes, remote (HTTP) MCP servers, packages containing compiled code, packages too large to scan, and edits to `.mcp.json` or Claude's plugin and MCP settings.
 

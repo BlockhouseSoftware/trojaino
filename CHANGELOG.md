@@ -2,6 +2,16 @@
 
 All notable changes to Trojaino are documented here.
 
+## 0.3.1 - 2026-09-22
+
+- Preserve compiled-code warnings on cached scans and reject obsolete cache records.
+- Recognize repeated package arguments, equals-form source options, global npm options and GitHub clone URLs.
+- Ask before installs whose source or exact artifact cannot be bound, including mutable Git/plugin sources and nested shell commands. Supported Python requirement forms use the scanned artifact URL and SHA-256, not only a version.
+- Detect source-selection environment/configuration overrides without exposing their values.
+- Add `/trojaino:doctor`, an offline readiness and legacy-hook migration check, and a visible runtime-started message.
+- Document Python prerequisites, Claude Code 2.1.274 minimum, consistent update steps and runtime packaging options.
+- Validate installed plugins through the public marketplace, exercise updates, and test the supported Claude minimum and latest versions.
+
 ## 0.3.0 - 2026-09-21
 
 Trojaino for Claude Code becomes an install gate: a normal plugin, installed with two commands inside Claude Code, that checks software before Claude installs it and stays out of the way otherwise. 0.2.0 was prepared but never published; its strict inspection-session design is replaced, not shipped.

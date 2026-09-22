@@ -18,7 +18,7 @@ gate can rewrite that one token to pin the exact version it scanned.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import json
 import re
 
@@ -242,8 +242,7 @@ def _npx(args: list[Token], attempt: Attempt) -> None:
     if "--registry" in flags:
         attempt.unscannable = "it uses a custom package registry"
         return
-    packages = [value for key, value in flags.items()
-                if key in {"-p", "--package"} and isinstance(value, Token)]
+    packages = flags.get("packages", [])
     tokens = packages or positional[:1]
     for token in tokens:
         result = npm_target(token)
@@ -252,6 +251,8 @@ def _npx(args: list[Token], attempt: Attempt) -> None:
         elif isinstance(result, str):
             attempt.unscannable = result
             return
+        else:
+            attempt.targets.append(Target("local", token.text.removeprefix("file:"), None, None))
 
 
 def _positionals_until_package(args: list[Token]) -> tuple[list[Token], dict]:
@@ -266,11 +267,18 @@ def _positionals_until_package(args: list[Token]) -> tuple[list[Token], dict]:
             name, eq, value = word.partition("=")
             if not eq and name in _NPM_VALUE_FLAGS and i + 1 < len(args):
                 flags[name] = args[i + 1]
+                if name in {"-p", "--package"}:
+                    flags.setdefault("packages", []).append(args[i + 1])
                 i += 2
                 continue
             # "--package=x" names a package too; its span starts after the "=".
             flags[name] = (Token(value, args[i].start + len(name) + 1, args[i].end, "", args[i].plain)
                            if eq and not args[i].quoted else True)
+            if name in {"-p", "--package"}:
+                if isinstance(flags[name], Token):
+                    flags.setdefault("packages", []).append(flags[name])
+                else:
+                    flags["--registry"] = True  # cannot rewrite this spelling reliably
             i += 1
             continue
         return [args[i]], flags
@@ -339,6 +347,9 @@ def _uvx(args: list[Token], attempt: Attempt, at_style: bool = False) -> None:
         attempt.unscannable = "it uses a custom package index"
         return
     source = flags.get("--from") or flags.get("--spec")
+    if source and not isinstance(source, Token):
+        attempt.unscannable = "the package-source option could not be read reliably"
+        return
     tokens = [source] if isinstance(source, Token) else positional[:1]
     style = "@" if at_style and not isinstance(source, Token) else "=="
     for token in tokens:
@@ -371,7 +382,10 @@ def _positionals_until_package_pip(args: list[Token]) -> tuple[list[Token], dict
                 flags[name] = args[i + 1]
                 i += 2
                 continue
-            flags[name] = True
+            if name in {"--from", "--spec"} and eq and not args[i].quoted:
+                flags[name] = Token(value, args[i].start + len(name) + 1, args[i].end, "", args[i].plain)
+            else:
+                flags[name] = True
             i += 1
             continue
         return [args[i]], flags
@@ -493,9 +507,13 @@ def _classify_argv(tokens: list[Token], attempt: Attempt, tool: str) -> None:
     elif prog == "pnpx":
         _npx(args, attempt)
     elif prog in {"npm", "pnpm", "yarn", "bun"}:
-        sub_index = next((i for i, w in enumerate(words) if not w.startswith("-")), None)
-        sub = words[sub_index] if sub_index is not None else ""
-        rest = args[sub_index + 1:] if sub_index is not None else []
+        sub_index = 0
+        while sub_index < len(args) and args[sub_index].text.startswith("-"):
+            option, eq, _ = args[sub_index].text.partition("=")
+            sub_index += 2 if option in _NPM_VALUE_FLAGS and not eq else 1
+        sub = args[sub_index].text if sub_index < len(args) else ""
+        # Include global options so registry/source overrides are not lost.
+        rest = args[:sub_index] + args[sub_index + 1:]
         if prog == "yarn" and sub == "global" and rest[:1] and rest[0].text == "add":
             sub, rest = "add", rest[1:]
         if sub in {"exec", "x", "dlx"}:
@@ -503,13 +521,17 @@ def _classify_argv(tokens: list[Token], attempt: Attempt, tool: str) -> None:
         elif sub in _NPM_INSTALL:
             _npm_packages(rest, attempt)
     elif prog in {"pip", "pip3"} or re.fullmatch(r"pip3\.\d+", prog):
-        if first == "install":
-            _pip_packages(args[1:], attempt)
+        index = 0
+        while index < len(args) and args[index].text.startswith("-"):
+            option, eq, _ = args[index].text.partition("=")
+            index += 2 if option in _PIP_VALUE_FLAGS and not eq else 1
+        if index < len(args) and args[index].text == "install":
+            _pip_packages(args[:index] + args[index + 1:], attempt)
     elif prog in {"python", "python3", "py"} or re.fullmatch(r"python3\.\d+", prog):
         if "-m" in words:
             i = words.index("-m")
-            if words[i + 1:i + 3] == ["pip", "install"]:
-                _pip_packages(args[i + 3:], attempt)
+            if words[i + 1:i + 2] == ["pip"]:
+                _classify_argv(args[i + 1:], attempt, tool)
             elif words[i + 1:i + 2] == ["pipx"]:
                 _classify_argv(args[i + 1:], attempt, tool)
     elif prog == "uv":
@@ -518,30 +540,27 @@ def _classify_argv(tokens: list[Token], attempt: Attempt, tool: str) -> None:
         elif first == "add":
             _pip_packages(args[1:], attempt)
         elif words[:2] in (["tool", "install"], ["tool", "run"]):
-            _uvx(args[2:], attempt, at_style=True)
-        elif first in {"run"} and "--with" in words:
-            positional, flags = _positionals(args[1:], _PIP_VALUE_FLAGS)
-            value = flags.get("--with")
-            if value:
-                token = next((t for t in args if t.text == value), None)
-                if token:
-                    result = pypi_target(token)
-                    if isinstance(result, Target):
-                        attempt.targets.append(result)
+            _uvx(args[2:], attempt, at_style=words[1] == "run")
+        elif first == "run" and any(w.split("=", 1)[0] in {"--with", "--with-editable"} for w in words):
+            attempt.unscannable = "additional runner packages cannot be bound reliably; review the install"
     elif prog == "uvx":
         _uvx(args, attempt, at_style=True)
     elif prog == "pipx":
         if first in {"install", "run"}:
             _uvx(args[1:], attempt)
+            if first == "run" and not any(t.text.startswith("--spec") for t in args):
+                attempt.targets = [replace(t, pin_style="unbound") for t in attempt.targets]
         elif first == "inject" and len(args) > 2:
             _pip_packages(args[2:], attempt)
     elif prog == "git" and first == "clone":
         _git_clone(args[1:], attempt)
     elif prog == "gh" and words[:2] == ["repo", "clone"] and len(args) > 2:
         repo = args[2].text
-        m = re.fullmatch(r"([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)", repo)
-        if m:
-            attempt.targets.append(Target("github", repo, None, None))
+        if re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+            args = [replace(args[2], text="https://github.com/" + repo)] + args[3:]
+        else:
+            args = args[2:]
+        _git_clone(args, attempt)
     elif prog == "claude":
         _claude(args, attempt, tool)
     elif prog in _UNSCANNABLE_INSTALLERS:

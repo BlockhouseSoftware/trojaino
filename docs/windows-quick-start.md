@@ -10,7 +10,7 @@ This takes about 10 minutes. You do not need to know how to code.
 - Never choose **Run as administrator**.
 - Never click **Run anyway**, and never turn off antivirus.
 
-You need Claude Code already working on this computer.
+You need Claude Code 2.1.274 or newer already working on this computer.
 
 ---
 
@@ -93,11 +93,11 @@ Then type this and press **Enter**:
 
 ## Step 7. Check that Trojaino is on
 
-1. In Claude, type `/hooks` and press **Enter**.
-2. Look for **SessionStart** and **PreToolUse**. Each one should mention **trojaino**.
-3. Press **Escape**.
+1. In Claude, type `/trojaino:doctor` and press **Enter**.
+2. **You should see: Ready.** It checks Python, the installed files and actual hook execution.
+3. If it says **Needs attention**, follow the action it gives, restart Claude, and repeat the check.
 
-**That's it.** Trojaino is now on, and it stays on. You do not need to turn it on or off.
+The startup message confirms Python started. A plugin listed in `/hooks` does not prove it can run.
 
 ---
 
@@ -107,7 +107,7 @@ When Claude tries to install something, Trojaino checks it first:
 
 | What Trojaino finds | What you see |
 | --- | --- |
-| No warning signs | Nothing. The install continues as normal. |
+| No warning signs | A bound clean install continues; if it cannot be bound to the scanned artifact, Claude asks you. |
 | Warning signs (**CAUTION**) | Claude asks you, and shows what Trojaino found. You decide. |
 | Serious danger (**DO NOT RUN**) | The install is stopped. |
 | Something it cannot check | Claude asks you, and says why. You decide. |
@@ -121,8 +121,11 @@ Everything else Claude does works exactly as before.
 In Claude, type:
 
 ```
+/plugin marketplace update blockhouse-software
 /plugin update trojaino@blockhouse-software
 ```
+
+Restart Claude and run `/trojaino:doctor` after updating. If an old prepared plugin is detected, follow the [migration steps](plugin-installation.md#migrate-an-earlier-prepared-plugin).
 
 ## If something goes wrong
 

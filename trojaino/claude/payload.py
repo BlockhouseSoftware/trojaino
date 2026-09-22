@@ -7,6 +7,7 @@ one edit cannot leave the two out of step.
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 from trojaino.claude import seal
@@ -36,6 +37,7 @@ def source_files() -> dict[str, bytes]:
         '.claude-plugin/plugin.json': (PAYLOAD / 'plugin.json').read_bytes(),
         'README.md': (PAYLOAD / 'README.md').read_bytes(),
         'skills/scan/SKILL.md': (PAYLOAD / 'SKILL.md').read_bytes(),
+        'skills/doctor/SKILL.md': (PAYLOAD / 'DOCTOR.md').read_bytes(),
         'LICENSE': (PAYLOAD / 'LICENSE').read_bytes(),
     }
 
@@ -46,4 +48,7 @@ def marketplace_files() -> dict[str, bytes]:
     del files['LICENSE']  # the repository's own LICENSE covers the checked-in copy
     files['hooks/hooks.json'] = (json.dumps(HOOKS, indent=2) + '\n').encode()
     files['scripts/preflight.py'] = seal.render().encode('utf-8')
+    files['integrity.json'] = (json.dumps({'version': seal.version(), 'files': {
+        name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())
+    }}, indent=2) + '\n').encode()
     return files

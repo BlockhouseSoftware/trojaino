@@ -48,31 +48,32 @@ class CleanInstallTests(GateTestCase):
         self.fake.pypi("httpx", "0.27.0", [("httpx-0.27.0-py3-none-any.whl",
                                             wheel({"httpx/__init__.py": "x=1"}), "bdist_wheel")])
         out = self.output(self.decide("npm i '@scope/tool' && pip install 'httpx[cli]'"))
+        artifact = registry.resolve_pypi("httpx", None)
         self.assertEqual(out["updatedInput"]["command"],
-                         "npm i '@scope/tool@2.1.0' && pip install 'httpx[cli]==0.27.0'")
+                         "npm i '@scope/tool@2.1.0' && pip install 'httpx[cli] @ " + artifact.url
+                         + "#sha256=" + artifact.digest[7:] + "'")
 
     def test_powershell_scoped_names_are_quoted(self):
         self.fake.npm("@scope/tool", {"2.1.0": tgz({"index.js": "module.exports=1"})})
         out = self.output(self.decide("npx -y @scope/tool", "PowerShell"))
         self.assertEqual(out["updatedInput"]["command"], "npx -y '@scope/tool@2.1.0'")
 
-    def test_uvx_uses_its_own_version_syntax(self):
+    def test_unbound_python_runner_forms_need_approval(self):
         self.fake.pypi("mcp-server-fetch", "1.2.0", [("mcp_server_fetch-1.2.0-py3-none-any.whl",
                                                       wheel({"m/__init__.py": "x=1"}), "bdist_wheel")])
-        out = self.output(self.decide("uvx mcp-server-fetch"))
-        self.assertEqual(out["updatedInput"]["command"], "uvx mcp-server-fetch@1.2.0")
-        out = self.output(self.decide("pipx run mcp-server-fetch"))
-        self.assertEqual(out["updatedInput"]["command"], "pipx run mcp-server-fetch==1.2.0")
-        out = self.output(self.decide("claude mcp add f -- uvx mcp-server-fetch"))
-        self.assertEqual(out["updatedInput"]["command"], "claude mcp add f -- uvx mcp-server-fetch@1.2.0")
+        for command in ("uvx mcp-server-fetch", "pipx run mcp-server-fetch",
+                        "claude mcp add f -- uvx mcp-server-fetch"):
+            out = self.output(self.decide(command))
+            self.assertEqual(out["permissionDecision"], "ask")
+            self.assertIn("cannot be bound", out["permissionDecisionReason"])
 
     def test_git_clone_is_scanned_at_one_commit(self):
         sha = "a" * 40
         self.fake.github("o/r", {"HEAD": sha, "refs/heads/main": sha},
                          {sha: tgz(fixture_files("clean-project"), root=f"r-{sha}")})
         out = self.output(self.decide("git clone https://github.com/o/r.git"))
-        self.assertNotIn("permissionDecision", out)
-        self.assertIn("o/r@aaaaaaaaaaaa", out["additionalContext"])
+        self.assertEqual(out["permissionDecision"], "ask")
+        self.assertIn("o/r@aaaaaaaaaaaa", out["permissionDecisionReason"])
 
     def test_a_verdict_is_remembered_per_exact_version(self):
         self.fake.npm("cowsay", {"1.6.0": tgz(fixture_files("clean-project"))})
@@ -166,7 +167,7 @@ class PluginAndLocalTests(GateTestCase):
         config.mkdir(parents=True)
         (config / "known_marketplaces.json").write_text(json.dumps({"m": {"installLocation": str(market)}}))
         out = self.output(self.decide("claude plugin install good@m"))
-        self.assertNotIn("permissionDecision", out)
+        self.assertEqual(out["permissionDecision"], "ask")
         sha = "b" * 40
         self.fake.github("o/r", {"HEAD": sha}, {sha: tgz(fixture_files("risky-mcp-server"), root="r")})
         out = self.output(self.decide("claude plugin install remote@m"))
@@ -181,7 +182,7 @@ class PluginAndLocalTests(GateTestCase):
         app = Path(self.home.name) / "app"
         app.mkdir()
         out = self.output(self.decide("npm install ../sibling", cwd=str(app)))
-        self.assertNotIn("permissionDecision", out)
+        self.assertEqual(out["permissionDecision"], "ask")
 
 
 class ManualScanTests(GateTestCase):

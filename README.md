@@ -1,4 +1,4 @@
-# Trojaino v0.3.0
+# Trojaino v0.3.1
 
 **Trojaino: Local Trust Scanner**
 
@@ -16,14 +16,16 @@ It never says software is "safe" or "certified secure."
 
 ## Claude Code install gate
 
-The [Trojaino plugin for Claude Code](plugins/trojaino/README.md) checks software before Claude installs it. When Claude runs `npx`, `npm install`, `pip install`, `uvx`, `git clone`, `claude mcp add` or `claude plugin install`, Trojaino fetches that exact package, scans it without running it, and lets clean installs continue pinned to the version it scanned. CAUTION results and anything it cannot scan go to you to decide; DO NOT RUN results are blocked. Everything else Claude does is untouched.
+The [Trojaino plugin for Claude Code](plugins/trojaino/README.md) checks software before Claude installs it. When Claude runs `npx`, `npm install`, `pip install`, `uvx`, `git clone`, `claude mcp add` or `claude plugin install`, Trojaino fetches that exact package, scans it without running it, and binds supported clean npm installs to the scanned version and Python requirement forms to the scanned file URL and SHA-256. Installs that cannot be bound require approval. CAUTION results and anything it cannot scan go to you to decide; DO NOT RUN results are blocked. Everything else Claude does is untouched.
 
-Install it inside Claude Code (Python 3.11 or newer is required as `python3`):
+Install it inside Claude Code 2.1.274 or newer (Python 3.11+ is required as `python3`):
 
 ```
 /plugin marketplace add BlockhouseSoftware/claude-marketplace
 /plugin install trojaino@blockhouse-software
 ```
+
+Restart Claude Code and run **`/trojaino:doctor`**. Look for **Ready**. See [prerequisites, updating and migration](docs/plugin-installation.md). The plugin needs no separate pip installation.
 
 New to the terminal on Windows? Follow the [Windows quick start](docs/windows-quick-start.md).
 
@@ -134,7 +136,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 
 ## Limitations
 
-Trojaino v0.3.0 is an alpha deterministic scanner:
+Trojaino v0.3.1 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.
