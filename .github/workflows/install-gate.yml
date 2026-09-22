@@ -34,6 +34,12 @@ jobs:
     # A real Claude Code session, with the plugin installed the way users install
     # it, against the real npm and PyPI registries. Needs the ANTHROPIC_API_KEY
     # repository secret; without it the job is skipped, never faked.
+    #
+    # Manual only (Actions -> Install gate -> Run workflow, on the branch to
+    # verify): every push, real Claude sessions cost real money, so this does
+    # not run on push or pull_request. Trigger it once, on what you believe is
+    # the final commit before merging.
+    if: github.event_name == 'workflow_dispatch'
     name: Live Claude session / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
