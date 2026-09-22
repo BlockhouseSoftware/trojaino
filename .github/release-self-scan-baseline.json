@@ -4,8 +4,8 @@
       "id": "CI_SECRET_REFERENCE",
       "severity": "medium",
       "file": ".github/workflows/install-gate.yml",
-      "line": 82,
-      "fingerprint": "bf6ab85263536b1032af7c8d",
+      "line": 86,
+      "fingerprint": "cdb5e12be8f93da004ba6d5e",
       "review": "The live install-gate job passes ANTHROPIC_API_KEY to Claude Code so a real session can exercise the plugin. GitHub withholds repository secrets from pull requests opened from forks, and the job is skipped when the key is absent."
     },
     {
@@ -141,7 +141,7 @@
     },
     {
       "file": "scripts/smoke_plugin_install.py",
-      "sha256": "4a5278d88f5666bf95e9737dd7fe7822688446b4df4c1dcb2536a97cff92e6c3"
+      "sha256": "c21bc52326c4191165fe9f42e6583f4ac1dc88b45f4653b008d6858454f64ecc"
     },
     {
       "file": "scripts/verify_distribution.py",

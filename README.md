@@ -6,7 +6,7 @@
 
 Scan AI-built and downloaded software locally before you run it. Trojaino is a local deterministic trust scanner for Node/TypeScript and Python projects, MCP/tooling repos, Docker configs, and agent instruction files.
 
-It is intentionally not a generic "ask an LLM to review this repo" wrapper. v0.1 runs repeatable rule packs and produces evidence-first findings with a conservative verdict:
+It is intentionally not a generic "ask an LLM to review this repo" wrapper. Trojaino runs repeatable rule packs and produces evidence-first findings with a conservative verdict:
 
 - `DO NOT RUN`
 - `CAUTION`

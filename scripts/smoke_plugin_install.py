@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -42,7 +43,9 @@ def verify(env, version):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--public',action='store_true')
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument('--public',action='store_true')
+    source.add_argument('--candidate-git',action='store_true', help='install the pushed candidate through the production git-subdir source type')
     parser.add_argument('--expected-version')
     args=parser.parse_args()
     version=args.expected_version or json.loads((ROOT/'plugins/trojaino/.claude-plugin/plugin.json').read_text())['version']
@@ -55,6 +58,19 @@ def main():
             print(run(claude,'plugin',*words,env=env).strip())
         if args.public:
             plugin('marketplace','add','BlockhouseSoftware/claude-marketplace')
+            plugin('install','trojaino@blockhouse-software','--scope','user')
+        elif args.candidate_git:
+            sha = os.environ.get('TROJAINO_CANDIDATE_SHA') or run('git','rev-parse','HEAD',cwd=ROOT).strip()
+            if not re.fullmatch('[0-9a-f]{40}',sha):
+                raise ValueError('candidate must be a full commit SHA')
+            market=base/'catalog'
+            (market/'.claude-plugin').mkdir(parents=True)
+            (market/'.claude-plugin/marketplace.json').write_text(json.dumps({
+                'name':'blockhouse-software','owner':{'name':'ci'},
+                'plugins':[{'name':'trojaino','source':{'source':'git-subdir',
+                    'url':'https://github.com/BlockhouseSoftware/trojaino.git',
+                    'path':'plugins/trojaino','sha':sha}}]}),encoding='utf-8')
+            plugin('marketplace','add',str(market))
             plugin('install','trojaino@blockhouse-software','--scope','user')
         else:
             market=base/'market'

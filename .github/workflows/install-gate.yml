@@ -63,6 +63,10 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@${{ matrix.claude }}
       - name: Exercise candidate install, update, readiness and migration
         run: python scripts/smoke_plugin_install.py
+      - name: Install the pushed candidate through the production GitHub source type
+        env:
+          TROJAINO_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python scripts/smoke_plugin_install.py --candidate-git
       - name: Verify the public release installation
         if: github.event_name == 'workflow_dispatch' && inputs.public_install
         run: python scripts/smoke_plugin_install.py --public
