@@ -44,6 +44,7 @@ class Outcome:
     report: str | None = None
     pin: str | None = None              # replacement text for the target's token
     target: Target | None = None
+    note: str | None = None             # context shown with the verdict
 
 
 # ---------------------------------------------------------------- state
@@ -71,13 +72,14 @@ def _cached(key: list) -> dict | None:
         path = _cache_path(key)
         if path.is_file() and not path.is_symlink() and path.stat().st_size < 1_000_000:
             data = json.loads(path.read_text(encoding="utf-8"))
-            if (data.get("schema") == 2 and data.get("key") == key
+            if (data.get("schema") == 3 and data.get("key") == key
                     and data.get("verdict") in {CLEAN, "CAUTION", "DO NOT RUN"}
                     and isinstance(data.get("files"), int)
                     and isinstance(data.get("findings"), list)
                     and isinstance(data.get("compiled"), list)
                     and all(isinstance(item, str) for item in data["compiled"])
-                    and isinstance(data.get("report"), (str, type(None)))):
+                    and isinstance(data.get("report"), (str, type(None)))
+                    and isinstance(data.get("note"), (str, type(None)))):
                 return data
     except (OSError, ValueError):
         pass
@@ -88,8 +90,8 @@ def _remember(key: list, outcome: Outcome) -> None:
     try:
         folder = _private_dir(state_directory() / "verdicts")
         (folder / _cache_path(key).name).write_text(json.dumps({
-            "schema": 2, "key": key, "verdict": outcome.verdict, "files": outcome.files,
-            "compiled": outcome.compiled,
+            "schema": 3, "key": key, "verdict": outcome.verdict, "files": outcome.files,
+            "compiled": outcome.compiled, "note": outcome.note,
             "findings": outcome.findings, "report": outcome.report}), encoding="utf-8")
     except OSError:
         pass
@@ -103,7 +105,38 @@ def _identity() -> str:
     return scanner_identity()
 
 
-def scan_files(label: str, files: dict, compiled: list) -> Outcome:
+# A PyPI source distribution is a snapshot of the project, so it usually carries
+# test suites and maintainer scripts that pip does not install as package code.
+DEVELOPMENT_FOLDERS = {"tests", "test", "testing", "docs", "doc", "examples", "example",
+                       "benchmarks", "benchmark", "bench", "scripts", "tools", "ci",
+                       ".github", ".circleci"}
+
+
+def _development_only(findings: list) -> tuple[str, str] | None:
+    """(verdict, note) when only development folders make an sdist DO NOT RUN.
+
+    Findings there are capped at CAUTION, never cleared: the user still reviews
+    them, because setup code could load a file from those folders.
+    """
+    from types import SimpleNamespace
+    from trojaino.models import verdict_for
+    def folder(item):
+        parts = str(item.get("file", "")).replace("\\", "/").split("/")
+        return parts[0].lower() if len(parts) > 1 else ""
+    core = [f for f in findings if isinstance(f, dict) and folder(f) not in DEVELOPMENT_FOLDERS]
+    if len(core) == len(findings):
+        return None
+    view = [SimpleNamespace(id=f.get("id"), severity=f.get("severity"), disposition=f.get("disposition"),
+                            context=f.get("context")) for f in core]
+    if verdict_for(view) == "DO NOT RUN":
+        return None
+    places = sorted({folder(f) + "/" for f in findings if folder(f) in DEVELOPMENT_FOLDERS})
+    return "CAUTION", ("the findings that would block it are only in development folders of the source "
+                       "distribution (" + ", ".join(places) + "), which are not normally installed as "
+                       "package code; review them before approving")
+
+
+def scan_files(label: str, files: dict, compiled: list, source_distribution: bool = False) -> Outcome:
     """Write staged text to a private folder, scan it in an isolated worker, report."""
     from trojaino.preflight import scan_path
     outcome = Outcome(label, compiled=list(compiled))
@@ -132,6 +165,10 @@ def scan_files(label: str, files: dict, compiled: list) -> Outcome:
                 outcome.problem = "the scan could not finish within Trojaino's limits"
             else:
                 outcome.verdict = raw.get("verdict")
+                if source_distribution and outcome.verdict == "DO NOT RUN":
+                    capped = _development_only(raw.get("findings", []))
+                    if capped:
+                        outcome.verdict, outcome.note = capped
                 outcome.findings = [
                     {"rule": f.get("id") if isinstance(f, dict) else f.id,
                      "severity": f.get("severity") if isinstance(f, dict) else f.severity,
@@ -152,14 +189,16 @@ def _scan_artifact(artifact: registry.Artifact) -> Outcome:
     cached = _cached(key)
     if cached:
         return Outcome(artifact.label, verdict=cached["verdict"], files=cached["files"],
-                       findings=cached["findings"], report=cached["report"], compiled=cached["compiled"])
+                       findings=cached["findings"], report=cached["report"], compiled=cached["compiled"],
+                       note=cached["note"])
     try:
         staged = registry.unpack(artifact, registry.download(artifact))
     except registry.Refused as exc:
         if "checksum" in str(exc) or "unsafe" in str(exc) or "collide" in str(exc):
             return Outcome(artifact.label, blocked=str(exc))
         return Outcome(artifact.label, problem=str(exc))
-    outcome = scan_files(artifact.label, staged.files, staged.compiled)
+    source_distribution = artifact.ecosystem == "pypi" and not artifact.url.endswith(".whl")
+    outcome = scan_files(artifact.label, staged.files, staged.compiled, source_distribution)
     if outcome.verdict and not outcome.problem:
         _remember(key, outcome)
     return outcome
@@ -257,11 +296,37 @@ def _pin_text(target: Target, artifact: registry.Artifact) -> str | None:
     if target.ecosystem == "npm":
         return f"{target.alias}{artifact.name}@{artifact.version}"
     if target.ecosystem == "pypi":
-        # A version can have several wheels and an sdist with different code.
-        # Only requirement-taking forms can bind to this exact verified file.
-        if target.pin_style != "==" or not artifact.digest.startswith("sha256:"):
-            return None
+        return None if _unbound_reason(target, artifact) else _python_pin(target, artifact)
+    return None
+
+
+def _python_pin(target: Target, artifact: registry.Artifact) -> str | None:
+    if target.pin_style == "==":
         return f"{artifact.name}{target.extras} @ {artifact.url}#sha256={artifact.digest[7:]}"
+    if target.pin_style == "==version":
+        return f"{artifact.name}{target.extras}=={artifact.version}"
+    if target.pin_style == "@":
+        return f"{artifact.name}{target.extras}@{artifact.version}"
+    return None
+
+
+def _unbound_reason(target: Target, artifact: registry.Artifact) -> str | None:
+    """Why a PyPI install cannot be tied to the file Trojaino scanned, if it cannot.
+
+    A version can have several wheels and an sdist with different code. A one-shot
+    pip install can take the verified file URL; commands that record the
+    requirement (uv add, pipx, uvx) get a version pin, which binds only when no
+    other wheel could be chosen instead.
+    """
+    if not artifact.digest.startswith("sha256:") or target.pin_style not in {"==", "==version", "@"}:
+        return None  # handled by the generic "cannot be bound" message
+    source = not artifact.url.endswith(".whl")
+    if source and artifact.alternatives:
+        return ("Trojaino scanned the source distribution, but this platform would install one of the "
+                "release's compiled wheels, which Trojaino cannot scan; its installation needs your approval")
+    if target.pin_style != "==" and artifact.alternatives:
+        return ("the release has several installable files and this command records only a version, "
+                "so it cannot be bound to the one Trojaino scanned; its installation needs your approval")
     return None
 
 
@@ -293,6 +358,8 @@ def evaluate(target: Target, cwd: str | None) -> Outcome:
         outcome = _scan_artifact(artifact)
         outcome.target = target
         outcome.pin = _pin_text(target, artifact)
+        if target.ecosystem == "pypi" and target.token is not None and outcome.verdict and not outcome.problem:
+            outcome.problem = _unbound_reason(target, artifact)
         return outcome
     except registry.Unscannable as exc:
         return Outcome(target.name, problem=str(exc))
@@ -321,6 +388,8 @@ def _describe(outcome: Outcome) -> str:
     if outcome.problem and not outcome.verdict:
         return f"{outcome.label}: not scanned, because {outcome.problem}"
     text = f"{outcome.label}: {outcome.verdict} ({outcome.files} files scanned)"
+    if outcome.note:
+        text += "; " + outcome.note
     if outcome.problem:
         text += "; " + outcome.problem
     if outcome.findings:
@@ -339,8 +408,12 @@ def decide(command: str, tool: str, tool_input: dict, cwd: str | None) -> dict |
     attempts = detect(command, tool)
     if not attempts:
         return None
-    from trojaino.install_context import source_warning
-    warning = source_warning(command, attempts, cwd)
+    from trojaino.install_context import source_warning, working_directory
+    cwd, where = working_directory(command, cwd)
+    # Where the install runs decides its configuration and relative paths; a
+    # repository clone downloads the same thing wherever it runs.
+    located = {t.ecosystem for a in attempts for t in a.targets} & {"npm", "pypi", "plugin", "local"}
+    warning = (where if located else None) or source_warning(command, attempts, cwd)
     if warning:
         return _answer("ask", "Trojaino cannot bind this install to the public artifact: " + warning
                        + ". Decide whether to allow it.")
@@ -435,8 +508,9 @@ def session_start() -> dict:
         reminder = ""
     text = (f"Trojaino {__version__} install gate is active. When Claude installs or adds software "
             "(npm, npx, pip, uvx, pipx, git clone, claude mcp add, claude plugin install), Trojaino "
-            "checks the named package first. Clean npm packages are version-pinned; supported "
-            "Python requirement forms use the scanned file URL and SHA-256. Unbound commands, "
+            "checks the named package first. Clean npm packages are version-pinned; pip installs "
+            "use the scanned file URL and SHA-256, and uv, uvx and pipx get the exact version when it "
+            "can only install the scanned file. Unbound commands, "
             "CAUTION results and anything it cannot scan go to the user to decide; "
             "DO NOT RUN results are blocked and must not be worked around. Only the named package is "
             "scanned, not its dependencies. To scan something without installing it, run: "

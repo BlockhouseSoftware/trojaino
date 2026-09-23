@@ -2,11 +2,11 @@
   "version": "0.3.1",
   "files": {
     ".claude-plugin/plugin.json": "af8386e9c77b36acf6569bb6e6686203cbd6a10b368f0daef943c0678d354d7d",
-    "README.md": "03ade589f975d11a1efbcd7f6107eca555ba54afe5371ed83ef26aa14646672c",
+    "README.md": "1b954b959a3a5a4947d3850602a33c9bddea70caa69dc3ce45ba504ef2394269",
     "hooks/hooks.json": "3b0feacea9726f76454a7cf0e061a231ddc7770be0240b7147219d5698fe8173",
     "scripts/launch.ps1": "377c429f7e3598cd9c9b2e4c40fa10e27763f64aeae9b3eb8549779e50598b53",
     "scripts/launch.sh": "16457373555c19783cd7b00339987f236e74b61214b7005754eb62305c93aff6",
-    "scripts/preflight.py": "0f86f2469a61ddfdef575e347a71a0b59c833dcb4327c7257ba53278508d2ee6",
+    "scripts/preflight.py": "ce1250fcaf87aa5c6a5a3b9bae757bfe68883dff62b89e0d6aeac9c37a235b52",
     "skills/doctor/SKILL.md": "c4824176334d10f82ecebd5729c9d1b82a5f32ca9447270c944762065fe8a257",
     "skills/scan/SKILL.md": "25d5f62840ce559a7229aced0fdf27ae947f8b4d1b85947abbe3af5bb756141f"
   }

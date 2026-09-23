@@ -4,7 +4,7 @@ Trojaino checks software **before Claude installs it**. When Claude runs an inst
 
 | Result | What happens |
 | --- | --- |
-| **NO CRITICAL RISKS FOUND** | Supported npm installs continue pinned to the scanned version; supported Python requirement forms use the scanned file URL and SHA-256. Commands that cannot be bound require approval. Your normal Claude Code permission settings still apply. |
+| **NO CRITICAL RISKS FOUND** | npm installs continue pinned to the scanned version. `pip install` uses the scanned file URL and SHA-256; `uv add`, `uvx`, `uv tool` and `pipx` get the exact version when no other file of that version could be installed instead. Commands that cannot be bound require approval. Your normal Claude Code permission settings still apply. |
 | **CAUTION** | Claude asks you, and shows the findings. You decide. |
 | **DO NOT RUN** | The install is blocked. |
 | Could not be scanned | Claude asks you, and says why Trojaino could not check it. |
@@ -36,7 +36,9 @@ To update: `/plugin marketplace update blockhouse-software`, then `/plugin updat
 | `claude mcp add ... -- npx ...` or `-- uvx ...` | The package that runs the MCP server |
 | `claude plugin install`, `claude plugin marketplace add` | The plugin or marketplace source |
 
-A scan is followed by approval when the command cannot be bound to what was scanned: Git clones, mutable plugin/local sources, nested shell commands, `uvx PACKAGE` and `pipx run PACKAGE`. Use a supported explicit requirement form such as `uvx --from PACKAGE COMMAND` for Python artifact binding. Source-selection flags, environment overrides and detected source-changing package-manager configuration also require approval.
+A scan is followed by approval when the command cannot be bound to what was scanned: Git clones, mutable plugin/local sources, nested shell commands, `pipx run PACKAGE`, and Python releases where an installer could choose a different file (for example a release with compiled wheels, which Trojaino cannot scan). Source-selection flags, environment overrides and package-manager configuration that changes the registry or index also require approval; npm auth tokens, proxies and certificate settings do not. A leading `cd DIR &&` is followed, so that directory's configuration is the one checked.
+
+A PyPI source distribution often includes its test suite and maintainer scripts. Findings only in those development folders (`scripts/`, `tests/`, `docs/`, `examples/` and similar) make the result CAUTION rather than DO NOT RUN, so you review them instead of the install being blocked outright.
 
 Asked about, never auto-allowed: `winget`, `choco`, `scoop`, `brew`, `apt`, `cargo install`, `go install`, `gem install`, `docker pull`, installers (`.exe`, `.msi`), `curl … | sh`, `irm … | iex`, private registries and custom indexes, remote (HTTP) MCP servers, packages containing compiled code, packages too large to scan, and edits to `.mcp.json` or Claude's plugin and MCP settings.
 

@@ -75,8 +75,7 @@ class InstallIntegrityTests(GateTestCase):
         self.fake.pypi('dist','1.0', [('dist-1.0-py3-none-any.whl',wheel({'dist.py':'1'}),'bdist_wheel')])
         out = self.output(self.decide('uvx --from=dist program'))
         self.assertNotIn('permissionDecision',out)
-        self.assertIn("--from='dist @ https://files.pythonhosted.org/",out['updatedInput']['command'])
-        self.assertTrue(out['updatedInput']['command'].endswith("' program"))
+        self.assertEqual(out['updatedInput']['command'], 'uvx --from=dist==1.0 program')
 
     def test_unbound_nested_and_github_forms_ask_after_scanning(self):
         sha='a'*40

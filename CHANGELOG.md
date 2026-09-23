@@ -6,7 +6,9 @@ All notable changes to Trojaino are documented here.
 
 - Preserve compiled-code warnings on cached scans and reject obsolete cache records.
 - Recognize repeated package arguments, equals-form source options, global npm options and GitHub clone URLs.
-- Ask before installs whose source or exact artifact cannot be bound, including mutable Git/plugin sources and nested shell commands. Supported Python requirement forms use the scanned artifact URL and SHA-256, not only a version.
+- Ask before installs whose source or exact artifact cannot be bound, including mutable Git/plugin sources and nested shell commands. A one-shot `pip install` uses the scanned file URL and SHA-256, not only a version. `uv add`, `uvx`, `uv tool` and `pipx` record the requirement, so they get the exact version, never a file URL, and only when that version can install nothing but the scanned file; otherwise they ask.
+- Read what package-manager configuration actually selects. npm auth tokens, proxies, certificates, symlinked dotfiles and config-file pointers such as `NPM_CONFIG_USERCONFIG` or `PIP_CONFIG_FILE` no longer require approval; private registries and indexes, a scoped registry for the package being installed, and overrides that name it still do. Options are matched only inside the install command, and a leading `cd DIR &&` is followed instead of asked about.
+- Findings only in development folders of a PyPI source distribution (`scripts/`, `tests/`, `docs/` and similar) give CAUTION instead of DO NOT RUN, so packages such as psutil are no longer hard-blocked. When a release also ships compiled wheels, Trojaino asks instead of forcing a build from the scanned source.
 - Detect source-selection environment/configuration overrides without exposing their values.
 - Add native Python prerequisite checks that explain missing, outdated or unusable Python at startup and on covered tool calls, without requiring Python to show the error. Doctor uses the same launcher; installation remains two commands and Python stays a manual prerequisite.
 - Add `/trojaino:doctor`, an offline readiness and legacy-hook migration check, and a visible runtime-started message.

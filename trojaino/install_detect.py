@@ -43,7 +43,11 @@ class Target:
     extras: str = ""      # PyPI extras such as "[cli]", kept when pinning
     alias: str = ""       # npm alias prefix such as "my-name@npm:"
     subdir: str = ""      # plugin path inside a GitHub repository
-    pin_style: str = "=="  # how this tool spells an exact version: "==" or "@"
+    # How to bind this install to the scanned file: "==" (a one-shot pip install
+    # takes the verified file URL), "==version" / "@" (tools that record the
+    # requirement pin the version, only when no other file could be chosen),
+    # or "unbound".
+    pin_style: str = "=="
 
 
 @dataclass
@@ -51,6 +55,7 @@ class Attempt:
     command: str                    # the segment text, for messages
     targets: list[Target] = field(default_factory=list)
     unscannable: str | None = None  # plain-English reason, or None
+    tokens: list[Token] = field(default_factory=list)  # the segment's own words
 
 
 # ------------------------------------------------------------------ tokenise
@@ -327,7 +332,9 @@ _PRIVATE_INDEX = {"-i", "--index-url", "--extra-index-url", "-f", "--find-links"
                   "--index", "--default-index"}
 
 
-def _pip_packages(tokens: list[Token], attempt: Attempt) -> None:
+def _pip_packages(tokens: list[Token], attempt: Attempt, pin_style: str = "==") -> None:
+    """pin_style "==" for one-shot installs; "==version" for commands that record
+    the requirement (uv add, pipx inject), which must not store a file URL."""
     positional, flags = _positionals(tokens, _PIP_VALUE_FLAGS)
     if _PRIVATE_INDEX & set(flags):
         attempt.unscannable = "it uses a custom package index"
@@ -335,6 +342,8 @@ def _pip_packages(tokens: list[Token], attempt: Attempt) -> None:
     for token in positional:
         result = pypi_target(token)
         if isinstance(result, Target):
+            if result.ecosystem == "pypi":
+                result = replace(result, pin_style=pin_style)
             attempt.targets.append(result)
         elif isinstance(result, str):
             attempt.unscannable = result
@@ -354,7 +363,8 @@ def _uvx(args: list[Token], attempt: Attempt, at_style: bool = False) -> None:
         attempt.unscannable = "the package-source option could not be read reliably"
         return
     tokens = [source] if isinstance(source, Token) else positional[:1]
-    style = "@" if at_style and not isinstance(source, Token) else "=="
+    # Tool installs record the requirement, so they pin a version, never a file URL.
+    style = "@" if at_style and not isinstance(source, Token) else "==version"
     for token in tokens:
         # uvx accepts pkg@version; read it as pkg==version.
         m = re.fullmatch(r"([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?@([A-Za-z0-9._+!-]+)", token.text)
@@ -541,7 +551,7 @@ def _classify_argv(tokens: list[Token], attempt: Attempt, tool: str) -> None:
         if words[:2] == ["pip", "install"]:
             _pip_packages(args[2:], attempt)
         elif first == "add":
-            _pip_packages(args[1:], attempt)
+            _pip_packages(args[1:], attempt, pin_style="==version")
         elif words[:2] in (["tool", "install"], ["tool", "run"]):
             _uvx(args[2:], attempt, at_style=words[1] == "run")
         elif first == "run" and any(w.split("=", 1)[0] in {"--with", "--with-editable"} for w in words):
@@ -554,7 +564,7 @@ def _classify_argv(tokens: list[Token], attempt: Attempt, tool: str) -> None:
             if first == "run" and not any(t.text.startswith("--spec") for t in args):
                 attempt.targets = [replace(t, pin_style="unbound") for t in attempt.targets]
         elif first == "inject" and len(args) > 2:
-            _pip_packages(args[2:], attempt)
+            _pip_packages(args[2:], attempt, pin_style="==version")
     elif prog == "git" and first == "clone":
         _git_clone(args[1:], attempt)
     elif prog == "gh" and words[:2] == ["repo", "clone"] and len(args) > 2:
@@ -599,7 +609,7 @@ def detect(command: str, tool: str = "Bash", pin: bool = True) -> list[Attempt]:
         return []
     attempts: list[Attempt] = []
     for tokens in segments:
-        attempt = Attempt(" ".join(t.text for t in tokens))
+        attempt = Attempt(" ".join(t.text for t in tokens), tokens=list(tokens))
         _classify_argv(tokens, attempt, tool)
         if not pin:
             attempt.targets = [Target(t.ecosystem, t.name, t.spec, None, t.extras, t.alias, t.subdir)

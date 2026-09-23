@@ -16,7 +16,7 @@ It never says software is "safe" or "certified secure."
 
 ## Claude Code install gate
 
-The [Trojaino plugin for Claude Code](plugins/trojaino/README.md) checks software before Claude installs it. When Claude runs `npx`, `npm install`, `pip install`, `uvx`, `git clone`, `claude mcp add` or `claude plugin install`, Trojaino fetches that exact package, scans it without running it, and binds supported clean npm installs to the scanned version and Python requirement forms to the scanned file URL and SHA-256. Installs that cannot be bound require approval. CAUTION results and anything it cannot scan go to you to decide; DO NOT RUN results are blocked. Everything else Claude does is untouched.
+The [Trojaino plugin for Claude Code](plugins/trojaino/README.md) checks software before Claude installs it. When Claude runs `npx`, `npm install`, `pip install`, `uvx`, `git clone`, `claude mcp add` or `claude plugin install`, Trojaino fetches that exact package, scans it without running it, and binds clean installs to what it scanned: npm installs to the exact version, `pip install` to the scanned file URL and SHA-256, and `uv add`, `uvx` and `pipx` to the exact version when that version can only install the scanned file. Installs that cannot be bound require approval. CAUTION results and anything it cannot scan go to you to decide; DO NOT RUN results are blocked. Everything else Claude does is untouched.
 
 Install it inside Claude Code 2.1.274 or newer (Python 3.11+ is required as `python3` or `python`; Git is required, including Git Bash on Windows):
 

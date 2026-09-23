@@ -69,7 +69,7 @@
     },
     {
       "file": "plugins/trojaino/README.md",
-      "sha256": "03ade589f975d11a1efbcd7f6107eca555ba54afe5371ed83ef26aa14646672c"
+      "sha256": "1b954b959a3a5a4947d3850602a33c9bddea70caa69dc3ce45ba504ef2394269"
     },
     {
       "file": "plugins/trojaino/hooks/hooks.json",
@@ -77,7 +77,7 @@
     },
     {
       "file": "plugins/trojaino/integrity.json",
-      "sha256": "84c93dff37b034bd9532ea63b5ee422a0cb2f558637916fc27ca90b0482f1159"
+      "sha256": "7a2a3c15a6c75ec7807299c5577a1b3db4917fb7759b83a9834d17b1b5c486e0"
     },
     {
       "file": "plugins/trojaino/scripts/launch.ps1",
@@ -89,7 +89,7 @@
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "0f86f2469a61ddfdef575e347a71a0b59c833dcb4327c7257ba53278508d2ee6"
+      "sha256": "ce1250fcaf87aa5c6a5a3b9bae757bfe68883dff62b89e0d6aeac9c37a235b52"
     },
     {
       "file": "plugins/trojaino/skills/doctor/SKILL.md",
@@ -185,7 +185,7 @@
     },
     {
       "file": "trojaino/claude/payload/README.md",
-      "sha256": "03ade589f975d11a1efbcd7f6107eca555ba54afe5371ed83ef26aa14646672c"
+      "sha256": "1b954b959a3a5a4947d3850602a33c9bddea70caa69dc3ce45ba504ef2394269"
     },
     {
       "file": "trojaino/claude/payload/SKILL.md",
@@ -241,7 +241,7 @@
     },
     {
       "file": "trojaino/gate.py",
-      "sha256": "3143abf45c877f25c3da6dbdd371903e813894d3893b25d7ffca2fa81c046179"
+      "sha256": "b5368957a49fadb6fd4f4d14b64db362f595dad5615e7d56c3e3bfea1ff9daa4"
     },
     {
       "file": "trojaino/gui.py",
@@ -249,11 +249,11 @@
     },
     {
       "file": "trojaino/install_context.py",
-      "sha256": "0ebbbd4c77745bdc0f7afe782285d87c99a3c8b5c23d67436cfb4249749b7f66"
+      "sha256": "2ba0fecd7c01a8eaa807967aea1007dfda402da5d2f63539fc819c0efd8c77c5"
     },
     {
       "file": "trojaino/install_detect.py",
-      "sha256": "98abaf3f22819fb447eed982db6a3d2ad4cf48512dddd491fa2bc6cd434ad88a"
+      "sha256": "53abf4a76b5963565c1f8d87c768a887885c8c11edb865f5abb134890594736d"
     },
     {
       "file": "trojaino/models.py",
@@ -269,7 +269,7 @@
     },
     {
       "file": "trojaino/registry.py",
-      "sha256": "37c5a7d4921410a8beee18d23bc759fe560f02c0e9875c481bfa0e1bab6a277c"
+      "sha256": "6c7e8f1851dbe71d328186350d1e9fd6357e8d187cc774cd9ba528ea81a9d576"
     },
     {
       "file": "trojaino/report.py",
