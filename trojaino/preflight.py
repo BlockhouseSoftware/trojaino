@@ -130,9 +130,15 @@ def main(argv=None):
         return 0
     parser = argparse.ArgumentParser(description="Trojaino install gate helper")
     sub = parser.add_subparsers(dest="action", required=True)
+    sub.add_parser("doctor", help="check plugin readiness without networking or installing software")
     scan = sub.add_parser("scan", help="scan a package, repository or folder without installing it")
     scan.add_argument("source", help="npm:NAME[@VERSION], pypi:NAME[==VERSION], a GitHub URL, or a path")
     args = parser.parse_args(argv)
+    if args.action == "doctor":
+        from trojaino.doctor import check
+        result = check()
+        print(json.dumps(result, ensure_ascii=True, indent=2))
+        return 0 if result["status"] == "Ready" else 1
     from trojaino.gate import scan_source
     with watchdog():
         result = scan_source(args.source, os.getcwd())

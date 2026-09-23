@@ -1,4 +1,4 @@
-# Trojaino v0.3.0
+# Trojaino v0.3.1
 
 **Trojaino: Local Trust Scanner**
 
@@ -6,7 +6,7 @@
 
 Scan AI-built and downloaded software locally before you run it. Trojaino is a local deterministic trust scanner for Node/TypeScript and Python projects, MCP/tooling repos, Docker configs, and agent instruction files.
 
-It is intentionally not a generic "ask an LLM to review this repo" wrapper. v0.1 runs repeatable rule packs and produces evidence-first findings with a conservative verdict:
+It is intentionally not a generic "ask an LLM to review this repo" wrapper. Trojaino runs repeatable rule packs and produces evidence-first findings with a conservative verdict:
 
 - `DO NOT RUN`
 - `CAUTION`
@@ -16,14 +16,16 @@ It never says software is "safe" or "certified secure."
 
 ## Claude Code install gate
 
-The [Trojaino plugin for Claude Code](plugins/trojaino/README.md) checks software before Claude installs it. When Claude runs `npx`, `npm install`, `pip install`, `uvx`, `git clone`, `claude mcp add` or `claude plugin install`, Trojaino fetches that exact package, scans it without running it, and lets clean installs continue pinned to the version it scanned. CAUTION results and anything it cannot scan go to you to decide; DO NOT RUN results are blocked. Everything else Claude does is untouched.
+The [Trojaino plugin for Claude Code](plugins/trojaino/README.md) checks software before Claude installs it. When Claude runs `npx`, `npm install`, `pip install`, `uvx`, `git clone`, `claude mcp add` or `claude plugin install`, Trojaino fetches that exact package, scans it without running it, and binds clean installs to what it scanned: npm installs to the exact version, `pip install` to the scanned file URL and SHA-256, and `uv add`, `uvx` and `pipx` to the exact version when that version can only install the scanned file. Installs that cannot be bound require approval. CAUTION results and anything it cannot scan go to you to decide; DO NOT RUN results are blocked. Everything else Claude does is untouched.
 
-Install it inside Claude Code (Python 3.11 or newer is required as `python3`):
+Install it inside Claude Code 2.1.274 or newer (Python 3.11+ is required as `python3` or `python`; Git is required, including Git Bash on Windows):
 
 ```
 /plugin marketplace add BlockhouseSoftware/claude-marketplace
 /plugin install trojaino@blockhouse-software
 ```
+
+Restart Claude Code and run **`/trojaino:doctor`**. Look for **Ready**. See [prerequisites, updating and migration](docs/plugin-installation.md). The plugin needs no separate pip installation.
 
 New to the terminal on Windows? Follow the [Windows quick start](docs/windows-quick-start.md).
 
@@ -134,7 +136,7 @@ The `clean-project` fixture is only "clean-ish": it should produce `NO CRITICAL 
 
 ## Limitations
 
-Trojaino v0.3.0 is an alpha deterministic scanner:
+Trojaino v0.3.1 is an alpha deterministic scanner:
 
 - It does not prove a project is safe, complete a full security audit, or replace human review.
 - Rules are intentionally incomplete and may miss logic bugs, auth design flaws, dependency vulnerabilities, obfuscated payloads, generated code, or runtime-only behavior.

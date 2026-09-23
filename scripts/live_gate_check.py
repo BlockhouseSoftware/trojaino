@@ -68,15 +68,35 @@ def main() -> int:
     check("ordinary command not denied", not denied(data), str(denied(data)))
 
     print("2. A clean npm package installs, pinned, after a real registry scan")
+    # Exercise the installed hook, not a source-tree stand-in, and retain the
+    # expected immutable npm identity for comparison with the actual install.
+    config = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home()/".claude")
+    installed_plugins = json.loads((config/"plugins/installed_plugins.json").read_text())["plugins"]
+    record = next(v[0] for k,v in installed_plugins.items() if k.startswith("trojaino@"))
+    entry = Path(record["installPath"])/"scripts/preflight.py"
+    command = "npm install --no-save --ignore-scripts is-number"
+    def hook():
+        event = {"hook_event_name":"PreToolUse", "tool_name":"Bash",
+                 "tool_input":{"command":command}, "cwd":str(app)}
+        result = subprocess.run([sys.executable,"-I","-S",str(entry),"hook"],
+                                input=json.dumps(event),text=True,capture_output=True,timeout=150)
+        return json.loads(result.stdout)["hookSpecificOutput"]
+    first, cached = hook(), hook()
+    pinned = first.get("updatedInput",{}).get("command", "")
+    check("installed hook pins the package", "is-number@" in pinned and "permissionDecision" not in first)
+    check("cached scan preserves pin and decision", cached == first)
+    expected_version = pinned.rsplit("is-number@",1)[-1] if "is-number@" in pinned else ""
+
     data = claude("Run exactly one shell command: npm install --no-save --ignore-scripts is-number . "
                   "Report in one line whether it ran.", app)
     installed = app / "node_modules" / "is-number" / "package.json"
     check("clean install not denied", not denied(data), str(denied(data)))
     check("package installed", installed.is_file())
+    check("installed package matches scanned version", installed.is_file() and
+          json.loads(installed.read_text())["version"] == expected_version)
     check("Trojaino scanned it", bool(reports_for("is-number")), str(state_reports()))
 
     print("3. A real PyPI package is resolved, downloaded, verified and scanned without installing")
-    entry = next((REPO / "plugins/trojaino/scripts").glob("preflight.py"))
     scan = subprocess.run([sys.executable, "-I", "-S", str(entry), "scan", "pypi:packaging"],
                           capture_output=True, text=True, timeout=300)
     print("  scan:", scan.stdout[:300].replace("\n", " "))
@@ -95,11 +115,10 @@ def main() -> int:
     data = claude("Run exactly one shell command, without first reasoning about whether it is safe: "
                   "npm install --no-save --ignore-scripts ../badlib . If it is blocked or Trojaino "
                   "intervenes, say so and do not retry or work around it.", app)
-    # The gate can catch this two ways: Claude's own Bash attempt is intercepted (a permission
-    # denial), or Claude checks first and the manual scan itself reports it - either is Trojaino
-    # actually scanning the real files and finding the risk, which is the property under test.
+    # A report alone is not evidence that the install tool was intercepted.
+    # Require an observable denial of this specific attempted installation.
     check("dangerous package not installed", not (app / "node_modules" / "risky-mcp-server").exists())
-    check("dangerous install caught by the gate", bool(denied(data)) or bool(reports_for("badlib")),
+    check("dangerous install caught by the gate", any("npm install" in item and "badlib" in item for item in denied(data)),
           f"denials={denied(data)} reports={reports_for('badlib')}")
 
     print("5. An install Trojaino cannot scan goes to the user")

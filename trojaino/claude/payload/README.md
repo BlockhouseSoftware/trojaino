@@ -1,10 +1,10 @@
-# Trojaino for Claude Code — install gate 0.3.0
+# Trojaino for Claude Code — install gate 0.3.1
 
 Trojaino checks software **before Claude installs it**. When Claude runs an install command, Trojaino fetches that exact package, scans it without running any of it, and then:
 
 | Result | What happens |
 | --- | --- |
-| **NO CRITICAL RISKS FOUND** | The install continues, pinned to the exact version Trojaino scanned. Your normal Claude Code permission settings still apply. |
+| **NO CRITICAL RISKS FOUND** | npm installs continue pinned to the scanned version. `pip install` uses the scanned file URL and SHA-256; `uv add`, `uvx`, `uv tool` and `pipx` get the exact version when no other file of that version could be installed instead. Commands that cannot be bound require approval. Your normal Claude Code permission settings still apply. |
 | **CAUTION** | Claude asks you, and shows the findings. You decide. |
 | **DO NOT RUN** | The install is blocked. |
 | Could not be scanned | Claude asks you, and says why Trojaino could not check it. |
@@ -13,18 +13,18 @@ Everything else Claude does (building, testing, editing, running your code) is u
 
 ## Install
 
-You need **Python 3.11 or newer**, available as `python3`, and Claude Code. Then, inside Claude Code:
+You need **Python 3.11 or newer**, available as `python3` or `python`, Git (including Git Bash on Windows), and Claude Code **2.1.274 or newer**. Then, inside Claude Code:
 
 ```
 /plugin marketplace add BlockhouseSoftware/claude-marketplace
 /plugin install trojaino@blockhouse-software
 ```
 
-Restart Claude Code. To check it is running, type `/hooks` and look for Trojaino under **SessionStart** and **PreToolUse**.
+Restart Claude Code and run **`/trojaino:doctor`**. Continue when it says **Ready**; otherwise follow its recovery action. `/hooks` only proves registration, not successful execution. See [installation and migration](https://github.com/BlockhouseSoftware/trojaino/blob/main/docs/plugin-installation.md) for macOS/Linux prerequisites and older prepared plugins.
 
 On Windows, install Python with the **Python Install Manager** (from the Microsoft Store, or `winget install 9NQ7512CXL7T`), which provides the `python3` command. Step-by-step instructions for someone who has never used a terminal are in the [Windows quick start](https://github.com/BlockhouseSoftware/trojaino/blob/main/docs/windows-quick-start.md).
 
-To update: `/plugin update trojaino@blockhouse-software`. To remove: `/plugin uninstall trojaino@blockhouse-software`.
+To update: `/plugin marketplace update blockhouse-software`, then `/plugin update trojaino@blockhouse-software`. Restart Claude and run `/trojaino:doctor`. To remove: `/plugin uninstall trojaino@blockhouse-software`.
 
 ## What it checks
 
@@ -35,6 +35,10 @@ To update: `/plugin update trojaino@blockhouse-software`. To remove: `/plugin un
 | `git clone`, `gh repo clone`, npm or pip installs from GitHub | The repository at one exact commit |
 | `claude mcp add ... -- npx ...` or `-- uvx ...` | The package that runs the MCP server |
 | `claude plugin install`, `claude plugin marketplace add` | The plugin or marketplace source |
+
+A scan is followed by approval when the command cannot be bound to what was scanned: Git clones, mutable plugin/local sources, nested shell commands, `pipx run PACKAGE`, and Python releases where an installer could choose a different file (for example a release with compiled wheels, which Trojaino cannot scan). Source-selection flags, environment overrides and package-manager configuration that changes the registry or index also require approval; npm auth tokens, proxies and certificate settings do not. A leading `cd DIR &&` is followed, so that directory's configuration is the one checked.
+
+A PyPI source distribution often includes its test suite and maintainer scripts. Findings only in those development folders (`scripts/`, `tests/`, `docs/`, `examples/` and similar) make the result CAUTION rather than DO NOT RUN, so you review them instead of the install being blocked outright.
 
 Asked about, never auto-allowed: `winget`, `choco`, `scoop`, `brew`, `apt`, `cargo install`, `go install`, `gem install`, `docker pull`, installers (`.exe`, `.msi`), `curl … | sh`, `irm … | iex`, private registries and custom indexes, remote (HTTP) MCP servers, packages containing compiled code, packages too large to scan, and edits to `.mcp.json` or Claude's plugin and MCP settings.
 
@@ -56,7 +60,7 @@ Ask Claude to use `/trojaino:scan`, for example:
 - **A clean result is not a safety guarantee.** Trojaino is a deterministic, rule-based static scanner. It is not antivirus and not a sandbox.
 - **It gates what Claude does.** Installs you type yourself in a terminal, or with `/plugin install` in Claude's own interface, are not tool calls and are not checked.
 - **It recognises the usual ways of installing.** A disguised install (an encoded command, a script that installs something) is not recognised. Trojaino is a gate on the front door, not a firewall.
-- **If Python is missing, the gate is not running.** Claude will show a hook error. Nothing is blocked, and nothing is checked.
+- **If Python is missing, outdated or unusable, the gate is not running.** The native launcher returns an explicit message with a setup link at startup and on covered tool calls. `/trojaino:doctor` can diagnose this without Python. Nothing is checked; normal Claude permissions still apply. The plugin can still be listed as installed.
 - **Network.** Trojaino contacts registry.npmjs.org, pypi.org, files.pythonhosted.org, github.com and codeload.github.com, and only while an install is being checked. It sends nothing about you or your project. `tjscan check-updates` is the only other network use, and only when you run it.
 - **Reports** are kept in `~/.local/state/trojaino/reports` (Windows: `%LOCALAPPDATA%\trojaino\reports`). Clean and CAUTION verdicts are remembered per exact package version, so the same version is not fetched twice.
 

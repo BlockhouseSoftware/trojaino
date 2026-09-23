@@ -15,6 +15,20 @@ def pre_tool(command, tool="Bash", cwd=None):
             "tool_input": {"command": command, "description": "x"}, "cwd": cwd}
 
 
+def hermetic_environment(home: str) -> dict:
+    """The current environment minus anything that selects a package source.
+
+    The gate reads real package-manager configuration, so a developer's
+    ~/.npmrc, a proxy's PIP_CONFIG_FILE or a CI runner's settings must not
+    change what these tests observe.
+    """
+    from trojaino.install_context import SOURCE_ENV
+    local = {"XDG_CONFIG_HOME", "APPDATA", "VIRTUAL_ENV", "NPM_CONFIG_PREFIX"}
+    env = {k: v for k, v in os.environ.items() if k.lower() not in SOURCE_ENV and k.upper() not in local}
+    env.update(HOME=home, USERPROFILE=home, CLAUDE_CONFIG_DIR=str(Path(home) / "claude"))
+    return env
+
+
 class GateTestCase(unittest.TestCase):
     def setUp(self):
         self.fake = FakeRegistry()
@@ -22,7 +36,7 @@ class GateTestCase(unittest.TestCase):
         self.addCleanup(self.home.cleanup)
         for patcher in (mock.patch.object(registry, "fetch_bytes", self.fake),
                         mock.patch.object(gate, "state_directory", lambda: Path(self.home.name) / "state"),
-                        mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(Path(self.home.name) / "claude")})):
+                        mock.patch.dict(os.environ, hermetic_environment(self.home.name), clear=True)):
             patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -48,31 +62,47 @@ class CleanInstallTests(GateTestCase):
         self.fake.pypi("httpx", "0.27.0", [("httpx-0.27.0-py3-none-any.whl",
                                             wheel({"httpx/__init__.py": "x=1"}), "bdist_wheel")])
         out = self.output(self.decide("npm i '@scope/tool' && pip install 'httpx[cli]'"))
+        artifact = registry.resolve_pypi("httpx", None)
         self.assertEqual(out["updatedInput"]["command"],
-                         "npm i '@scope/tool@2.1.0' && pip install 'httpx[cli]==0.27.0'")
+                         "npm i '@scope/tool@2.1.0' && pip install 'httpx[cli] @ " + artifact.url
+                         + "#sha256=" + artifact.digest[7:] + "'")
 
     def test_powershell_scoped_names_are_quoted(self):
         self.fake.npm("@scope/tool", {"2.1.0": tgz({"index.js": "module.exports=1"})})
         out = self.output(self.decide("npx -y @scope/tool", "PowerShell"))
         self.assertEqual(out["updatedInput"]["command"], "npx -y '@scope/tool@2.1.0'")
 
-    def test_uvx_uses_its_own_version_syntax(self):
+    def test_python_tools_pin_a_version_when_it_selects_the_scanned_file(self):
+        # A release with one pure wheel: any installer given the version gets that
+        # file, so tools that record the requirement pin a version, not a URL.
         self.fake.pypi("mcp-server-fetch", "1.2.0", [("mcp_server_fetch-1.2.0-py3-none-any.whl",
                                                       wheel({"m/__init__.py": "x=1"}), "bdist_wheel")])
-        out = self.output(self.decide("uvx mcp-server-fetch"))
-        self.assertEqual(out["updatedInput"]["command"], "uvx mcp-server-fetch@1.2.0")
+        for command, pinned in (("uvx mcp-server-fetch", "uvx mcp-server-fetch@1.2.0"),
+                                ("claude mcp add f -- uvx mcp-server-fetch",
+                                 "claude mcp add f -- uvx mcp-server-fetch@1.2.0"),
+                                ("uv tool install mcp-server-fetch", "uv tool install mcp-server-fetch==1.2.0"),
+                                ("pipx install mcp-server-fetch", "pipx install mcp-server-fetch==1.2.0"),
+                                ("uv add mcp-server-fetch", "uv add mcp-server-fetch==1.2.0")):
+            with self.subTest(command=command):
+                out = self.output(self.decide(command))
+                self.assertNotIn("permissionDecision", out)
+                self.assertEqual(out["updatedInput"]["command"], pinned)
+                self.assertNotIn("files.pythonhosted.org", pinned)
+
+    def test_pipx_run_without_a_spec_still_needs_approval(self):
+        self.fake.pypi("mcp-server-fetch", "1.2.0", [("mcp_server_fetch-1.2.0-py3-none-any.whl",
+                                                      wheel({"m/__init__.py": "x=1"}), "bdist_wheel")])
         out = self.output(self.decide("pipx run mcp-server-fetch"))
-        self.assertEqual(out["updatedInput"]["command"], "pipx run mcp-server-fetch==1.2.0")
-        out = self.output(self.decide("claude mcp add f -- uvx mcp-server-fetch"))
-        self.assertEqual(out["updatedInput"]["command"], "claude mcp add f -- uvx mcp-server-fetch@1.2.0")
+        self.assertEqual(out["permissionDecision"], "ask")
+        self.assertIn("cannot be bound", out["permissionDecisionReason"])
 
     def test_git_clone_is_scanned_at_one_commit(self):
         sha = "a" * 40
         self.fake.github("o/r", {"HEAD": sha, "refs/heads/main": sha},
                          {sha: tgz(fixture_files("clean-project"), root=f"r-{sha}")})
         out = self.output(self.decide("git clone https://github.com/o/r.git"))
-        self.assertNotIn("permissionDecision", out)
-        self.assertIn("o/r@aaaaaaaaaaaa", out["additionalContext"])
+        self.assertEqual(out["permissionDecision"], "ask")
+        self.assertIn("o/r@aaaaaaaaaaaa", out["permissionDecisionReason"])
 
     def test_a_verdict_is_remembered_per_exact_version(self):
         self.fake.npm("cowsay", {"1.6.0": tgz(fixture_files("clean-project"))})
@@ -166,7 +196,7 @@ class PluginAndLocalTests(GateTestCase):
         config.mkdir(parents=True)
         (config / "known_marketplaces.json").write_text(json.dumps({"m": {"installLocation": str(market)}}))
         out = self.output(self.decide("claude plugin install good@m"))
-        self.assertNotIn("permissionDecision", out)
+        self.assertEqual(out["permissionDecision"], "ask")
         sha = "b" * 40
         self.fake.github("o/r", {"HEAD": sha}, {sha: tgz(fixture_files("risky-mcp-server"), root="r")})
         out = self.output(self.decide("claude plugin install remote@m"))
@@ -181,7 +211,7 @@ class PluginAndLocalTests(GateTestCase):
         app = Path(self.home.name) / "app"
         app.mkdir()
         out = self.output(self.decide("npm install ../sibling", cwd=str(app)))
-        self.assertNotIn("permissionDecision", out)
+        self.assertEqual(out["permissionDecision"], "ask")
 
 
 class ManualScanTests(GateTestCase):

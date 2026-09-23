@@ -71,6 +71,9 @@ class Artifact:
     digest: str         # "sha512-<base64>", "sha256:<hex>" or "" for a commit archive
     kind: str           # "tgz" | "zip"
     subdir: str = ""    # only this folder of a repository is scanned
+    # PyPI only: the release also has wheels other than this file, so an
+    # installer given just the version might choose code Trojaino did not scan.
+    alternatives: bool = False
 
 
 @dataclass
@@ -308,8 +311,13 @@ def resolve_pypi(name: str, spec: str | None) -> Artifact:
         version = max(candidates, key=lambda v: _pep440(v)[0])
         files = releases[version]
     files = [f for f in files if not f.get("yanked")]
+    def py3_pure(filename: str) -> bool:
+        # name-version[-build]-PYTAG-none-any.whl; a py2-only wheel is never chosen by Python 3.
+        parts = filename[:-4].split("-")
+        return (filename.endswith("-none-any.whl") and len(parts) >= 5
+                and any(tag.startswith("py3") for tag in parts[-3].split(".")))
     pure = [f for f in files if f.get("packagetype") == "bdist_wheel"
-            and f.get("filename", "").endswith("-none-any.whl")]
+            and py3_pure(f.get("filename", ""))]
     sdists = [f for f in files if f.get("packagetype") == "sdist"
               and f.get("filename", "").endswith((".tar.gz", ".zip"))]
     wheels = [f for f in files if f.get("packagetype") == "bdist_wheel"]
@@ -326,7 +334,9 @@ def resolve_pypi(name: str, spec: str | None) -> Artifact:
     if not re.fullmatch(r"[0-9a-f]{64}", digest) or not url.startswith("https://files.pythonhosted.org/"):
         raise Unscannable(f"{name} {version} has no verifiable download")
     kind = "tgz" if chosen["filename"].endswith(".tar.gz") else "zip"
-    return Artifact("pypi", name, version, f"{name}=={version}", url, "sha256:" + digest, kind)
+    alternatives = any(f is not chosen for f in wheels)
+    return Artifact("pypi", name, version, f"{name}=={version}", url, "sha256:" + digest, kind,
+                    alternatives=alternatives)
 
 
 def _pkt_lines(data: bytes):

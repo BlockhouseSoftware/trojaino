@@ -1,6 +1,6 @@
 {
   "name": "trojaino",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "displayName": "Trojaino",
   "description": "Install gate for Claude Code. Scans each npm, PyPI, GitHub or plugin source before Claude installs it, pins clean packages to the scanned version, and asks you about anything it cannot clear.",
   "author": {"name": "Blockhouse Software"},
