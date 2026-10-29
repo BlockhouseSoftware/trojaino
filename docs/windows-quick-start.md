@@ -129,6 +129,11 @@ Restart Claude and run `/trojaino:doctor` after updating. If an old prepared plu
 
 ## If something goes wrong
 
+Stop at the failing step. If you ask for help, share the step number and exact error,
+or a screenshot cropped to the error after checking it for private information.
+Do not send settings files, API keys, conversation history or your project files.
+See [what belongs in a small support report](windows-validation.md#a-small-support-report-not-a-machine-dump).
+
 | What you see | What to do |
 | --- | --- |
 | `winget is not recognized` | Open the **Microsoft Store**, search for **Python Install Manager**, click **Get**, then continue from Step 3, number 1. |

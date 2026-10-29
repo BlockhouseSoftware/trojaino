@@ -56,6 +56,8 @@ def inspect_registration(root: Path, cwd: Path) -> list[str]:
     config = Path(os.environ.get('CLAUDE_CONFIG_DIR') or Path.home()/'.claude')
     try:
         installed = _read(config/'plugins/installed_plugins.json')['plugins']
+        if not isinstance(installed, dict):
+            raise ValueError('plugin registration must be an object')
         entries = installed.get(PLUGIN_ID, [])
         if not any(Path(e['installPath']).resolve() == root.resolve()
                    and e.get('version') == __version__ for e in entries):
@@ -72,6 +74,8 @@ def inspect_registration(root: Path, cwd: Path) -> list[str]:
             continue
         try:
             settings = _read(path)
+            if not isinstance(settings, dict) or not isinstance(settings.get('enabledPlugins', {}), dict):
+                raise ValueError('settings and enabledPlugins must be objects')
             if PLUGIN_ID in settings.get('enabledPlugins', {}):
                 enabled = settings['enabledPlugins'][PLUGIN_ID] is True
             for key, value in settings.get('enabledPlugins', {}).items():
@@ -106,14 +110,18 @@ def check(entry: str | None = None) -> dict:
                'Update Claude Code to ' + MIN_CLAUDE_VERSION + ' or newer and restart it.')
     except (OSError, ValueError, IndexError, subprocess.TimeoutExpired):
         record('Claude Code version', False, 'Claude Code could not be located. Check its installation and PATH.')
+    integrity_ok = False
     try:
         inventory = _read(root/'integrity.json')
+        if not isinstance(inventory, dict) or not isinstance(inventory.get('files'), dict):
+            raise ValueError('integrity inventory must contain a file object')
         valid = inventory['version'] == __version__ and bool(inventory['files'])
         for name, digest in inventory['files'].items():
             path = root/name
             valid = valid and not path.is_symlink() and path.resolve().is_relative_to(root.resolve())
             valid = valid and path.stat().st_size < 2_000_000 and hashlib.sha256(path.read_bytes()).hexdigest() == digest
-        record('Packaged file integrity', valid, 'The plugin files differ from their packaged manifest. Reinstall Trojaino.')
+        integrity_ok = bool(valid)
+        record('Packaged file integrity', integrity_ok, 'The plugin files differ from their packaged manifest. Reinstall Trojaino.')
     except (OSError, ValueError, KeyError, TypeError):
         record('Packaged file integrity', False, 'Plugin integrity could not be checked. Reinstall Trojaino.')
     registration = inspect_registration(root, Path.cwd())
@@ -121,6 +129,8 @@ def check(entry: str | None = None) -> dict:
     # Exercise the exact hook commands from the installed payload. The fixture
     # is only text; its lifecycle script is never executed or installed.
     try:
+        if not integrity_ok:
+            raise ValueError('unverified package must not execute hook commands')
         hooks = _read(root/'hooks/hooks.json')['hooks']
         with tempfile.TemporaryDirectory(prefix='trojaino-doctor-') as tmp:
             fixture = Path(tmp)/'fixture'
@@ -139,7 +149,9 @@ def check(entry: str | None = None) -> dict:
                 ok = ok and (out.get('permissionDecision') == 'deny' if command else 'install gate is active' in out.get('additionalContext',''))
                 record(event + ' execution', ok, event + ' did not respond correctly. Reinstall Trojaino and check Python.')
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
-        record('Hook execution', False, 'The installed hooks could not run. Check Python and Git Bash (on Windows), then reinstall Trojaino.')
+        record('Hook execution', False,
+               'Hook execution was skipped because plugin integrity failed. Reinstall Trojaino.' if not integrity_ok else
+               'The installed hooks could not run. Check Python and Git Bash (on Windows), then reinstall Trojaino.')
     return {'status':'Ready' if not problems else 'Needs attention','version':__version__,
             'checks':checks,'actions':problems,
             'scope':'Offline check of this installation and readable settings. Restart Claude after changes; organizational policy may override local settings.'}

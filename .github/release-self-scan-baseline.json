@@ -4,8 +4,8 @@
       "id": "CI_SECRET_REFERENCE",
       "severity": "medium",
       "file": ".github/workflows/install-gate.yml",
-      "line": 114,
-      "fingerprint": "c6d6a7105cbbc182f615bef4",
+      "line": 118,
+      "fingerprint": "c949e1ea6ddae15648cbdc30",
       "review": "The live install-gate job passes ANTHROPIC_API_KEY to Claude Code so a real session can exercise the plugin. GitHub withholds repository secrets from pull requests opened from forks, and the job is skipped when the key is absent."
     },
     {
@@ -77,11 +77,11 @@
     },
     {
       "file": "plugins/trojaino/integrity.json",
-      "sha256": "7a2a3c15a6c75ec7807299c5577a1b3db4917fb7759b83a9834d17b1b5c486e0"
+      "sha256": "3411bb985743dd9d150878efc0b75ce2fd98be940e163081a93886f846d070eb"
     },
     {
       "file": "plugins/trojaino/scripts/launch.ps1",
-      "sha256": "377c429f7e3598cd9c9b2e4c40fa10e27763f64aeae9b3eb8549779e50598b53"
+      "sha256": "e3f1302b267b86bb46134c3411052ea0a8f0d75c82993bb80d599b2e1aa0af86"
     },
     {
       "file": "plugins/trojaino/scripts/launch.sh",
@@ -89,7 +89,7 @@
     },
     {
       "file": "plugins/trojaino/scripts/preflight.py",
-      "sha256": "ce1250fcaf87aa5c6a5a3b9bae757bfe68883dff62b89e0d6aeac9c37a235b52"
+      "sha256": "1f0041b4750e82a96ed1302fc8a86da218424242bac846c611a212113143ef79"
     },
     {
       "file": "plugins/trojaino/skills/doctor/SKILL.md",
@@ -149,7 +149,7 @@
     },
     {
       "file": "scripts/smoke_plugin_install.py",
-      "sha256": "d54fcd6ec54b0ecb05c9db334b7d83f7cfb09101bbe09cba1b43a2b58eb8a98f"
+      "sha256": "082c3e17042522df46cef03c4b89009a1a30d9ad44ca41ddff09715c8e5fa521"
     },
     {
       "file": "scripts/verify_distribution.py",
@@ -193,7 +193,7 @@
     },
     {
       "file": "trojaino/claude/payload/launch.ps1",
-      "sha256": "377c429f7e3598cd9c9b2e4c40fa10e27763f64aeae9b3eb8549779e50598b53"
+      "sha256": "e3f1302b267b86bb46134c3411052ea0a8f0d75c82993bb80d599b2e1aa0af86"
     },
     {
       "file": "trojaino/claude/payload/launch.sh",
@@ -229,7 +229,7 @@
     },
     {
       "file": "trojaino/doctor.py",
-      "sha256": "66f2d3e25c846effd7450a5c8c1dedfe84ec8fe5f43ad51d68f8f719658d8a76"
+      "sha256": "9b255fffa4e37e83bf5597f13e50e2f8a86adbbac81efae087be0dd664a63c19"
     },
     {
       "file": "trojaino/file_utils.py",
