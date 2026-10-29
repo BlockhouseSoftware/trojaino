@@ -1,0 +1,26 @@
+name: Windows 11 standard-account qualification
+on:
+  push:
+    branches: ["ci/windows11-standard-user"]
+    paths:
+      - ".github/workflows/windows-standard-user.yml"
+      - "scripts/windows_standard_user*.ps1"
+      - "tests/test_standard_user_workflow.py"
+permissions:
+  contents: read
+jobs:
+  standard-user:
+    runs-on: windows-11-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+          architecture: arm64
+      - name: Qualify exact PR59 candidate under a fresh standard account
+        shell: pwsh
+        run: ./scripts/windows_standard_user.ps1 -CandidateSha 561bc6c9cf10ebab676320549a5a07f62395366e
