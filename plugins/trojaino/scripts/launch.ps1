@@ -14,11 +14,16 @@ $eventInput = if ($operation -eq 'hook') { [Console]::In.ReadToEnd() } else { $n
 $problem = 'Python was not found on PATH.'
 foreach ($name in @('python3.exe', 'python.exe')) {
     # Missing executable lookup must not discover/autoload unrelated modules.
-    # Scope this preference so JSON diagnostics can still load their cmdlets.
-    $candidate = & {
+    # Save/restore in this scope: a child scriptblock preference does not bound
+    # Windows command discovery. JSON diagnostics still need normal autoload.
+    $savedModuleAutoLoadingPreference = $PSModuleAutoLoadingPreference
+    try {
         $PSModuleAutoLoadingPreference = 'None'
-        Get-Command $name -CommandType Application -ErrorAction SilentlyContinue
-    } | Select-Object -First 1
+        $candidate = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue
+    } finally {
+        $PSModuleAutoLoadingPreference = $savedModuleAutoLoadingPreference
+    }
+    $candidate = $candidate | Select-Object -First 1
     if (-not $candidate) { continue }
     $probe = [System.Diagnostics.Process]::new()
     $probe.StartInfo = [System.Diagnostics.ProcessStartInfo]::new()

@@ -77,11 +77,11 @@
     },
     {
       "file": "plugins/trojaino/integrity.json",
-      "sha256": "82f905ee0b80853635cf2e1a116674a5e67c911f860f0b4e73f7ea937ec8b6f8"
+      "sha256": "3411bb985743dd9d150878efc0b75ce2fd98be940e163081a93886f846d070eb"
     },
     {
       "file": "plugins/trojaino/scripts/launch.ps1",
-      "sha256": "ed05793076bacafefecd03bacbf3ea14e0115345b32e43d95b769e87574b5191"
+      "sha256": "e3f1302b267b86bb46134c3411052ea0a8f0d75c82993bb80d599b2e1aa0af86"
     },
     {
       "file": "plugins/trojaino/scripts/launch.sh",
@@ -193,7 +193,7 @@
     },
     {
       "file": "trojaino/claude/payload/launch.ps1",
-      "sha256": "ed05793076bacafefecd03bacbf3ea14e0115345b32e43d95b769e87574b5191"
+      "sha256": "e3f1302b267b86bb46134c3411052ea0a8f0d75c82993bb80d599b2e1aa0af86"
     },
     {
       "file": "trojaino/claude/payload/launch.sh",

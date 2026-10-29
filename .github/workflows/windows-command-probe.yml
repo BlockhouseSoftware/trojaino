@@ -5,6 +5,7 @@ on:
     paths:
       - "tests/native_command_lookup_probe.py"
       - ".github/workflows/windows-command-probe.yml"
+      - "trojaino/claude/payload/launch.ps1"
 permissions:
   contents: read
 jobs:

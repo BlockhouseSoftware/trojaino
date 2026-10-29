@@ -24,9 +24,15 @@ Record the workflow run, full tested commit SHA, OS/runner image, actual Claude 
 
 The unit, plugin, standalone executable and installer jobs test different artifacts. Read the failed step: a release self-scan failure is not a failed unit test. Changes to shipped source require reviewed inventory updates; do not suppress scanner findings to obtain green CI.
 
+## Supplemental Windows 11 ARM checks
+
+Manual runs also include a **Windows 11 ARM platform / model-free** job. It checks the actual Windows client product type and caption, OS architecture and Python runtime architecture before running the unit suite and candidate plugin-manager checks. With `public_install` selected, it also checks the published release. It records the candidate commit and runtime versions without starting an authenticated model session.
+
+This supplements the default Windows Server x64 jobs; it does not establish Windows 11 x64 equivalence or ordinary-user usability. A failure here must remain visible even when the Server jobs pass. Interpreter-absence cases are particularly important: successful installation on a preprovisioned runner does not test recovery on a machine without Python.
+
 ## What hosted Windows does not prove
 
-The workflow's Windows runner is not proof of an ordinary Windows 11 desktop journey. These remain separate checks:
+Neither the default Server jobs nor the supplemental Windows 11 ARM job proves an ordinary Windows 11 desktop journey. These remain separate checks:
 
 - Installing prerequisites with the real Windows installation tools, without administrator elevation or developer provisioning.
 - Store aliases and PATH refresh after installation; opening a genuinely new terminal.
