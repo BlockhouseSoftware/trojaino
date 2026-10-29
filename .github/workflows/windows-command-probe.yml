@@ -25,3 +25,5 @@ jobs:
           architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
       - name: Observe absent-command lookup without changing product code
         run: python tests/native_command_lookup_probe.py
+      - name: Verify actual launcher regression on this Windows platform
+        run: python -m unittest discover -s tests -p test_native_launcher.py -v

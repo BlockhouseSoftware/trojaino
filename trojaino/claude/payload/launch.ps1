@@ -13,7 +13,12 @@ $operation = if ($Mode -eq 'doctor') { 'doctor' } else { 'hook' }
 $eventInput = if ($operation -eq 'hook') { [Console]::In.ReadToEnd() } else { $null }
 $problem = 'Python was not found on PATH.'
 foreach ($name in @('python3.exe', 'python.exe')) {
-    $candidate = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    # Missing executable lookup must not discover/autoload unrelated modules.
+    # Scope this preference so JSON diagnostics can still load their cmdlets.
+    $candidate = & {
+        $PSModuleAutoLoadingPreference = 'None'
+        Get-Command $name -CommandType Application -ErrorAction SilentlyContinue
+    } | Select-Object -First 1
     if (-not $candidate) { continue }
     $probe = [System.Diagnostics.Process]::new()
     $probe.StartInfo = [System.Diagnostics.ProcessStartInfo]::new()
