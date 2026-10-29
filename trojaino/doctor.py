@@ -56,6 +56,8 @@ def inspect_registration(root: Path, cwd: Path) -> list[str]:
     config = Path(os.environ.get('CLAUDE_CONFIG_DIR') or Path.home()/'.claude')
     try:
         installed = _read(config/'plugins/installed_plugins.json')['plugins']
+        if not isinstance(installed, dict):
+            raise ValueError('plugin registration must be an object')
         entries = installed.get(PLUGIN_ID, [])
         if not any(Path(e['installPath']).resolve() == root.resolve()
                    and e.get('version') == __version__ for e in entries):
@@ -72,6 +74,8 @@ def inspect_registration(root: Path, cwd: Path) -> list[str]:
             continue
         try:
             settings = _read(path)
+            if not isinstance(settings, dict) or not isinstance(settings.get('enabledPlugins', {}), dict):
+                raise ValueError('settings and enabledPlugins must be objects')
             if PLUGIN_ID in settings.get('enabledPlugins', {}):
                 enabled = settings['enabledPlugins'][PLUGIN_ID] is True
             for key, value in settings.get('enabledPlugins', {}).items():

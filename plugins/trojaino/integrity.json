@@ -6,7 +6,7 @@
     "hooks/hooks.json": "3b0feacea9726f76454a7cf0e061a231ddc7770be0240b7147219d5698fe8173",
     "scripts/launch.ps1": "377c429f7e3598cd9c9b2e4c40fa10e27763f64aeae9b3eb8549779e50598b53",
     "scripts/launch.sh": "16457373555c19783cd7b00339987f236e74b61214b7005754eb62305c93aff6",
-    "scripts/preflight.py": "ce1250fcaf87aa5c6a5a3b9bae757bfe68883dff62b89e0d6aeac9c37a235b52",
+    "scripts/preflight.py": "e3c696a22d064cea44ca60194b532b249bc0676cd99e6caaee9b32fe5a04148b",
     "skills/doctor/SKILL.md": "c4824176334d10f82ecebd5729c9d1b82a5f32ca9447270c944762065fe8a257",
     "skills/scan/SKILL.md": "25d5f62840ce559a7229aced0fdf27ae947f8b4d1b85947abbe3af5bb756141f"
   }

@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      run_live:
+        description: Run billable authenticated Claude sessions (requires explicit approval)
+        type: boolean
+        default: false
       public_install:
         description: Verify the public catalog after promoting this release
         type: boolean
@@ -113,11 +117,9 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       PYTHONUTF8: "1"
-    # Manual only (Actions -> Install gate -> Run workflow, on the branch to
-    # verify): every push, real Claude sessions cost real money, so this does
-    # not run on push or pull_request. Trigger it once, on what you believe is
-    # the final commit before merging.
-    if: github.event_name == 'workflow_dispatch'
+    # Manual and separately opted in: ordinary platform/public-catalog diagnostics
+    # must not launch billable model sessions. Enable run_live only after approval.
+    if: github.event_name == 'workflow_dispatch' && inputs.run_live
     steps:
       - name: Skip without an API key
         if: env.ANTHROPIC_API_KEY == ''
