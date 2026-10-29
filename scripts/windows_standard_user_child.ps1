@@ -1,11 +1,24 @@
 # Executed only in the disposable standard account created by the CI parent.
 param([string]$Root, [string]$Python, [ValidatePattern('^[0-9a-f]{40}$')][string]$CandidateSha, [string]$ExpectedSid)
 $ErrorActionPreference = 'Stop'
+function Assert-ExpectedIdentity($Identity, [string]$Sid) {
+    if ($Identity.User.Value -ne $Sid) { throw 'Fixture identity mismatch' }
+}
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+try {
+    Assert-ExpectedIdentity $identity 'S-1-0-0'
+    throw 'Wrong account SID was accepted'
+} catch {
+    if ($_.Exception.Message -ne 'Fixture identity mismatch') { throw }
+}
+Assert-ExpectedIdentity $identity $ExpectedSid
+Write-Output 'STANDARD_USER mismatched SID rejection PASS'
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 $admin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $adminGroup = @($identity.Groups | Where-Object { $_.Value -eq 'S-1-5-32-544' }).Count -gt 0
-if ($identity.User.Value -ne $ExpectedSid -or $admin -or $adminGroup) { throw 'Child must be the new standard account, not a filtered administrator' }
+if ($admin -or $adminGroup) { throw 'Child must be the new standard account, not a filtered administrator' }
+if (@(Get-ChildItem Env: | Where-Object { $_.Name -match '^(ANTHROPIC|OPENAI|CLAUDE_API|AWS_|AZURE_|GOOGLE_|GITHUB_|GH_|ACTIONS_)' }).Count) { throw 'Credential or runner environment leaked into child' }
+if ($env:TROJAINO_CANDIDATE_SHA -cne $CandidateSha) { throw 'Candidate SHA environment mismatch' }
 $profile = [Environment]::GetFolderPath('UserProfile')
 $registered = (Get-ItemProperty -LiteralPath ("HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\" + $ExpectedSid)).ProfileImagePath
 if (-not $profile -or $profile -ne [Environment]::ExpandEnvironmentVariables($registered)) { throw 'Loaded OS profile does not match fixture account' }
@@ -35,11 +48,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Non-admin native launcher regression failed' }
 # Pin the CLI already qualified by PR59; installation is user-scoped, no elevation.
 & npm.cmd install --global --prefix $prefix '@anthropic-ai/claude-code@2.1.312' --no-audit --no-fund
 if ($LASTEXITCODE -ne 0) { throw 'User-scoped Claude CLI installation failed' }
-$claudePath = (Get-Command claude.cmd -CommandType Application).Source
+$claudePath = (Get-Command claude.cmd -CommandType Application | Select-Object -First 1).Source
 if ($claudePath -ne (Join-Path $prefix 'claude.cmd')) { throw 'Claude CLI was not installed in this account' }
 & claude.cmd --version
 if ($LASTEXITCODE -ne 0) { throw 'User-scoped Claude CLI failed to start' }
-# Existing model-free harness exercises install/update, doctor, actual hooks,
+# Existing model-free harness exercises exact-SHA install, doctor, actual hooks,
 # disable/re-enable/uninstall and settings preservation, in this standard token.
 & $Python scripts/smoke_plugin_install.py --candidate-git
 $lifecycleExit = $LASTEXITCODE

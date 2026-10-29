@@ -6,14 +6,39 @@ $os = Get-CimInstance Win32_OperatingSystem
 if ($os.ProductType -ne 1 -or $os.Caption -notmatch 'Windows 11') { throw 'Windows 11 client required' }
 $parentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not ([Security.Principal.WindowsPrincipal]::new($parentIdentity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Fixture provisioning requires runner administrator' }
+function Read-BoundedOutput([Threading.Tasks.Task[string]]$Task, [int]$TimeoutMs = 10000) {
+    if (-not $Task.Wait($TimeoutMs)) { throw 'Captured output did not close within its deadline' }
+    return $Task.GetAwaiter().GetResult()
+}
+# Exercise both output-boundary outcomes without creating a process.
+$pendingOutput = [Threading.Tasks.TaskCompletionSource[string]]::new()
+try {
+    [void](Read-BoundedOutput $pendingOutput.Task 10)
+    throw 'An unclosed output stream was incorrectly accepted'
+} catch {
+    if ($_.Exception.Message -ne 'Captured output did not close within its deadline') { throw }
+}
+$pendingOutput.SetResult('capture-fixture')
+if ((Read-BoundedOutput $pendingOutput.Task 100) -ne 'capture-fixture') { throw 'Completed output was not preserved' }
+Write-Output 'STANDARD_USER capture deadline self-test PASS'
 $repo = Split-Path $PSScriptRoot
+# The real elevated token must be rejected before profile/filesystem operations.
+try {
+    & (Join-Path $PSScriptRoot 'windows_standard_user_child.ps1') -CandidateSha $CandidateSha -ExpectedSid $parentIdentity.User.Value
+    throw 'Elevated account was incorrectly accepted'
+} catch {
+    if ($_.Exception.Message -ne 'Child must be the new standard account, not a filtered administrator') { throw }
+}
+Write-Output 'STANDARD_USER elevated-token rejection PASS'
 $userName = 'tjstd_' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
 $root = Join-Path $env:PUBLIC ('TrojainoStandard-' + [Guid]::NewGuid().ToString('N'))
 [void](New-Item -ItemType Directory -Path $root)
 $securePassword = ConvertTo-SecureString ([Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) + 'aA1!') -AsPlainText -Force
 $user = $null
 $process = $null
-$stopped = $true
+# This records only root exit, never descendant quiescence. The 15-minute
+# hosted-job timeout and disposable runner teardown own any remaining processes.
+$rootExited = $true
 try {
     $user = New-LocalUser -Name $userName -Password $securePassword -AccountNeverExpires -PasswordNeverExpires -Description 'Ephemeral Trojaino CI fixture'
     Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $user
@@ -25,9 +50,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Exact candidate archive failed' }
     Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $root 'source')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'windows_standard_user_child.ps1') -Destination (Join-Path $root 'child.ps1')
-    $python = (Get-Command python -CommandType Application).Source
-    $nodeDir = Split-Path (Get-Command node -CommandType Application).Source
-    $gitDir = Split-Path (Get-Command git -CommandType Application).Source
+    $python = (Get-Command python -CommandType Application | Select-Object -First 1).Source
+    $nodeDir = Split-Path (Get-Command node -CommandType Application | Select-Object -First 1).Source
+    $gitDir = Split-Path (Get-Command git -CommandType Application | Select-Object -First 1).Source
     $gitRoot = Split-Path $gitDir
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -53,29 +78,33 @@ try {
     $info.EnvironmentVariables['TROJAINO_CANDIDATE_SHA'] = $CandidateSha
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $info
-    $stopped = $false
+    $rootExited = $false
     if (-not $process.Start()) { throw 'Standard-account process did not start' }
     $process.StandardInput.Close()
     $stdout = $process.StandardOutput.ReadToEndAsync()
     $stderr = $process.StandardError.ReadToEndAsync()
     if (-not $process.WaitForExit(600000)) {
         $process.Kill($true)
-        $stopped = $process.WaitForExit(10000)
+        $rootExited = $process.WaitForExit(10000)
         throw 'Standard-account lifecycle timed out'
     }
-    $stopped = $true
-    Write-Output $stdout.GetAwaiter().GetResult()
-    Write-Output $stderr.GetAwaiter().GetResult()
+    $rootExited = $true
+    Write-Output (Read-BoundedOutput $stdout)
+    Write-Output (Read-BoundedOutput $stderr)
     if ($process.ExitCode -ne 0) { throw "Standard-account child failed with exit $($process.ExitCode)" }
     $report = Get-Content -Raw -LiteralPath (Join-Path $root 'result.json') | ConvertFrom-Json
     if ($report.candidate_sha -ne $CandidateSha -or $report.sid -ne $user.SID.Value -or $report.admin_role -ne $false -or $report.admin_group_present -ne $false -or $report.lifecycle_exit -ne 0) { throw 'Standard-account evidence mismatch' }
     $report | ConvertTo-Json -Compress
 } finally {
-    if ($process -and -not $stopped) {
-        try { $process.Kill($true); $stopped = $process.WaitForExit(10000) } catch { Write-Warning 'Process stop uncertain; retaining fixture until runner teardown' }
+    if ($process -and -not $rootExited) {
+        try { $process.Kill($true); $rootExited = $process.WaitForExit(10000) } catch { Write-Warning 'Process stop uncertain; retaining fixture until runner teardown' }
     }
     if ($process) { $process.Dispose() }
-    if ($user -and $stopped) { Remove-LocalUser -SID $user.SID }
+    if ($user -and $rootExited) {
+        Remove-LocalUser -SID $user.SID
+        if (Get-LocalUser -SID $user.SID -ErrorAction SilentlyContinue) { throw 'Fixture account removal was not confirmed' }
+        Write-Output 'STANDARD_USER account removal verified (runner teardown owns remaining profile/process resources)'
+    }
     $securePassword.Dispose()
     # Disposable runner teardown owns profile/files; never delete uncertain trees.
 }
