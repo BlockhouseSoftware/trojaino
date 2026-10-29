@@ -164,3 +164,61 @@ jobs:
         if: env.ANTHROPIC_API_KEY != ''
         shell: bash
         run: python scripts/live_gate_check.py
+
+  windows11-arm-smoke:
+    # Supplemental OS evidence, not x64 or ordinary-user/visual acceptance.
+    # Standard public-repository runner; no model sessions or API credentials.
+    name: Windows 11 ARM platform / model-free
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-11-arm
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+          architecture: arm64
+      - name: Verify Windows client and native ARM Python
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $os = Get-CimInstance Win32_OperatingSystem
+          $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+          if ($os.ProductType -ne 1 -or $os.Caption -notmatch 'Windows 11' -or $arch -ne 'Arm64') {
+            throw 'This probe requires Windows 11 client on ARM64, not Server or emulated x64 OS evidence'
+          }
+          [ordered]@{sha=$env:GITHUB_SHA; caption=$os.Caption; version=$os.Version; architecture=$arch; qualification='hosted Windows11 ARM only; not x64 or human installation acceptance'} | ConvertTo-Json -Compress
+          python -c "import platform,sys; print({'python':sys.version.split()[0],'machine':platform.machine()}); assert platform.machine().lower()=='arm64'"
+          if ($LASTEXITCODE -ne 0) { throw 'Python is not native ARM64' }
+          $python = (Get-Command python).Source
+          $alias = Join-Path (Split-Path $python) 'python3.exe'
+          if (-not (Test-Path $alias)) { Copy-Item $python $alias }
+      - name: Run unit tests on Windows 11 ARM
+        run: |
+          python -m pip install . -r requirements/test.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Test dependency installation failed' }
+          python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { throw 'Windows11 unit tests failed' }
+      - name: Install Claude CLI without starting a model session
+        run: |
+          npm install -g @anthropic-ai/claude-code@latest
+          if ($LASTEXITCODE -ne 0) { throw 'Claude CLI installation failed' }
+          claude --version
+          if ($LASTEXITCODE -ne 0) { throw 'Claude CLI version probe failed' }
+          node -p "JSON.stringify({node:process.version,architecture:process.arch})"
+          if ($LASTEXITCODE -ne 0) { throw 'Node architecture probe failed' }
+      - name: Exercise Windows 11 candidate lifecycle
+        env:
+          TROJAINO_CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          python scripts/smoke_plugin_install.py --candidate-git
+          if ($LASTEXITCODE -ne 0) { throw 'Windows11 candidate lifecycle failed' }
+      - name: Exercise Windows 11 public release lifecycle
+        if: inputs.public_install
+        run: |
+          python scripts/smoke_plugin_install.py --public
+          if ($LASTEXITCODE -ne 0) { throw 'Windows11 public lifecycle failed' }

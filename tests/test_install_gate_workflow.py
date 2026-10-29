@@ -21,8 +21,22 @@ class InstallGateWorkflowTests(unittest.TestCase):
                 self.assertIn('        type: boolean\n', body)
                 self.assertIn('        default: false\n', body)
 
+    def test_windows11_probe_is_manual_model_free_and_architecture_checked(self):
+        marker = '\n  windows11-arm-smoke:\n'
+        self.assertIn(marker, self.workflow, 'missing actual Windows11 platform probe')
+        job = self.workflow.split(marker, 1)[1]
+        self.assertIn('    runs-on: windows-11-arm\n', job)
+        self.assertIn("    if: github.event_name == 'workflow_dispatch'\n", job)
+        self.assertIn('          architecture: arm64\n', job)
+        self.assertIn('ProductType', job)
+        self.assertIn('OSArchitecture', job)
+        self.assertIn('platform.machine()', job)
+        self.assertIn('python scripts/smoke_plugin_install.py --candidate-git', job)
+        self.assertNotIn('secrets.', job)
+        self.assertNotIn('live_gate_check.py', job)
+
     def test_live_job_requires_separate_explicit_opt_in(self):
-        live = self.workflow.split('\n  live:\n', 1)[1]
+        live = self.workflow.split('\n  live:\n', 1)[1].split('\n  windows11-arm-smoke:\n', 1)[0]
         conditions = re.findall(r'^    if: (.+)$', live, re.MULTILINE)
         self.assertEqual(conditions, ["github.event_name == 'workflow_dispatch' && inputs.run_live"],
                          'ordinary manual diagnostics must not launch billable Claude sessions')
